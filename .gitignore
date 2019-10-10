@@ -38,3 +38,6 @@ out
 
 # Vim
 *.swp
+
+# MacMeta
+.DS_Store
