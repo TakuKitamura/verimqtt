@@ -2,14 +2,15 @@ module Main
 
 module B = LowStar.Buffer
 module M = LowStar.Modifies
-module U32 = FStar.UInt32
+module HS = FStar.HyperStack
+module ST = FStar.HyperStack.ST
+// module U32 = FStar.UInt32
 
 open FStar.HyperStack.ST
 open LowStar.BufferOps
 open LowStar.Printf
+open FStar.Int.Cast
 
-module HS = FStar.HyperStack
-module ST = FStar.HyperStack.ST
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
@@ -88,33 +89,63 @@ assume val extern_print_hex (i: U8.t{ 0 <= U8.v i /\ U8.v i <= 255}): Stack unit
   (ensures (fun h0 ret h1 -> true))
 
 // ex. 0xab -> 0x0a TODO: rの定義域を追加
-val get_most_significant_four_bit: i:U8.t -> r:U8.t
-let get_most_significant_four_bit i = U8.shift_right i 4ul
+val get_most_significant_four_bit_for_one_byte: i:U8.t -> r:U8.t
+let get_most_significant_four_bit_for_one_byte i = U8.shift_right i 4ul
 
 // ex. 0xab -> 0x0b TODO: rの定義域を追加
-val get_least_significant_four_bit: i:U8.t -> r:U8.t
-let get_least_significant_four_bit i = U8.logand i 0x0fuy
+val get_least_significant_four_bit_for_one_byte: i:U8.t -> r:U8.t
+let get_least_significant_four_bit_for_one_byte i = U8.logand i 0x0fuy
 
-type data_struct = { r: UInt8.t; g: UInt8.t; }
+// ex. 0b1010 -> 0b0001 TODO: rの定義域を追加
+val get_most_significant_four_bit_for_four_bit: i:U8.t -> r:U8.t
+let get_most_significant_four_bit_for_four_bit i = U8.shift_right i 3ul
+
+// ex. 0b1010 -> 0b0000 TODO: rの定義域を追加
+val get_least_significant_four_bit_for_four_bit: i:U8.t -> r:U8.t
+let get_least_significant_four_bit_for_four_bit i = U8.logand i 0x01uy
+
+// ex. 0b1010 -> 0b0000 TODO: rの定義域を追加
+val get_center_two_bit_for_four_bit: i:U8.t -> r:U8.t
+let get_center_two_bit_for_four_bit i = U8.shift_right (U8.logand i 0x06uy) 1ul 
+
+type data_struct = {
+  message_flag: U8.t;
+  dup_flag: U8.t;
+  qos_flag: U8.t;
+  retain_flag: U8.t;
+}
 
 val bytes_loop: src:B.buffer U8.t -> len:U32.t -> Stack data_struct
   (requires fun h0 -> B.live h0 src /\ B.length src = U32.v len )
   (ensures fun _ _ _ -> true)
 let bytes_loop src len =
-  let inv h (i: nat) = B.live h src in
+  push_frame ();
+  let ptr_message_flag = B.alloca 0ul 1ul in
+  let ptr_flags = B.alloca 0ul 1ul in
+  let inv h (i: nat) = B.live h src /\ B.live h ptr_message_flag /\ B.live h ptr_flags in
   let body (i: U32.t{ 0 <= U32.v i /\ U32.v i < U32.v len }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
     let oneByte : U8.t = src.(i) in
-      let most_significant_four_bit = get_most_significant_four_bit in 
-      let least_significant_four_bit = get_least_significant_four_bit in 
-      extern_print_hex (oneByte);
-      extern_print_hex (get_most_significant_four_bit oneByte);
-      extern_print_hex (get_least_significant_four_bit oneByte)
+      if (i = 0ul) then
+          (
+            ptr_message_flag.(0ul) <- uint8_to_uint32 (get_most_significant_four_bit_for_one_byte oneByte);
+            ptr_flags.(0ul) <- uint8_to_uint32 (get_least_significant_four_bit_for_one_byte oneByte)
+          )
   in
-  let data: data_struct = { r = 77uy; g = 0uy } in
   C.Loops.for 0ul len inv body;
+  let message_flag_u32: U32.t = ptr_message_flag.(0ul) in
+  let message_flag_u8: U8.t = uint32_to_uint8 message_flag_u32 in
+  let flags_u32: U32.t = ptr_flags.(0ul) in
+  let flags_u8: U8.t = uint32_to_uint8 flags_u32 in
+  let data: data_struct = {
+    message_flag = message_flag_u8;
+    dup_flag = get_most_significant_four_bit_for_four_bit flags_u8;
+    qos_flag = get_center_two_bit_for_four_bit flags_u8;
+    retain_flag = get_least_significant_four_bit_for_four_bit flags_u8;
+  } in
+  pop_frame ();
   (* return *) data
 
 val parse (request: B.buffer U8.t) (len: U32.t):

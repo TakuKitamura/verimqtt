@@ -30,6 +30,9 @@ int main(int argc, char *argv[]) {
     
     data_struct data = parse(request, size);
 
-    printf("r=%uy\n", data.r);
+    printf("message_flag=%04x\n", data.message_flag);
+    printf("dup_flag=%01x\n", data.dup_flag);
+    printf("qos_flag=%02x\n", data.qos_flag);
+    printf("retain_flag=%01x\n", data.retain_flag);
     return 0;
 }
