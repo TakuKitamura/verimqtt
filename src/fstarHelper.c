@@ -3,6 +3,6 @@
 #include "Main.h"
 
 // debug
-void print_hex(uint8_t i) {
+void extern_print_hex(uint8_t i) {
   printf("%02x\n", i);
 }
