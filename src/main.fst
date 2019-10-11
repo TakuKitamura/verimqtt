@@ -13,6 +13,12 @@ module ST = FStar.HyperStack.ST
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
+// debug tool
+assume val print_hex (i: U8.t{ 0 <= U8.v i /\ U8.v i <= 255}): Stack unit
+  (requires (fun h -> true))
+  (ensures (fun h0 ret h1 -> true))
+// ---
+
 val normal_loop: src:B.buffer U8.t -> len:U32.t -> Stack C.exit_code
   (requires fun h0 -> B.live h0 src /\ B.length src = U32.v len )
   (ensures fun _ _ _ -> true)
@@ -23,8 +29,7 @@ let normal_loop src len =
     (ensures (fun _ _ _ -> true))
   =
     let v : U8.t = src.(i) in
-    print_u8 v;
-    print_string "\n" // TODO: 後で消す
+      print_hex v
   in
   C.Loops.for 0ul len inv body;
   (* return *) C.EXIT_SUCCESS
