@@ -35,6 +35,7 @@ let define_mqtt_control_packet_PINGRESP : type_mqtt_control_packets = 13uy
 let define_mqtt_control_packet_DISCONNECT : type_mqtt_control_packets = 14uy
 let define_mqtt_control_packet_AUTH : type_mqtt_control_packets = 15uy
 
+
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
 // 2.1.3 Flags
 // Table 2‑2 Flag Bits
@@ -42,7 +43,7 @@ type type_flags = U8.t // Base 2
 
 let define_flag_CONNECT : type_flags = 0b0000uy
 let define_flag_CONNACK : type_flags = 0b0000uy 
-// PUBLISH は下記に記述
+// PUBLISH のフラグは下記に記述
 let define_flag_PUBACK : type_flags = 0b0000uy
 let define_flag_PUBREC : type_flags = 0b0000uy
 let define_flag_PUBREL : type_flags = 0b0010uy
@@ -94,7 +95,9 @@ let get_most_significant_four_bit i = U8.shift_right i 4ul
 val get_least_significant_four_bit: i:U8.t -> r:U8.t
 let get_least_significant_four_bit i = U8.logand i 0x0fuy
 
-val bytes_loop: src:B.buffer U8.t -> len:U32.t -> Stack C.exit_code
+type data_struct = { r: UInt8.t; g: UInt8.t; }
+
+val bytes_loop: src:B.buffer U8.t -> len:U32.t -> Stack data_struct
   (requires fun h0 -> B.live h0 src /\ B.length src = U32.v len )
   (ensures fun _ _ _ -> true)
 let bytes_loop src len =
@@ -110,11 +113,12 @@ let bytes_loop src len =
       extern_print_hex (get_most_significant_four_bit oneByte);
       extern_print_hex (get_least_significant_four_bit oneByte)
   in
+  let data: data_struct = { r = 77uy; g = 0uy } in
   C.Loops.for 0ul len inv body;
-  (* return *) C.EXIT_SUCCESS
+  (* return *) data
 
 val parse (request: B.buffer U8.t) (len: U32.t):
-  Stack C.exit_code 
+  Stack data_struct 
     (requires (fun h ->
       B.live h request /\
       B.length request = U32.v len  ))
@@ -123,6 +127,6 @@ val parse (request: B.buffer U8.t) (len: U32.t):
 
 let parse request len =
     push_frame ();
-    let r = bytes_loop request len in
+    let data = bytes_loop request len in
     pop_frame ();
-    C.EXIT_SUCCESS
+    data
