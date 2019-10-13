@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     char *fname = "publishMessagePacket.bin";
     uint8_t request[10000];
     uint32_t  i;
-    uint32_t size;
+    uint32_t tcp_payloadd = 25ul;
     // data_struct data;
 
     fp = fopen(fname, "rb");
@@ -25,14 +25,15 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    size = fread( request, sizeof( unsigned char ), 10000, fp );
+    fread(request, sizeof(uint8_t), sizeof(request), fp);
     fclose(fp);
     
-    data_struct data = parse(request, size);
+    struct_fixed_header data = parse(request, tcp_payloadd);
 
-    printf("message_flag=%04x\n", data.message_flag);
+    printf("message_flag=%04x\n", data.message_type);
     printf("dup_flag=%01x\n", data.dup_flag);
     printf("qos_flag=%02x\n", data.qos_flag);
     printf("retain_flag=%01x\n", data.retain_flag);
+    printf("remaining_length=%u\n", data.remaining_length);
     return 0;
 }

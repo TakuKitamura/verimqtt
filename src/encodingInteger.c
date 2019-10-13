@@ -3,7 +3,7 @@
 // encoding a non-negative integer 
 
 int main() {
-	size_t length = 54321;
+	size_t length = 123456789;
 	printf("encode(%zu base10) = (0x", length);
 	do {
 		char d = length % 128;

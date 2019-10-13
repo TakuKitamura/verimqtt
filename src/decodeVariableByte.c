@@ -10,18 +10,25 @@ int main() {
 	int multiplier = 1;
 	size_t value = 0;
     int i = 0;
-    char data[] = {0xb1, 0xa8, 0x03};
-    char c;
-	do {
+    char data[4] = {0xff, 0xff, 0xff, 0x7f};
+    unsigned char c;
+
+    for(i = 0; i <= 3; i++) {
+        printf("%d\n", i);
         c = data[i];
 		value += (c & 127) * multiplier;
-        if (multiplier > 128*128*128) {
+
+		multiplier *= 128;
+        if ((c & 128) == 0) {
+            printf("value=%zd\n", value);
+            return value;
+        }
+
+        if (i == 3) {
             puts("malformed variable byte integer");
             return 1;
         }
-		multiplier *= 128;
-        i++;
-	} while ((c & 128) != 0);
-    printf("value=%zd\n", value);
+	}
+
     return 0;
 }
