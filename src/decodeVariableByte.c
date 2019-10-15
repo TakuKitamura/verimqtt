@@ -10,15 +10,30 @@ int main() {
 	int multiplier = 1;
 	size_t value = 0;
     int i = 0;
-    char data[4] = {0x80, 0x80, 0x01, 0x01};
-    unsigned char c;
-
+    char data[4] = {128, 128, 0x01, 0x01};
+    char b, b1, b2;
+    
     for(i = 0; i <= 3; i++) {
         printf("%d\n", i);
-        c = data[i];
-		value = value + ((c & 127) * multiplier);
 
-        if ((c & 128) == 0) {
+        // min: 0, max : 255
+        b = data[i];
+
+        // 最上位ビットを0に
+        // min: 0, max: 127
+        b1 = b & 127;
+
+        // 最上位ビット以外を0に
+        // 0 or 128
+        b2 = b & 128;
+
+        // i=0 min: 0, max:(128 - 1)
+        // i=1 min: 128, max: (128*128 - 1)
+        // i=2 min: 128*128, max: (128*128*128 - 1)
+        // i=3 min: 128*128*128, max: (128*128*128*128 - 1)
+		value = value + (b1 * multiplier);
+
+        if (b2 == 0) {
             printf("value=%zd\n", value);
             return value;
         }
@@ -28,6 +43,7 @@ int main() {
             return 1;
         }
 
+        // multiplier = 1 || 128 || 128*128 || 128*128*128
         multiplier = multiplier * 128;
 	}
 

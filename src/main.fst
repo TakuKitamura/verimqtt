@@ -84,7 +84,7 @@ let define_retain_flag_must_store_application_message : type_retain_flags = 1uy
 
 
 // debug tool
-assume val extern_print_hex (i: U8.t{ 0 <= U8.v i /\ U8.v i <= 255}): Stack unit
+assume val extern_print_hex (i:U8.t): Stack unit
   (requires (fun h -> true))
   (ensures (fun h0 ret h1 -> true))
 
@@ -110,61 +110,116 @@ let get_least_significant_four_bit_for_four_bit i = U8.logand i 0x01uy
 val get_center_two_bit_for_four_bit: i:U8.t -> r:U8.t
 let get_center_two_bit_for_four_bit i = U8.shift_right (U8.logand i 0x06uy) 1ul 
 
+val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
+let most_significant_four_bit_to_zero i =  
+    if (U8.(i >=^ 128uy)) then
+      U8.(i -^ 128uy)
+    else
+      i
+
+val except_most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y = 0 || U8.v y = 128}
+let except_most_significant_four_bit_to_zero i =  
+    if (U8.(i <=^ 127uy)) then
+      0uy
+    else
+      128uy
+
+// val check 
+// let check (x:U8.t) = 
+//   if (U8.v x <= 127) then
+//     true
+//   else
+//     false
+
 
 // TODO: 値の条件チェックがいる
-val decodeing_variable_bytes: ptr_for_decoding_packets: B.buffer U32.t 
-  -> Stack U32.t //(remaining_length:U32.t{0 <= U32.v remaining_length && U32.v remaining_length <= 268435455})
+// TODO: 下限値チェック
+#set-options "--max_ifuel 0 --z3rlimit 30"
+val decodeing_variable_bytes: ptr_for_decoding_packets: B.buffer U8.t
+  -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455})
     (requires fun h0 -> B.live h0 ptr_for_decoding_packets  /\ B.length ptr_for_decoding_packets = 4)
-    (ensures fun _ _ _ -> true)
+    (ensures fun h0 r h1 -> true)
 let decodeing_variable_bytes ptr_for_decoding_packets =
   push_frame ();
-  let ptr_for_decoding_packet: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_for_remaining_length: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_status: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_multiplier: B.buffer U32.t = B.alloca 1ul 1ul in
-  let inv h (i: nat) = B.live h ptr_for_decoding_packets /\ B.live h ptr_for_decoding_packet /\ B.live h ptr_for_remaining_length /\ B.live h ptr_multiplier /\ B.live h ptr_status in
-  let body (i: U32.t{ 0 <= U32.v i && U32.v i < 4 }): Stack unit
+  let ptr_for_decoding_packet: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_for_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455}) = B.alloca 0ul 1ul in
+  let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
+  let ptr_temp1 : B.buffer (temp: U32.t{U32.v temp <= 127}) = B.alloca 0ul 1ul in
+  let ptr_temp2 : B.buffer (temp: U32.t{U32.v temp <= 16383}) = B.alloca 0ul 1ul in
+  let ptr_temp3 : B.buffer (temp: U32.t{U32.v temp <= 2097151}) = B.alloca 0ul 1ul in
+  let ptr_temp4 : B.buffer (temp: U32.t{U32.v temp <= 268435455}) = B.alloca 0ul 1ul in
+  let inv h (i: nat) = B.live h ptr_for_decoding_packets /\
+    B.live h ptr_for_decoding_packet /\
+    B.live h ptr_for_remaining_length /\
+    B.live h ptr_status /\
+    B.live h ptr_temp1 /\
+    B.live h ptr_temp2 /\
+    B.live h ptr_temp3 /\
+    B.live h ptr_temp4
+     in
+  let body (i: U32.t{ 0 <= U32.v i && U32.v i <= 3 }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
-  =
+  = 
     let ptr_status_v = ptr_status.(0ul) in
-      if (ptr_status_v = 0ul) then
+      if (ptr_status_v = 0uy) then
         (
           let _ = ptr_for_decoding_packet.(0ul) <- ptr_for_decoding_packets.(i) in
-          let decoding_packet_u32: U32.t = ptr_for_decoding_packet.(0ul) in
-          let decoding_packet_u8: U8.t = uint32_to_uint8 decoding_packet_u32 in
-          let ccc_u8: U8.t = U8.logand decoding_packet_u8 127uy in
-          let ccc2_u8: U8.t = U8.logand decoding_packet_u8 128uy in 
-          let ccc_u32: U32.t = uint8_to_uint32 ccc_u8 in
+          let decoding_packet: U8.t = ptr_for_decoding_packet.(0ul) in
 
-          // print_u32 ptr_for_remaining_length.(0ul);
+          let b_u8: (x:U8.t{U8.v x >= 0 && U8.v x <= 127}) = 
+            most_significant_four_bit_to_zero decoding_packet in
 
-          ptr_for_remaining_length.(0ul) <- 
-            U32.(ptr_for_remaining_length.(0ul) +%^ (ptr_multiplier.(0ul) *%^ ccc_u32));
+          let b_u32: (x:U32.t{U32.v x >= 0 && U32.v x <= 127}) = uint8_to_uint32 b_u8 in 
+          let b2_u8: (x:U8.t{U8.v x = 0 || U8.v x = 128}) =
+            except_most_significant_four_bit_to_zero decoding_packet in 
+
+          // TODO: 再帰的に書けそう
+          if (i = 0ul) then
+            (
+              ptr_temp1.(0ul) <- U32.(b_u32 *^ 1ul);
+              ptr_for_remaining_length.(0ul) <- ptr_temp1.(0ul)
+            )
+          else if (i = 1ul) then
+            (
+                ptr_temp2.(0ul) <- U32.(ptr_temp1.(0ul) +^ b_u32 *^ 128ul);
+                ptr_for_remaining_length.(0ul) <- ptr_temp2.(0ul)
+            )
+          else if (i = 2ul) then
+            (
+                ptr_temp3.(0ul) <- U32.(ptr_temp2.(0ul) +^ (b_u32 *^ 128ul *^ 128ul));
+                ptr_for_remaining_length.(0ul) <- ptr_temp3.(0ul)
+            )
+          else if (i = 3ul) then
+            (
+                ptr_temp4.(0ul) <- U32.(ptr_temp3.(0ul) +^ (b_u32 *^ 128ul *^ 128ul *^ 128ul));
+                ptr_for_remaining_length.(0ul) <- ptr_temp4.(0ul)
+            )
+          else
+            print_string "ptr_for_remaining_length is invalid.";
           
-          ptr_multiplier.(0ul) <- U32.(ptr_multiplier.(0ul) *%^ 128ul);
-
-          if (ccc2_u8 = 0uy) then
-            ptr_status.(0ul) <- 1ul
+          if (b2_u8 = 0uy) then
+            ptr_status.(0ul) <- 1uy
         )
       else 
         (
-          if (i = 3ul && ptr_status_v = 0ul) then
-            ptr_status.(0ul) <- 2ul
+          if (i = 3ul && ptr_status_v = 0uy) then
+            ptr_status.(0ul) <- 2uy
         )
   in
   C.Loops.for 0ul 4ul inv body;
-  let r: U32.t = ptr_for_remaining_length.(0ul) in
-  let s: U32.t = ptr_status.(0ul) in
+  let (remaining_length: U32.t{0 <= U32.v remaining_length && U32.v remaining_length <= 268435455}) =
+    ptr_for_remaining_length.(0ul) in
+  let s: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
   pop_frame ();
-  if (s = 1ul) then
+  if (s = 1uy) then
     (
-      r
+      remaining_length
     )
   else
     (
       // TODO: エラー処理をどうするか
-      print_string "malformed variable byte integer\n";
+      // print_string "malformed variable byte integer\n";
       0ul
     )
 
@@ -178,23 +233,23 @@ let decodeing_variable_bytes ptr_for_decoding_packets =
 // x (1byte) + (msg len byte 3 or 4) + (100012byte) = 100016
 // (1byte) + (3byte) + (100012byte) = 100016
 
-// TODO: 値域の設定
-val get_remaining_length: i:U8.t -> ptr_for_decoding_packets: B.buffer U32.t -> packet_size:U32.t{1 <= U32.v packet_size}
-  -> Stack U32.t
+// // TODO: 値域の設定
+val get_remaining_length: i:U8.t -> ptr_for_decoding_packets: B.buffer U8.t -> packet_size:U32.t{1 <= U32.v packet_size}
+  -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455})
   (requires fun h0 -> B.live h0 ptr_for_decoding_packets /\ B.length ptr_for_decoding_packets = 4)
   (ensures fun _ _ _ -> true)
 let get_remaining_length i ptr_for_decoding_packets packet_size = 
   push_frame ();
   let fixed_value = U32.(packet_size -^ 1ul) in 
-  let rr =
+  let rr: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
   (
     if (i = 1uy) then
       (
-        let decoding_packet_first: U32.t = ptr_for_decoding_packets.(0ul) in
-        let decoding_packets = B.alloca 0ul 4ul in
+        let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
+        let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
         decoding_packets.(0ul) <- decoding_packet_first;
-        let r: U32.t = decodeing_variable_bytes decoding_packets in
-          if (U32.(1ul +%^ r) = fixed_value) then
+        let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes decoding_packets in
+          if (U32.(1ul +^ r) = fixed_value) then
             r
           else
             (
@@ -204,13 +259,13 @@ let get_remaining_length i ptr_for_decoding_packets packet_size =
       )
     else if (i = 2uy) then
       (
-        let decoding_packet_first: U32.t = ptr_for_decoding_packets.(0ul) in
-        let decoding_packet_second: U32.t = ptr_for_decoding_packets.(1ul) in
-        let decoding_packets = B.alloca 0ul 4ul in
+        let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
+        let decoding_packet_second: U8.t = ptr_for_decoding_packets.(1ul) in
+        let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
         decoding_packets.(0ul) <- decoding_packet_first;
         decoding_packets.(1ul) <- decoding_packet_second;
-        let r = decodeing_variable_bytes decoding_packets in
-          if (U32.(2ul +%^ r) = fixed_value) then
+        let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes decoding_packets in
+          if (U32.(2ul +^ r) = fixed_value) then
             r
           else
             (
@@ -220,15 +275,15 @@ let get_remaining_length i ptr_for_decoding_packets packet_size =
       )
     else if (i = 3uy) then
       (
-        let decoding_packet_first: U32.t = ptr_for_decoding_packets.(0ul) in
-        let decoding_packet_second: U32.t = ptr_for_decoding_packets.(1ul) in
-        let decoding_packet_third: U32.t = ptr_for_decoding_packets.(2ul) in
-        let decoding_packets = B.alloca 0ul 4ul in
+        let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
+        let decoding_packet_second: U8.t = ptr_for_decoding_packets.(1ul) in
+        let decoding_packet_third: U8.t = ptr_for_decoding_packets.(2ul) in
+        let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
         decoding_packets.(0ul) <- decoding_packet_first;
         decoding_packets.(1ul) <- decoding_packet_second;
         decoding_packets.(2ul) <- decoding_packet_third;
-        let r = decodeing_variable_bytes decoding_packets in
-          if (U32.(3ul +%^ r) = fixed_value) then
+        let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes decoding_packets in
+          if (U32.(3ul +^ r) = fixed_value) then
             r
           else
             (
@@ -238,8 +293,8 @@ let get_remaining_length i ptr_for_decoding_packets packet_size =
       )
     else if (i = 4uy) then
       (
-        let r = decodeing_variable_bytes ptr_for_decoding_packets in
-          if (U32.(4ul +%^ r) = fixed_value) then
+        let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes ptr_for_decoding_packets in
+          if (U32.(4ul +^ r) = fixed_value) then
             r
           else
             (
@@ -254,12 +309,13 @@ let get_remaining_length i ptr_for_decoding_packets packet_size =
   rr
 
 // TODO: PUBLISH の場合どう扱うか検討
+// TODO: 返り値の値域を決定する
 type struct_fixed_header = {
   message_type: U8.t;
   dup_flag: U8.t;
   qos_flag: U8.t;
   retain_flag: U8.t;
-  remaining_length: U32.t;
+  remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455});
 }
 
 val bytes_loop: src:B.buffer U8.t -> len:U32.t -> Stack struct_fixed_header
@@ -267,11 +323,11 @@ val bytes_loop: src:B.buffer U8.t -> len:U32.t -> Stack struct_fixed_header
   (ensures fun _ _ _ -> true)
 let bytes_loop src len =
   push_frame ();
-  let ptr_message_type: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_flags: B.buffer U32.t  = B.alloca 0ul 1ul in
-  let ptr_status: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_for_decoding_packets: B.buffer U32.t = B.alloca 0ul 4ul in
-  let ptr_remaining_length: B.buffer U32.t  = B.alloca 0ul 1ul in
+  let ptr_message_type: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_flags: B.buffer U8.t  = B.alloca 0uy 1ul in
+  let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
+  let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
+  let ptr_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455})  = B.alloca 0ul 1ul in
   let inv h (i: nat) = B.live h src /\
    B.live h ptr_message_type /\
   B.live h ptr_flags /\ B.live h ptr_for_decoding_packets /\ B.live h ptr_status /\ B.live h ptr_remaining_length in
@@ -280,79 +336,83 @@ let bytes_loop src len =
     (ensures (fun _ _ _ -> true))
   =
     let one_byte : U8.t = src.(i) in
-      let one_byte_u32 : U32.t = uint8_to_uint32 one_byte in
-        let ptr_status_v: U32.t = ptr_status.(0ul) in
+        let ptr_status_v: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
       if (i = 0ul) then
         (
-          ptr_message_type.(0ul) <- uint8_to_uint32 (get_most_significant_four_bit_for_one_byte one_byte);
-          ptr_flags.(0ul) <- uint8_to_uint32 (get_least_significant_four_bit_for_one_byte one_byte)
+          ptr_message_type.(0ul) <- get_most_significant_four_bit_for_one_byte one_byte;
+          ptr_flags.(0ul) <- get_least_significant_four_bit_for_one_byte one_byte
         )
       else if (i = 1ul) then
         (
-          ptr_for_decoding_packets.(0ul) <- one_byte_u32;
-          let r = get_remaining_length 1uy ptr_for_decoding_packets len in
+          ptr_for_decoding_packets.(0ul) <- one_byte;
+          let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+             get_remaining_length 1uy ptr_for_decoding_packets len in
           if (U32.gt r 0ul) then
             (
-              ptr_status.(0ul) <- 1ul;
+              ptr_status.(0ul) <- 1uy;
               ptr_remaining_length.(0ul) <- r
             )
         )
       else if (i = 2ul) then
         (
-          if (ptr_status_v = 0ul) then 
+          if (ptr_status_v = 0uy) then 
             (
-              ptr_for_decoding_packets.(1ul) <- one_byte_u32;
-              let r = get_remaining_length 2uy ptr_for_decoding_packets len in
+              ptr_for_decoding_packets.(1ul) <- one_byte;
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+                get_remaining_length 2uy ptr_for_decoding_packets len in
               if (U32.gt r 0ul) then
                 (
-                  ptr_status.(0ul) <- 1ul;
+                  ptr_status.(0ul) <- 1uy;
                   ptr_remaining_length.(0ul) <- r
                 )
             )
         )
       else if (i = 3ul) then
         (
-          if (ptr_status_v = 0ul) then 
+          if (ptr_status_v = 0uy) then 
             (
-              ptr_for_decoding_packets.(2ul) <- one_byte_u32;
-              let r = get_remaining_length 3uy ptr_for_decoding_packets len in
+              ptr_for_decoding_packets.(2ul) <- one_byte;
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+                = get_remaining_length 3uy ptr_for_decoding_packets len in
               if (U32.gt r 0ul) then
                 (
-                  ptr_status.(0ul) <- 1ul;
+                  ptr_status.(0ul) <- 1uy;
                   ptr_remaining_length.(0ul) <- r
                 )
             )
         )
       else if (i = 4ul) then
         (
-          if (ptr_status_v = 0ul) then 
+          if (ptr_status_v = 0uy) then 
             (
-              ptr_for_decoding_packets.(3ul) <- one_byte_u32;
-              let r = get_remaining_length 4uy ptr_for_decoding_packets len in
+              ptr_for_decoding_packets.(3ul) <- one_byte;
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+                = get_remaining_length 4uy ptr_for_decoding_packets len in
               if (U32.gt r 0ul) then
                 (
-                  ptr_status.(0ul) <- 1ul;
+                  ptr_status.(0ul) <- 1uy;
                   ptr_remaining_length.(0ul) <- r
                 )
               else 
                 (
-                  ptr_status.(0ul) <- 2ul
+                  ptr_status.(0ul) <- 2uy
                 )
             )
         )  
   in
   C.Loops.for 0ul len inv body;
-  let message_type_u32: U32.t = ptr_message_type.(0ul) in
-  let message_type_u8: U8.t = uint32_to_uint8 message_type_u32 in
-  let flags_u32: U32.t = ptr_flags.(0ul) in
-  let flags_u8: U8.t = uint32_to_uint8 flags_u32 in
-  let remaining_length_u32: U32.t = ptr_remaining_length.(0ul) in
+  // let message_type_u32: U32.t = ptr_message_type.(0ul) in
+  // let message_type_u8: U8.t = uint32_to_uint8 message_type_u32 in
+  // let flags_u32: U32.t = ptr_flags.(0ul) in
+  // let flags_u8: U8.t = ptr_flags.(0ul) in
+  let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455}) 
+    = ptr_remaining_length.(0ul) in
   let data: struct_fixed_header = {
-    message_type = message_type_u8;
-    dup_flag = get_most_significant_four_bit_for_four_bit flags_u8;
-    qos_flag = get_center_two_bit_for_four_bit flags_u8;
-    retain_flag = get_least_significant_four_bit_for_four_bit flags_u8;
-    remaining_length = remaining_length_u32;
+    message_type = ptr_message_type.(0ul);
+    dup_flag = get_most_significant_four_bit_for_four_bit ptr_flags.(0ul);
+    qos_flag = get_center_two_bit_for_four_bit ptr_flags.(0ul);
+    retain_flag = get_least_significant_four_bit_for_four_bit ptr_flags.(0ul);
+    remaining_length = remaining_length;
   } in
   pop_frame ();
   (* return *) data
