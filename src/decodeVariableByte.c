@@ -10,15 +10,14 @@ int main() {
 	int multiplier = 1;
 	size_t value = 0;
     int i = 0;
-    char data[4] = {0xff, 0xff, 0xff, 0x7f};
+    char data[4] = {0x80, 0x80, 0x01, 0x01};
     unsigned char c;
 
     for(i = 0; i <= 3; i++) {
         printf("%d\n", i);
         c = data[i];
-		value += (c & 127) * multiplier;
+		value = value + ((c & 127) * multiplier);
 
-		multiplier *= 128;
         if ((c & 128) == 0) {
             printf("value=%zd\n", value);
             return value;
@@ -28,6 +27,8 @@ int main() {
             puts("malformed variable byte integer");
             return 1;
         }
+
+        multiplier = multiplier * 128;
 	}
 
     return 0;
