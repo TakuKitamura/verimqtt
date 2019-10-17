@@ -13,27 +13,32 @@
 
 int main(int argc, char *argv[]) {
     FILE *fp;
-    char *fname = "publishMessagePacket.bin";
-    uint8_t request[10000];
+    char *fname = "packet_example.bin";
+    uint8_t request[255];
     uint32_t  i;
-    uint32_t tcp_payloadd = 25ul;
-    // data_struct data;
+    fpos_t fsize = 0;
+    uint32_t tcp_payload;
 
     fp = fopen(fname, "rb");
-    if( fp == NULL ){
-        printf("%sファイルが開けません", fname);
-        return 1;
-    }
 
-    fread(request, sizeof(uint8_t), sizeof(request), fp);
+    fseek(fp, 0, SEEK_END);
+    fgetpos(fp, &fsize);
+
+    tcp_payload = fsize;
+
+    fp = fopen(fname, "rb");
+
+    fread(request, sizeof(uint8_t), tcp_payload, fp);
     fclose(fp);
     
-    struct_fixed_header data = parse(request, tcp_payloadd);
+    struct_fixed_header data = parse(request, tcp_payload);
 
+    printf("message_name=%s\n", data.message_name);
     printf("message_flag=%04x\n", data.message_type);
     printf("dup_flag=%01x\n", data.dup_flag);
     printf("qos_flag=%02x\n", data.qos_flag);
     printf("retain_flag=%01x\n", data.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
+    printf("err_msg=%s\n", data.err_msg);
     return 0;
 }
