@@ -10,10 +10,34 @@ int main() {
 	int multiplier = 1;
 	size_t value = 0;
     int i = 0;
-    char data[4] = {128, 128, 0x01, 0x01};
+    unsigned char data[] = {0x9c, 0x4e, 0x00, 0x00};
+    int dataLen = sizeof(data)/sizeof(data[0]);
     char b, b1, b2;
+    printf("%d\n", dataLen);
+    for (i = 0; i < 4; i++) {
+        if (i < 2) {
+            if (dataLen == 1) {
+                if (data[i] < 0 || data[i] > 127) {
+                    puts("err1");
+                    return 1;
+                }
+            } else {
+                if (i == (dataLen - 1)) {      
+                    if (data[i] < 1 || data[i] > 127) {
+                        puts("err2");
+                        return 1;
+                    }                            
+                } else {
+                    if (data[i] < 128 || data[i] > 255) {
+                        puts("err3");
+                        return 1;
+                    }                         
+                }               
+            }
+        }
+    }
     
-    for(i = 0; i <= 3; i++) {
+    for(i = 0; i <= (dataLen - 1); i++) {
         printf("%d\n", i);
 
         // min: 0, max : 255
