@@ -30,10 +30,11 @@ int main(int argc, char *argv[]) {
 
     fread(request, sizeof(uint8_t), tcp_payload, fp);
     fclose(fp);
-    
+
+    // parse関数が定理証明済み
     struct_fixed_header data = parse(request, tcp_payload);
 
-    // printf("message_name=%s\n", data.message_name);
+    printf("message_name=%s\n", data.message_name);
     printf("message_flag=%04x\n", data.message_type);
     printf("dup_flag=%01x\n", data.dup_flag);
     printf("qos_flag=%02x\n", data.qos_flag);

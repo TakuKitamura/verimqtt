@@ -14,6 +14,9 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
+inline_for_extraction noextract
+let (!$) = C.String.of_literal
+
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
 // 2.1.2 MQTT Control Packet type
 // Table 2‑1 MQTT Control Packet types
@@ -311,6 +314,7 @@ let get_remaining_length i ptr_for_decoding_packets packet_size =
 // TODO: PUBLISH の場合どう扱うか検討
 // TODO: 返り値の値域を決定する
 type struct_fixed_header = {
+  message_name: C.String.t;
   message_type: U8.t;
   dup_flag: U8.t;
   qos_flag: U8.t;
@@ -401,14 +405,52 @@ let bytes_loop src len =
         )  
   in
   C.Loops.for 0ul len inv body;
-  // let message_type_u32: U32.t = ptr_message_type.(0ul) in
+  let message_type: U8.t = ptr_message_type.(0ul) in
+  let message_name: C.String.t = 
+  (
+    if (U8.eq message_type define_mqtt_control_packet_RESERVED) then 
+      !$"RESERVED"
+    else if (U8.eq message_type define_mqtt_control_packet_CONNECT) then 
+      !$"CONNECT"
+    else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then 
+      !$"CONNACK"
+    else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then 
+      !$"PUBLISH"
+    else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then 
+      !$"PUBACK"
+    else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then 
+      !$"PUBREC"
+    else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then 
+      !$"PUBREL"
+    else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then 
+      !$"PUBCOMP"
+    else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then 
+      !$"SUBSCRIBE"
+    else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then 
+      !$"SUBACK"
+    else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then 
+      !$"UNSUBSCRIBE"
+    else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then 
+      !$"UNSUBACK"
+    else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then 
+      !$"PINGREQ"
+    else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then 
+      !$"PINGRESP"
+    else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then 
+      !$"DISCONNECT"
+    else if (U8.eq message_type define_mqtt_control_packet_AUTH) then 
+      !$"AUTH" 
+    else
+      !$"UNKNOWN"   
+  ) in
   // let message_type_u8: U8.t = uint32_to_uint8 message_type_u32 in
   // let flags_u32: U32.t = ptr_flags.(0ul) in
   // let flags_u8: U8.t = ptr_flags.(0ul) in
   let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455}) 
     = ptr_remaining_length.(0ul) in
   let data: struct_fixed_header = {
-    message_type = ptr_message_type.(0ul);
+    message_name = message_name;
+    message_type = message_type;
     dup_flag = get_most_significant_four_bit_for_four_bit ptr_flags.(0ul);
     qos_flag = get_center_two_bit_for_four_bit ptr_flags.(0ul);
     retain_flag = get_least_significant_four_bit_for_four_bit ptr_flags.(0ul);
