@@ -40,6 +40,6 @@ int main(int argc, char *argv[]) {
     printf("qos_flag=%02x\n", data.qos_flag);
     printf("retain_flag=%01x\n", data.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
-    // printf("err_msg=%s\n", data.err_msg);
+    printf("error_message=\"%s\"\n", data.error_message);
     return 0;
 }
