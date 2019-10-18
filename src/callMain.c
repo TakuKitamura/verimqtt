@@ -3,18 +3,10 @@
 
 #include "Main.h"
 
-// typedef struct Data
-// {
-//   uint8_t r;
-//   uint8_t g;
-//   uint8_t b;
-// }
-// data_s;
-
 int main(int argc, char *argv[]) {
     FILE *fp;
     char *fname = "packet_example.bin";
-    uint8_t request[255];
+    uint8_t *request;
     uint32_t  i;
     fpos_t fsize = 0;
     uint32_t tcp_payload;
@@ -23,16 +15,18 @@ int main(int argc, char *argv[]) {
 
     fseek(fp, 0, SEEK_END);
     fgetpos(fp, &fsize);
+    fseek(fp, 0L, SEEK_SET);
 
     tcp_payload = fsize;
 
-    fp = fopen(fname, "rb");
+    request = (uint8_t*)malloc(sizeof(uint8_t) * tcp_payload);
 
     fread(request, sizeof(uint8_t), tcp_payload, fp);
     fclose(fp);
 
     // parse関数が定理証明済み
     struct_fixed_header data = parse(request, tcp_payload);
+    free(request); 
 
     printf("message_name=%s\n", data.message_name);
     printf("message_flag=%04x\n", data.message_type);

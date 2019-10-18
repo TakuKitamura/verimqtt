@@ -169,7 +169,6 @@ let is_valid_decoding_packet ptr_for_decoding_packets bytes_length =
                               (
                                 if (U8.lt decoding_packet 1uy || U8.gt decoding_packet 127uy) then
                                   (
-                                    // print_string "err2\n";
                                     ptr_status.(0ul) <- 1uy
                                   )
                               ) else 
@@ -303,7 +302,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets =
 
 // // TODO: 値域の設定
 val get_remaining_length: i:U8.t -> ptr_for_decoding_packets: B.buffer U8.t -> packet_size:U32.t{1 <= U32.v packet_size}
-  -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+  -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455}) // TODO: エラーの返り値をどうするか
   (requires fun h0 -> B.live h0 ptr_for_decoding_packets /\ B.length ptr_for_decoding_packets = 4)
   (ensures fun _ _ _ -> true)
 let get_remaining_length i ptr_for_decoding_packets packet_size = 
@@ -388,24 +387,24 @@ type struct_fixed_header = {
   error_message: C.String.t;
 }
 
-val bytes_loop: src:B.buffer U8.t -> packet_size:U32.t -> Stack struct_fixed_header
-  (requires fun h0 -> B.live h0 src /\ B.length src = U32.v packet_size )
+val bytes_loop: request: B.buffer U8.t -> packet_size: U32.t -> Stack struct_fixed_header
+  (requires fun h0 -> B.live h0 request /\ B.length request = U32.v packet_size )
   (ensures fun _ _ _ -> true)
-let bytes_loop src packet_size =
+let bytes_loop request packet_size =
   push_frame ();
   let ptr_message_type: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_flags: B.buffer U8.t  = B.alloca 0uy 1ul in
   let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
   let ptr_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455})  = B.alloca 0ul 1ul in
-  let inv h (i: nat) = B.live h src /\
+  let inv h (i: nat) = B.live h request /\
    B.live h ptr_message_type /\
   B.live h ptr_flags /\ B.live h ptr_for_decoding_packets /\ B.live h ptr_status /\ B.live h ptr_remaining_length in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
-    let one_byte : U8.t = src.(i) in
+    let one_byte : U8.t = request.(i) in
         let ptr_status_v: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
       if (i = 0ul) then
         (
@@ -425,7 +424,7 @@ let bytes_loop src packet_size =
                   ptr_status.(0ul) <- 1uy;
                   ptr_remaining_length.(0ul) <- r
                 )
-                else if (U32.eq r 0ul && U32.eq packet_size 2ul) then
+                else if (U8.eq one_byte 0uy && U32.eq packet_size 2ul) then
                     (
                       ptr_status.(0ul) <- 1uy;
                       ptr_remaining_length.(0ul) <- r                      
@@ -564,6 +563,8 @@ val parse (request: B.buffer U8.t) (packet_size: U32.t):
   Stack struct_fixed_header 
     (requires (fun h ->
       B.live h request /\
+      B.length request <= 268435460 /\
+      U32.v packet_size <= 268435460 /\
       B.length request = U32.v packet_size))
     (ensures (fun h0 _ h1 ->
       B.live h1 request))
