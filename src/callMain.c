@@ -33,12 +33,12 @@ int main(int argc, char *argv[]) {
     
     struct_fixed_header data = parse(request, tcp_payload);
 
-    printf("message_name=%s\n", data.message_name);
+    // printf("message_name=%s\n", data.message_name);
     printf("message_flag=%04x\n", data.message_type);
     printf("dup_flag=%01x\n", data.dup_flag);
     printf("qos_flag=%02x\n", data.qos_flag);
     printf("retain_flag=%01x\n", data.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
-    printf("err_msg=%s\n", data.err_msg);
+    // printf("err_msg=%s\n", data.err_msg);
     return 0;
 }
