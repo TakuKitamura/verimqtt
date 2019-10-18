@@ -127,12 +127,77 @@ let except_most_significant_four_bit_to_zero i =
     else
       128uy
 
-// val check 
-// let check (x:U8.t) = 
-//   if (U8.v x <= 127) then
-//     true
-//   else
-//     false
+
+val is_valid_decoding_packet: ptr_for_decoding_packets: B.buffer U8.t
+  -> bytes_length: (v:U8.t{U8.v v >= 1 && U8.v v <= 4})
+  -> Stack bool
+    (requires fun h0 -> B.live h0 ptr_for_decoding_packets /\ B.length ptr_for_decoding_packets = 4)
+    (ensures fun h0 r h1 -> true)
+let is_valid_decoding_packet ptr_for_decoding_packets bytes_length =
+  push_frame ();
+  let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
+  let inv h (i: nat) = 
+    B.live h ptr_status /\
+    B.live h ptr_for_decoding_packets 
+     in
+  let body (i: U32.t{ 0 <= U32.v i && U32.v i < 4 }): Stack unit
+    (requires (fun h -> inv h (U32.v i)))
+    (ensures (fun _ _ _ -> true))
+  = 
+    // TODO: 入れ子がわかりにくい
+    let ptr_status_v = ptr_status.(0ul) in
+    let bytes_length_u32 = uint8_to_uint32(bytes_length) in
+      if (U8.eq ptr_status_v 0uy) then
+        (
+            if (U32.lt i bytes_length_u32) then 
+                (
+                    let decoding_packet = ptr_for_decoding_packets.(i) in
+                      // print_u8 decoding_packet;
+                      // print_string "<-decoding_packet\n";
+                      if (U8.eq bytes_length 1uy) then
+                          (
+                            if (U8.lt bytes_length 0uy || U8.gt bytes_length 127uy) then
+                              (
+                                // print_string "err1\n";
+                                ptr_status.(0ul) <- 1uy
+                              )
+                          )
+                      else 
+                          (
+                            let data_length_minus_one: U32.t = uint8_to_uint32 (U8.sub bytes_length 1uy) in
+                            if (U32.eq i data_length_minus_one) then
+                              (
+                                if (U8.lt decoding_packet 1uy || U8.gt decoding_packet 127uy) then
+                                  (
+                                    // print_string "err2\n";
+                                    ptr_status.(0ul) <- 1uy
+                                  )
+                              ) else 
+                                  (
+                                    if (U8.lt decoding_packet 128uy || U8.gt decoding_packet 255uy) then
+                                      (
+                                        // print_string "err3\n";
+                                        ptr_status.(0ul) <- 1uy
+                                      )
+                                  )
+                          )
+                )
+
+        )
+  in
+  C.Loops.for 0ul 4ul inv body;
+  let s: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
+  pop_frame ();
+  if (s = 0uy) then
+    (
+      true
+    )
+  else
+    (
+      // TODO: エラー処理をどうするか
+      // print_string "malformed variable byte integer\n";
+      false
+    )
 
 
 // TODO: 値の条件チェックがいる
@@ -320,12 +385,13 @@ type struct_fixed_header = {
   qos_flag: U8.t;
   retain_flag: U8.t;
   remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455});
+  error_message: C.String.t;
 }
 
-val bytes_loop: src:B.buffer U8.t -> len:U32.t -> Stack struct_fixed_header
-  (requires fun h0 -> B.live h0 src /\ B.length src = U32.v len )
+val bytes_loop: src:B.buffer U8.t -> packet_size:U32.t -> Stack struct_fixed_header
+  (requires fun h0 -> B.live h0 src /\ B.length src = U32.v packet_size )
   (ensures fun _ _ _ -> true)
-let bytes_loop src len =
+let bytes_loop src packet_size =
   push_frame ();
   let ptr_message_type: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_flags: B.buffer U8.t  = B.alloca 0uy 1ul in
@@ -335,7 +401,7 @@ let bytes_loop src len =
   let inv h (i: nat) = B.live h src /\
    B.live h ptr_message_type /\
   B.live h ptr_flags /\ B.live h ptr_for_decoding_packets /\ B.live h ptr_status /\ B.live h ptr_remaining_length in
-  let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v len }): Stack unit
+  let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
@@ -349,12 +415,21 @@ let bytes_loop src len =
       else if (i = 1ul) then
         (
           ptr_for_decoding_packets.(0ul) <- one_byte;
-          let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
-             get_remaining_length 1uy ptr_for_decoding_packets len in
-          if (U32.gt r 0ul) then
+          let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 1uy in
+          if (is_valid) then 
             (
-              ptr_status.(0ul) <- 1uy;
-              ptr_remaining_length.(0ul) <- r
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+                get_remaining_length 1uy ptr_for_decoding_packets packet_size in
+              if (U32.gt r 0ul) then
+                (
+                  ptr_status.(0ul) <- 1uy;
+                  ptr_remaining_length.(0ul) <- r
+                )
+                else if (U32.eq r 0ul && U32.eq packet_size 2ul) then
+                    (
+                      ptr_status.(0ul) <- 1uy;
+                      ptr_remaining_length.(0ul) <- r                      
+                    )
             )
         )
       else if (i = 2ul) then
@@ -362,12 +437,16 @@ let bytes_loop src len =
           if (ptr_status_v = 0uy) then 
             (
               ptr_for_decoding_packets.(1ul) <- one_byte;
-              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
-                get_remaining_length 2uy ptr_for_decoding_packets len in
-              if (U32.gt r 0ul) then
+              let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 2uy in
+              if (is_valid) then 
                 (
-                  ptr_status.(0ul) <- 1uy;
-                  ptr_remaining_length.(0ul) <- r
+                  let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+                    get_remaining_length 2uy ptr_for_decoding_packets packet_size in
+                  if (U32.gt r 0ul) then
+                    (
+                      ptr_status.(0ul) <- 1uy;
+                      ptr_remaining_length.(0ul) <- r
+                    )
                 )
             )
         )
@@ -376,12 +455,16 @@ let bytes_loop src len =
           if (ptr_status_v = 0uy) then 
             (
               ptr_for_decoding_packets.(2ul) <- one_byte;
-              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
-                = get_remaining_length 3uy ptr_for_decoding_packets len in
-              if (U32.gt r 0ul) then
+             let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 3uy in
+              if (is_valid) then 
                 (
-                  ptr_status.(0ul) <- 1uy;
-                  ptr_remaining_length.(0ul) <- r
+                let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+                  = get_remaining_length 3uy ptr_for_decoding_packets packet_size in
+                if (U32.gt r 0ul) then
+                  (
+                    ptr_status.(0ul) <- 1uy;
+                    ptr_remaining_length.(0ul) <- r
+                  )
                 )
             )
         )
@@ -390,84 +473,102 @@ let bytes_loop src len =
           if (ptr_status_v = 0uy) then 
             (
               ptr_for_decoding_packets.(3ul) <- one_byte;
-              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
-                = get_remaining_length 4uy ptr_for_decoding_packets len in
-              if (U32.gt r 0ul) then
+              let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 4uy in
+              if (is_valid) then 
                 (
-                  ptr_status.(0ul) <- 1uy;
-                  ptr_remaining_length.(0ul) <- r
-                )
-              else 
-                (
-                  ptr_status.(0ul) <- 2uy
+                  let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+                    = get_remaining_length 4uy ptr_for_decoding_packets packet_size in
+                  if (U32.gt r 0ul) then
+                    (
+                      ptr_status.(0ul) <- 1uy;
+                      ptr_remaining_length.(0ul) <- r
+                    )
                 )
             )
         )  
   in
-  C.Loops.for 0ul len inv body;
-  let message_type: U8.t = ptr_message_type.(0ul) in
-  let message_name: C.String.t = 
-  (
-    if (U8.eq message_type define_mqtt_control_packet_RESERVED) then 
-      !$"RESERVED"
-    else if (U8.eq message_type define_mqtt_control_packet_CONNECT) then 
-      !$"CONNECT"
-    else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then 
-      !$"CONNACK"
-    else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then 
-      !$"PUBLISH"
-    else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then 
-      !$"PUBACK"
-    else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then 
-      !$"PUBREC"
-    else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then 
-      !$"PUBREL"
-    else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then 
-      !$"PUBCOMP"
-    else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then 
-      !$"SUBSCRIBE"
-    else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then 
-      !$"SUBACK"
-    else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then 
-      !$"UNSUBSCRIBE"
-    else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then 
-      !$"UNSUBACK"
-    else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then 
-      !$"PINGREQ"
-    else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then 
-      !$"PINGRESP"
-    else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then 
-      !$"DISCONNECT"
-    else if (U8.eq message_type define_mqtt_control_packet_AUTH) then 
-      !$"AUTH" 
-    else
-      !$"UNKNOWN"   
-  ) in
-  // let message_type_u8: U8.t = uint32_to_uint8 message_type_u32 in
-  // let flags_u32: U32.t = ptr_flags.(0ul) in
-  // let flags_u8: U8.t = ptr_flags.(0ul) in
-  let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455}) 
-    = ptr_remaining_length.(0ul) in
-  let data: struct_fixed_header = {
-    message_name = message_name;
-    message_type = message_type;
-    dup_flag = get_most_significant_four_bit_for_four_bit ptr_flags.(0ul);
-    qos_flag = get_center_two_bit_for_four_bit ptr_flags.(0ul);
-    retain_flag = get_least_significant_four_bit_for_four_bit ptr_flags.(0ul);
-    remaining_length = remaining_length;
-  } in
-  pop_frame ();
-  (* return *) data
+  C.Loops.for 0ul packet_size inv body;
+  let s: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
+  if (U8.eq s 0uy) then
+    (
+      let data: struct_fixed_header = {
+            message_name = !$"";
+            message_type = 0uy;
+            dup_flag = 0uy;
+            qos_flag = 0uy;
+            retain_flag = 0uy;
+            remaining_length = 0ul;
+            error_message = !$"parsing err"; // TODO: 一時的
+          } in
+          pop_frame ();
+          data
+    )
+  else (
+    let message_type: U8.t = ptr_message_type.(0ul) in
+    let message_name: C.String.t = 
+    (
+      if (U8.eq message_type define_mqtt_control_packet_RESERVED) then 
+        !$"RESERVED"
+      else if (U8.eq message_type define_mqtt_control_packet_CONNECT) then 
+        !$"CONNECT"
+      else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then 
+        !$"CONNACK"
+      else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then 
+        !$"PUBLISH"
+      else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then 
+        !$"PUBACK"
+      else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then 
+        !$"PUBREC"
+      else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then 
+        !$"PUBREL"
+      else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then 
+        !$"PUBCOMP"
+      else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then 
+        !$"SUBSCRIBE"
+      else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then 
+        !$"SUBACK"
+      else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then 
+        !$"UNSUBSCRIBE"
+      else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then 
+        !$"UNSUBACK"
+      else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then 
+        !$"PINGREQ"
+      else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then 
+        !$"PINGRESP"
+      else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then 
+        !$"DISCONNECT"
+      else if (U8.eq message_type define_mqtt_control_packet_AUTH) then 
+        !$"AUTH" 
+      else
+        !$"UNKNOWN"   
+    ) in
+    // let message_type_u8: U8.t = uint32_to_uint8 message_type_u32 in
+    // let flags_u32: U32.t = ptr_flags.(0ul) in
+    // let flags_u8: U8.t = ptr_flags.(0ul) in
+    let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455}) 
+      = ptr_remaining_length.(0ul) in
+    let data: struct_fixed_header = {
+      message_name = message_name;
+      message_type = message_type;
+      dup_flag = get_most_significant_four_bit_for_four_bit ptr_flags.(0ul);
+      qos_flag = get_center_two_bit_for_four_bit ptr_flags.(0ul);
+      retain_flag = get_least_significant_four_bit_for_four_bit ptr_flags.(0ul);
+      remaining_length = remaining_length;
+      error_message = !$"";
+    } in
+    pop_frame ();
+    (* return *) data
+  )
 
-val parse (request: B.buffer U8.t) (len: U32.t):
+val parse (request: B.buffer U8.t) (packet_size: U32.t):
   Stack struct_fixed_header 
     (requires (fun h ->
       B.live h request /\
-      B.length request = U32.v len  ))
+      B.length request = U32.v packet_size))
     (ensures (fun h0 _ h1 ->
       B.live h1 request))
-let parse request len =
+let parse request packet_size =
     push_frame ();
-    let data: struct_fixed_header = bytes_loop request len in
+    let data: struct_fixed_header = bytes_loop request packet_size in
     pop_frame ();
     data
