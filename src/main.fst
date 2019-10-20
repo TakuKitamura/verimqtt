@@ -14,6 +14,8 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
+#set-options "--max_ifuel 0 --z3rlimit 30"
+
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
 
@@ -91,42 +93,58 @@ assume val extern_print_hex (i:U8.t): Stack unit
   (requires (fun h -> true))
   (ensures (fun h0 ret h1 -> true))
 
-// TODO: get~ もう少し､きれいにできそう
-
-// ex. 0xab -> 0x0a TODO: rの定義域を追加
-val get_most_significant_four_bit_for_one_byte: i:U8.t -> r:U8.t
-let get_most_significant_four_bit_for_one_byte i = U8.shift_right i 4ul
-
-// ex. 0xab -> 0x0b TODO: rの定義域を追加
-val get_least_significant_four_bit_for_one_byte: i:U8.t -> r:U8.t
-let get_least_significant_four_bit_for_one_byte i = U8.logand i 0x0fuy
-
-// ex. 0b1010 -> 0b0001 TODO: rの定義域を追加
-val get_most_significant_four_bit_for_four_bit: i:U8.t -> r:U8.t
-let get_most_significant_four_bit_for_four_bit i = U8.shift_right i 3ul
-
-// ex. 0b1010 -> 0b0000 TODO: rの定義域を追加
-val get_least_significant_four_bit_for_four_bit: i:U8.t -> r:U8.t
-let get_least_significant_four_bit_for_four_bit i = U8.logand i 0x01uy
-
-// ex. 0b1010 -> 0b0000 TODO: rの定義域を追加
-val get_center_two_bit_for_four_bit: i:U8.t -> r:U8.t
-let get_center_two_bit_for_four_bit i = U8.shift_right (U8.logand i 0x06uy) 1ul
-
-val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
-let most_significant_four_bit_to_zero i =
-    if (U8.(i >=^ 128uy)) then
-      U8.(i -^ 128uy)
-    else
-      i
-
-val except_most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y = 0 || U8.v y = 128}
-let except_most_significant_four_bit_to_zero i =
-    if (U8.(i <=^ 127uy)) then
-      0uy
-    else
-      128uy
-
+val slice_byte:
+  byte:U8.t
+  -> a:U8.t{U8.v a <= 7}
+  -> b:U8.t {U8.v b <= 8 && U8.v a < U8.v b}
+  -> Stack U8.t
+    (requires fun h0 -> true)
+    (ensures fun h0 r h1 -> true)
+let slice_byte byte a b =
+  let for_mask_temp1 =
+    (
+      if (U32.eq 0ul (uint8_to_uint32 a)) then
+        0b11111111uy
+      else if (U32.eq 1ul (uint8_to_uint32 a)) then
+        0b01111111uy
+      else if (U32.eq 2ul (uint8_to_uint32 a)) then
+        0b00111111uy
+      else if (U32.eq 3ul (uint8_to_uint32 a)) then
+        0b00011111uy
+      else if (U32.eq 4ul (uint8_to_uint32 a)) then
+        0b00001111uy
+      else if (U32.eq 5ul (uint8_to_uint32 a)) then
+        0b00000111uy
+      else if (U32.eq 6ul (uint8_to_uint32 a)) then
+        0b00000011uy
+      else
+        0b00000001uy
+    ) in
+  let for_mask_temp2 =
+    (
+      if (U32.eq 1ul (uint8_to_uint32 a)) then
+        0b10000000uy
+      else if (U32.eq 2ul (uint8_to_uint32 a)) then
+        0b11000000uy
+      else if (U32.eq 3ul (uint8_to_uint32 a)) then
+        0b11100000uy
+      else if (U32.eq 4ul (uint8_to_uint32 a)) then
+        0b11110000uy
+      else if (U32.eq 5ul (uint8_to_uint32 a)) then
+        0b11111000uy
+      else if (U32.eq 6ul (uint8_to_uint32 a)) then
+        0b11111100uy
+      else if (U32.eq 7ul (uint8_to_uint32 a)) then
+        0b11111110uy
+      else
+        0b11111111uy
+    ) in
+    let mask = U8.logand for_mask_temp1 for_mask_temp2 in
+    // let and_bit = U8.logand first_is_zero first_is_one in
+    // let b_u32 = (uint8_to_uint32 b) in
+    // let bbb = U32.sub 8ul b_u32 in
+    let r = U8.shift_right (U8.logand byte mask) (U32.sub 8ul (uint8_to_uint32 b)) in
+  r
 
 val is_valid_decoding_packet: ptr_for_decoding_packets: B.buffer U8.t
   -> bytes_length: (v:U8.t{U8.v v >= 1 && U8.v v <= 4})
@@ -198,10 +216,22 @@ let is_valid_decoding_packet ptr_for_decoding_packets bytes_length =
       false
     )
 
+val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
+let most_significant_four_bit_to_zero i =
+    if (U8.(i >=^ 128uy)) then
+      U8.(i -^ 128uy)
+    else
+      i
+
+val except_most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y = 0 || U8.v y = 128}
+let except_most_significant_four_bit_to_zero i =
+    if (U8.(i <=^ 127uy)) then
+      0uy
+    else
+      128uy
 
 // TODO: 値の条件チェックがいる
 // TODO: 下限値チェック
-#set-options "--max_ifuel 0 --z3rlimit 30"
 val decodeing_variable_bytes: ptr_for_decoding_packets: B.buffer U8.t
   -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455})
     (requires fun h0 -> B.live h0 ptr_for_decoding_packets  /\ B.length ptr_for_decoding_packets = 4)
@@ -499,14 +529,18 @@ val bytes_loop: request: B.buffer U8.t -> packet_size: U32.t -> Stack struct_fix
   (ensures fun _ _ _ -> true)
 let bytes_loop request packet_size =
   push_frame ();
-  let ptr_message_type: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_flags: B.buffer U8.t  = B.alloca 0uy 1ul in
+  let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-  let ptr_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455})  = B.alloca 0ul 1ul in
-  let inv h (i: nat) = B.live h request /\
-   B.live h ptr_message_type /\
-  B.live h ptr_flags /\ B.live h ptr_for_decoding_packets /\ B.live h ptr_status /\ B.live h ptr_remaining_length in
+  let ptr_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455}) =
+    B.alloca 0ul 1ul in
+  let inv h (i: nat) =
+    B.live h ptr_fixed_header_first_one_byte /\
+    B.live h request /\
+    B.live h ptr_for_decoding_packets /\
+    B.live h ptr_status /\
+    B.live h ptr_remaining_length
+    in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
@@ -515,8 +549,9 @@ let bytes_loop request packet_size =
         let ptr_status_v: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
       if (i = 0ul) then
         (
-          ptr_message_type.(0ul) <- get_most_significant_four_bit_for_one_byte one_byte;
-          ptr_flags.(0ul) <- get_least_significant_four_bit_for_one_byte one_byte
+          // ptr_message_type.(0ul) <- slice_byte one_byte 0uy 4uy ;//get_most_significant_four_bit_for_one_byte one_byte;
+          // ptr_flags.(0ul) <- slice_byte one_byte 4uy 8uy // get_least_significant_four_bit_for_one_byte one_byte
+          ptr_fixed_header_first_one_byte.(0ul) <- one_byte
         )
       else if (i = 1ul) then
         (
@@ -595,13 +630,14 @@ let bytes_loop request packet_size =
   in
   C.Loops.for 0ul packet_size inv body;
   let status: (s:U8.t{U8.v s <= 2}) = ptr_status.(0ul) in
-  let message_type: U8.t = ptr_message_type.(0ul) in
-  let flags: U8.t = ptr_flags.(0ul) in
-  let dup_flag: U8.t = get_most_significant_four_bit_for_four_bit flags in
-  let qos_flag: U8.t = get_center_two_bit_for_four_bit flags in
-  let retain_flag: U8.t = get_least_significant_four_bit_for_four_bit flags in
+  let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
+  let message_type: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in //ptr_message_type.(0ul) in
+  let flags: U8.t = slice_byte fixed_header_first_one_byte 4uy 8uy in //ptr_flags.(0ul) in
+  let dup_flag: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in //get_most_significant_four_bit_for_four_bit flags in
+  let qos_flag: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in //get_center_two_bit_for_four_bit flags in
+  let retain_flag: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in//get_least_significant_four_bit_for_four_bit flags in
   let is_valid_message_type: U8.t = is_valid_message_type_check message_type in
-  let is_valid_flags: U8.t = is_valid_flags_check message_type flags dup_flag qos_flag retain_flag in
+  let is_valid_flags: U8.t = 0uy in//TODO: is_valid_flags_check message_type flags dup_flag qos_flag retain_flag in
   let is_valid_mqtt_packet: bool =
     (U8.eq is_valid_message_type 0uy) &&
     (U8.eq is_valid_flags 0uy) &&
