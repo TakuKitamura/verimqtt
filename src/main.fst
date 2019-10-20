@@ -153,7 +153,7 @@ val is_valid_decoding_packet: ptr_for_decoding_packets: B.buffer U8.t
     (ensures fun h0 r h1 -> true)
 let is_valid_decoding_packet ptr_for_decoding_packets bytes_length =
   push_frame ();
-  let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
+  let ptr_status: B.buffer (status:U8.t{U8.v status <= 1}) = B.alloca 0uy 1ul in
   let inv h (i: nat) =
     B.live h ptr_status /\
     B.live h ptr_for_decoding_packets
@@ -203,7 +203,7 @@ let is_valid_decoding_packet ptr_for_decoding_packets bytes_length =
         )
   in
   C.Loops.for 0ul 4ul inv body;
-  let s: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
+  let s: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
   pop_frame ();
   if (s = 0uy) then
     (
@@ -240,7 +240,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets =
   push_frame ();
   let ptr_for_decoding_packet: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_for_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455}) = B.alloca 0ul 1ul in
-  let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
+  let ptr_status: B.buffer (status:U8.t{U8.v status <= 1}) = B.alloca 1uy 1ul in
   let ptr_temp1 : B.buffer (temp: U32.t{U32.v temp <= 127}) = B.alloca 0ul 1ul in
   let ptr_temp2 : B.buffer (temp: U32.t{U32.v temp <= 16383}) = B.alloca 0ul 1ul in
   let ptr_temp3 : B.buffer (temp: U32.t{U32.v temp <= 2097151}) = B.alloca 0ul 1ul in
@@ -259,7 +259,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets =
     (ensures (fun _ _ _ -> true))
   =
     let ptr_status_v = ptr_status.(0ul) in
-      if (ptr_status_v = 0uy) then
+      if (ptr_status_v = 1uy) then
         (
           let _ = ptr_for_decoding_packet.(0ul) <- ptr_for_decoding_packets.(i) in
           let decoding_packet: U8.t = ptr_for_decoding_packet.(0ul) in
@@ -296,28 +296,28 @@ let decodeing_variable_bytes ptr_for_decoding_packets =
             print_string "ptr_for_remaining_length is invalid.";
 
           if (b2_u8 = 0uy) then
-            ptr_status.(0ul) <- 1uy
+            ptr_status.(0ul) <- 0uy
         )
-      else
-        (
-          if (i = 3ul && ptr_status_v = 0uy) then
-            ptr_status.(0ul) <- 2uy
-        )
+      // else
+      //   (
+      //     if (i = 3ul && ptr_status_v = 1uy) then
+      //       ptr_status.(0ul) <- 2uy
+      //   )
   in
   C.Loops.for 0ul 4ul inv body;
   let (remaining_length: U32.t{0 <= U32.v remaining_length && U32.v remaining_length <= 268435455}) =
     ptr_for_remaining_length.(0ul) in
-  let s: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
+  let s: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
   pop_frame ();
   if (s = 1uy) then
-    (
-      remaining_length
-    )
-  else
     (
       // TODO: エラー処理をどうするか
       // print_string "malformed variable byte integer\n";
       0ul
+    )
+  else
+    (
+      remaining_length
     )
 
 // (1byte) + (msg len byte 1 or 2 or 3 or 4) + (msg byte) = 25
@@ -530,10 +530,10 @@ val bytes_loop: request: B.buffer U8.t -> packet_size: U32.t -> Stack struct_fix
 let bytes_loop request packet_size =
   push_frame ();
   let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_status: B.buffer (status:U8.t{U8.v status <= 2}) = B.alloca 0uy 1ul in
+  let ptr_status: B.buffer (status:U8.t{U8.v status <= 1}) = B.alloca 1uy 1ul in
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
   let ptr_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455}) =
-    B.alloca 0ul 1ul in
+   B.alloca 0ul 1ul in
   let inv h (i: nat) =
     B.live h ptr_fixed_header_first_one_byte /\
     B.live h request /\
@@ -546,7 +546,7 @@ let bytes_loop request packet_size =
     (ensures (fun _ _ _ -> true))
   =
     let one_byte : U8.t = request.(i) in
-        let ptr_status_v: (status:U8.t{U8.v status <= 2}) = ptr_status.(0ul) in
+        let ptr_status_v: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
       if (i = 0ul) then
         (
           // ptr_message_type.(0ul) <- slice_byte one_byte 0uy 4uy ;//get_most_significant_four_bit_for_one_byte one_byte;
@@ -563,19 +563,19 @@ let bytes_loop request packet_size =
                 get_remaining_length 1uy ptr_for_decoding_packets packet_size in
               if (U32.gt r 0ul) then
                 (
-                  ptr_status.(0ul) <- 1uy;
+                  ptr_status.(0ul) <- 0uy;
                   ptr_remaining_length.(0ul) <- r
                 )
                 else if (U8.eq one_byte 0uy && U32.eq packet_size 2ul) then
                     (
-                      ptr_status.(0ul) <- 1uy;
+                      ptr_status.(0ul) <- 0uy;
                       ptr_remaining_length.(0ul) <- r
                     )
             )
         )
       else if (i = 2ul) then
         (
-          if (ptr_status_v = 0uy) then
+          if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(1ul) <- one_byte;
               let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 2uy in
@@ -585,7 +585,7 @@ let bytes_loop request packet_size =
                     get_remaining_length 2uy ptr_for_decoding_packets packet_size in
                   if (U32.gt r 0ul) then
                     (
-                      ptr_status.(0ul) <- 1uy;
+                      ptr_status.(0ul) <- 0uy;
                       ptr_remaining_length.(0ul) <- r
                     )
                 )
@@ -593,7 +593,7 @@ let bytes_loop request packet_size =
         )
       else if (i = 3ul) then
         (
-          if (ptr_status_v = 0uy) then
+          if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(2ul) <- one_byte;
              let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 3uy in
@@ -603,7 +603,7 @@ let bytes_loop request packet_size =
                   = get_remaining_length 3uy ptr_for_decoding_packets packet_size in
                 if (U32.gt r 0ul) then
                   (
-                    ptr_status.(0ul) <- 1uy;
+                    ptr_status.(0ul) <- 0uy;
                     ptr_remaining_length.(0ul) <- r
                   )
                 )
@@ -611,7 +611,7 @@ let bytes_loop request packet_size =
         )
       else if (i = 4ul) then
         (
-          if (ptr_status_v = 0uy) then
+          if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(3ul) <- one_byte;
               let is_valid: bool = is_valid_decoding_packet ptr_for_decoding_packets 4uy in
@@ -621,7 +621,7 @@ let bytes_loop request packet_size =
                     = get_remaining_length 4uy ptr_for_decoding_packets packet_size in
                   if (U32.gt r 0ul) then
                     (
-                      ptr_status.(0ul) <- 1uy;
+                      ptr_status.(0ul) <- 0uy;
                       ptr_remaining_length.(0ul) <- r
                     )
                 )
@@ -629,7 +629,7 @@ let bytes_loop request packet_size =
         )
   in
   C.Loops.for 0ul packet_size inv body;
-  let status: (s:U8.t{U8.v s <= 2}) = ptr_status.(0ul) in
+  let status: (s:U8.t{U8.v s <= 1}) = ptr_status.(0ul) in
   let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
   let message_type: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in //ptr_message_type.(0ul) in
   let flags: U8.t = slice_byte fixed_header_first_one_byte 4uy 8uy in //ptr_flags.(0ul) in
@@ -641,7 +641,7 @@ let bytes_loop request packet_size =
   let is_valid_mqtt_packet: bool =
     (U8.eq is_valid_message_type 0uy) &&
     (U8.eq is_valid_flags 0uy) &&
-    (status <> 0uy) in
+    (U8.eq status 0uy) in
   if (is_valid_mqtt_packet = false) then
     (
       let data: struct_fixed_header = {
