@@ -184,25 +184,123 @@ let is_valid_retain_flag retain_flag =
 type type_retain_flags_restrict =
   retain_flag: type_retain_flags{U8.eq (is_valid_retain_flag retain_flag) 0uy || U8.eq retain_flag 255uy}
 
-// TODO: この条件判定は間違っている
-type type_flag_restrict =
-  flag: U8.t{
-    U8.eq define_flag_CONNECT flag ||
-    U8.eq define_flag_CONNACK flag ||
-    U8.eq define_flag_PUBACK flag ||
-    U8.eq define_flag_PUBREC flag ||
-    U8.eq define_flag_PUBREL flag ||
-    U8.eq define_flag_PUBCOMP flag ||
-    U8.eq define_flag_SUBSCRIBE flag ||
-    U8.eq define_flag_SUBACK flag ||
-    U8.eq define_flag_UNSUBSCRIBE flag ||
-    U8.eq define_flag_UNSUBACK flag ||
-    U8.eq define_flag_PINGREQ flag ||
-    U8.eq define_flag_PINGRESP flag ||
-    U8.eq define_flag_DISCONNECT flag ||
-    U8.eq define_flag_AUTH flag ||
-    U8.eq flag 255uy
-  }
+val is_valid_connect_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_connect_flag flag =
+  if (flag <> define_flag_CONNECT) then
+    1uy
+  else
+    0uy
+
+val is_valid_connack_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_connack_flag flag =
+  if (flag <> define_flag_CONNACK) then
+    1uy
+  else
+    0uy
+
+val is_valid_puback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_puback_flag flag =
+  if (flag <> define_flag_PUBACK) then
+    1uy
+  else
+    0uy
+
+val is_valid_pubrec_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pubrec_flag flag =
+  if (flag <> define_flag_PUBREC) then
+    1uy
+  else
+    0uy
+
+val is_valid_pubrel_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pubrel_flag flag =
+  if (flag <> define_flag_PUBREL) then
+    1uy
+  else
+    0uy
+
+val is_valid_pubcomp_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pubcomp_flag flag =
+  if (flag <> define_flag_PUBCOMP) then
+    1uy
+  else
+    0uy
+
+val is_valid_subscribe_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_subscribe_flag flag =
+  if (flag <> define_flag_SUBSCRIBE) then
+    1uy
+  else
+    0uy
+
+val is_valid_suback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_suback_flag flag =
+  if (flag <> define_flag_SUBACK) then
+    1uy
+  else
+    0uy
+
+val is_valid_unsubscribe_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_unsubscribe_flag flag =
+  if (flag <> define_flag_UNSUBSCRIBE) then
+    1uy
+  else
+    0uy
+
+val is_valid_unsuback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_unsuback_flag flag =
+  if (flag <> define_flag_UNSUBACK) then
+    1uy
+  else
+    0uy
+
+val is_valid_pingreq_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pingreq_flag flag =
+  if (flag <> define_flag_PINGREQ) then
+    1uy
+  else
+    0uy
+
+val is_valid_pingresp_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pingresp_flag flag =
+  if (flag <> define_flag_PINGRESP) then
+    1uy
+  else
+    0uy
+
+val is_valid_disconnect_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_disconnect_flag flag =
+  if (flag <> define_flag_DISCONNECT) then
+    1uy
+  else
+    0uy
+
+val is_valid_auth_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_auth_flag flag =
+  if (flag <> define_flag_AUTH) then
+    1uy
+  else
+    0uy
+
+type type_flag_restrict =
+  flag: U8.t{
+    U8.eq (is_valid_connect_flag flag) 0uy ||
+    U8.eq (is_valid_connack_flag flag) 0uy ||
+    U8.eq (is_valid_puback_flag flag) 0uy ||
+    U8.eq (is_valid_pubrec_flag flag) 0uy ||
+    U8.eq (is_valid_pubrel_flag flag) 0uy ||
+    U8.eq (is_valid_pubcomp_flag flag) 0uy ||
+    U8.eq (is_valid_subscribe_flag flag) 0uy ||
+    U8.eq (is_valid_suback_flag flag) 0uy ||
+    U8.eq (is_valid_unsubscribe_flag flag) 0uy ||
+    U8.eq (is_valid_unsuback_flag flag) 0uy ||
+    U8.eq (is_valid_pingreq_flag flag) 0uy ||
+    U8.eq (is_valid_pingresp_flag flag) 0uy ||
+    U8.eq (is_valid_disconnect_flag flag) 0uy ||
+    U8.eq (is_valid_auth_flag flag) 0uy ||
+    U8.eq flag 255uy
+  }
+
 
 type type_remaining_length = (remaining_length: U32.t{U32.v remaining_length <= 268435455})
 
@@ -655,28 +753,40 @@ let bytes_loop request packet_size =
     let remaining_length: type_remaining_length
       = ptr_remaining_length.(0ul) in
 
-    let flag: type_flag_restrict = //slice_byte fixed_header_first_one_byte 4uy 8uy in
-      (
-        let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
-        // TODO: この条件判定は間違っている
-        if (U8.eq define_flag_CONNECT v ||
-          U8.eq define_flag_CONNACK v ||
-          U8.eq define_flag_PUBACK v ||
-          U8.eq define_flag_PUBREC v ||
-          U8.eq define_flag_PUBREL v ||
-          U8.eq define_flag_PUBCOMP v ||
-          U8.eq define_flag_SUBSCRIBE v ||
-          U8.eq define_flag_SUBACK v ||
-          U8.eq define_flag_UNSUBSCRIBE v ||
-          U8.eq define_flag_UNSUBACK v ||
-          U8.eq define_flag_PINGREQ v ||
-          U8.eq define_flag_PINGRESP v ||
-          U8.eq define_flag_DISCONNECT v ||
-          U8.eq define_flag_AUTH v) then
-            v
-        else
-          255uy
-      ) in
+    let flag: type_flag_restrict = //slice_byte fixed_header_first_one_byte 4uy 8uy in
+      (
+        let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
+        if (U8.eq (is_valid_connect_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_connack_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_puback_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_pubrec_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_pubrel_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_pubcomp_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_subscribe_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_suback_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_unsubscribe_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_unsuback_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_pingreq_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_pingresp_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_disconnect_flag v) 0uy) then
+          v
+        else if (U8.eq (is_valid_auth_flag v) 0uy) then
+          v
+        else
+          255uy
+      ) in
       let message_name: type_message_name_restrict =
         (
           if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
