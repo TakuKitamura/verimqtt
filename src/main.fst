@@ -537,16 +537,11 @@ let bytes_loop request packet_size =
         let ptr_status_v: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
       if (i = 0ul) then
         (
-          // ptr_message_type.(0ul) <- slice_byte one_byte 0uy 4uy ;//get_most_significant_four_bit_for_one_byte one_byte;
-          // ptr_flags.(0ul) <- slice_byte one_byte 4uy 8uy // get_least_significant_four_bit_for_one_byte one_byte
           ptr_fixed_header_first_one_byte.(0ul) <- one_byte
         )
       else if (i = 1ul) then
         (
           ptr_for_decoding_packets.(0ul) <- one_byte;
-          // let is_valid: (v:U8.t{U8.v v <= 3}) = is_valid_decoding_packet_check ptr_for_decoding_packets 1uy in
-          // if (U8.eq is_valid 0uy) then
-          //   (
           let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
             get_remaining_length 1uy ptr_for_decoding_packets packet_size in
           if (U32.gt r 0ul) then
@@ -559,24 +554,19 @@ let bytes_loop request packet_size =
                   ptr_status.(0ul) <- 0uy;
                   ptr_remaining_length.(0ul) <- r
                 )
-            // )
         )
       else if (i = 2ul) then
         (
           if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(1ul) <- one_byte;
-              // let is_valid: (v:U8.t{U8.v v <= 3}) = is_valid_decoding_packet_check ptr_for_decoding_packets 2uy in
-              // if (U8.eq is_valid 0uy) then
-                // (
-                  let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
-                    get_remaining_length 2uy ptr_for_decoding_packets packet_size in
-                  if (U32.gt r 0ul) then
-                    (
-                      ptr_status.(0ul) <- 0uy;
-                      ptr_remaining_length.(0ul) <- r
-                    )
-                // )
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+                get_remaining_length 2uy ptr_for_decoding_packets packet_size in
+              if (U32.gt r 0ul) then
+                (
+                  ptr_status.(0ul) <- 0uy;
+                  ptr_remaining_length.(0ul) <- r
+                )
             )
         )
       else if (i = 3ul) then
@@ -584,17 +574,13 @@ let bytes_loop request packet_size =
           if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(2ul) <- one_byte;
-              // let is_valid: (v:U8.t{U8.v v <= 3}) = is_valid_decoding_packet_check ptr_for_decoding_packets 3uy in
-              // if (U8.eq is_valid 0uy) then
-              //   (
-                let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
-                  = get_remaining_length 3uy ptr_for_decoding_packets packet_size in
-                if (U32.gt r 0ul) then
-                  (
-                    ptr_status.(0ul) <- 0uy;
-                    ptr_remaining_length.(0ul) <- r
-                  )
-                // )
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+                = get_remaining_length 3uy ptr_for_decoding_packets packet_size in
+              if (U32.gt r 0ul) then
+                (
+                  ptr_status.(0ul) <- 0uy;
+                  ptr_remaining_length.(0ul) <- r
+                )
             )
         )
       else if (i = 4ul) then
@@ -602,17 +588,13 @@ let bytes_loop request packet_size =
           if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(3ul) <- one_byte;
-              // let is_valid: (v:U8.t{U8.v v <= 3}) = is_valid_decoding_packet_check ptr_for_decoding_packets 4uy in
-              // if (U8.eq is_valid 0uy) then
-              //   (
-                  let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
-                    = get_remaining_length 4uy ptr_for_decoding_packets packet_size in
-                  if (U32.gt r 0ul) then
-                    (
-                      ptr_status.(0ul) <- 0uy;
-                      ptr_remaining_length.(0ul) <- r
-                    )
-                // )
+              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+                = get_remaining_length 4uy ptr_for_decoding_packets packet_size in
+              if (U32.gt r 0ul) then
+                (
+                  ptr_status.(0ul) <- 0uy;
+                  ptr_remaining_length.(0ul) <- r
+                )
             )
         )
   in
