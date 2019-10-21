@@ -14,7 +14,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --z3rlimit 30"
+#set-options "--max_ifuel 10 --z3rlimit 100"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -40,6 +40,24 @@ let define_mqtt_control_packet_PINGREQ : type_mqtt_control_packets = 12uy
 let define_mqtt_control_packet_PINGRESP : type_mqtt_control_packets = 13uy
 let define_mqtt_control_packet_DISCONNECT : type_mqtt_control_packets = 14uy
 let define_mqtt_control_packet_AUTH : type_mqtt_control_packets = 15uy
+
+type type_mqtt_control_packet_label = C.String.t
+let define_mqtt_control_packet_RESERVED_label : type_mqtt_control_packet_label = !$"RESERVED"
+let define_mqtt_control_packet_CONNECT_label : type_mqtt_control_packet_label = !$"CONNECT"
+let define_mqtt_control_packet_CONNACK_label : type_mqtt_control_packet_label = !$"CONNACK"
+let define_mqtt_control_packet_PUBLISH_label : type_mqtt_control_packet_label = !$"PUBLISH"
+let define_mqtt_control_packet_PUBACK_label : type_mqtt_control_packet_label = !$"PUBACK"
+let define_mqtt_control_packet_PUBREC_label : type_mqtt_control_packet_label = !$"PUBREC"
+let define_mqtt_control_packet_PUBREL_label : type_mqtt_control_packet_label = !$"PUBREL"
+let define_mqtt_control_packet_PUBCOMP_label : type_mqtt_control_packet_label = !$"PUBCOMP"
+let define_mqtt_control_packet_SUBSCRIBE_label : type_mqtt_control_packet_label = !$"SUBSCRIBE"
+let define_mqtt_control_packet_SUBACK_label : type_mqtt_control_packet_label = !$"SUBACK"
+let define_mqtt_control_packet_UNSUBSCRIBE_label : type_mqtt_control_packet_label = !$"UNSUBSCRIBE"
+let define_mqtt_control_packet_UNSUBACK_label : type_mqtt_control_packet_label = !$"UNSUBACK"
+let define_mqtt_control_packet_PINGREQ_label : type_mqtt_control_packet_label = !$"PINGREQ"
+let define_mqtt_control_packet_PINGRESP_label : type_mqtt_control_packet_label = !$"PINGRESP"
+let define_mqtt_control_packet_DISCONNECT_label : type_mqtt_control_packet_label = !$"DISCONNECT"
+let define_mqtt_control_packet_AUTH_label : type_mqtt_control_packet_label = !$"AUTH"
 
 val is_valid_message_type_check: message_type: U8.t -> r:U8.t
 let is_valid_message_type_check message_type =
@@ -97,6 +115,17 @@ type type_dup_flags = U8.t // Base 10
 let define_dup_flag_first_delivery : type_dup_flags = 0uy
 let define_dup_flag_re_delivery : type_dup_flags = 1uy
 
+val is_valid_dup_flag: dup_flag:type_dup_flags -> (r:U8.t{U8.v r <= 1})
+let is_valid_dup_flag dup_flag =
+  if (dup_flag <> define_dup_flag_first_delivery &&
+      dup_flag <> define_dup_flag_re_delivery) then
+    1uy
+  else
+    0uy
+
+type type_dup_flags_restrict =
+  dup_flag: type_dup_flags{U8.eq (is_valid_dup_flag dup_flag) 0uy || U8.eq dup_flag 255uy}
+
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
 // 3.3.1.2 QoS
 // Table 3‑2 - QoS definitions
@@ -107,6 +136,18 @@ let define_qos_flag_at_least_once_delivery : type_qos_flags = 0b01uy
 let define_qos_flag_exactly_once_delivery : type_qos_flags = 0b10uy
 let define_qos_flag_reserved : type_qos_flags = 0b11uy
 
+val is_valid_qos_flag: qos_flag:type_qos_flags -> (r:U8.t{U8.v r <= 1})
+let is_valid_qos_flag qos_flag =
+  if (qos_flag <> define_qos_flag_at_least_once_delivery &&
+      qos_flag <> define_qos_flag_at_most_once_delivery &&
+      qos_flag <> define_qos_flag_exactly_once_delivery) then
+    1uy
+  else
+    0uy
+
+type type_qos_flags_restrict =
+  qos_flag: type_qos_flags{U8.eq (is_valid_qos_flag qos_flag) 0uy || U8.eq qos_flag 255uy}
+
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
 // 3.3.1.3 RETAIN
 type type_retain_flags = U8.t // Base 10
@@ -114,79 +155,94 @@ type type_retain_flags = U8.t // Base 10
 let define_retain_flag_must_not_store_application_message : type_retain_flags = 0uy
 let define_retain_flag_must_store_application_message : type_retain_flags = 1uy
 
-val is_valid_flags_check:
-  message_type: U8.t
-  -> flags: U8.t
-  -> dup_flag: U8.t
-  -> qos_flag: U8.t
-  -> retain_flag: U8.t
-  -> r:U8.t
-let is_valid_flags_check message_type flags dup_flag qos_flag retain_flag =
-      (
-        // let sum = U8.(dup_flag +^ qos_flag +^ retain_flag) in
-        if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
-          (
-            if (flags <> define_flag_PUBREL) then
-              1uy
-            else
-              0uy
-          )
-        else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
-          (
-            if (flags <> define_flag_SUBSCRIBE) then
-              2uy
-            else
-              0uy
-          )
-        else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-          (
-            if (flags <> define_flag_UNSUBSCRIBE) then
-              3uy
-            else
-              0uy
-          )
-        else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-          (
-            (
-              if (dup_flag <> define_dup_flag_first_delivery && dup_flag <> define_dup_flag_re_delivery) then
-                4uy
-              else if (qos_flag <> define_qos_flag_at_least_once_delivery &&
-                  qos_flag <> define_qos_flag_at_most_once_delivery &&
-                  qos_flag <> define_qos_flag_exactly_once_delivery) then
-                5uy
-              else if (U8.eq qos_flag define_qos_flag_reserved) then
-                6uy
-              else if (retain_flag <> define_retain_flag_must_not_store_application_message &&
-                  retain_flag <> define_retain_flag_must_store_application_message) then
-                7uy
-              else
-                0uy
-            )
-          )
-        else
-          if (flags <> define_flag_CONNECT &&
-              flags <> define_flag_CONNACK &&
-              flags <> define_flag_PUBACK &&
-              flags <> define_flag_PUBREC &&
-              flags <> define_flag_PUBCOMP &&
-              flags <> define_flag_SUBACK &&
-              flags <> define_flag_UNSUBACK &&
-              flags <> define_flag_PINGREQ &&
-              flags <> define_flag_PINGRESP &&
-              flags <> define_flag_DISCONNECT &&
-              flags <> define_flag_AUTH) then
-            8uy
-          else
-            0uy
-      )
+val is_valid_retain_flag: retain_flag:type_retain_flags -> (r:U8.t{U8.v r <= 1})
+let is_valid_retain_flag retain_flag =
+  if (retain_flag <> define_retain_flag_must_not_store_application_message &&
+      retain_flag <> define_retain_flag_must_store_application_message) then
+    1uy
+  else
+    0uy
 
-type type_flags_restrict
-  (message_type: U8.t)
-  (dup_flag: U8.t)
-  (qos_flag: U8.t)
-  (retain_flag: U8.t)=
+type type_retain_flags_restrict =
+  retain_flag: type_retain_flags{U8.eq (is_valid_retain_flag retain_flag) 0uy || U8.eq retain_flag 255uy}
 
-  v: U8.t{U8.eq (is_valid_flags_check message_type v dup_flag qos_flag retain_flag) 0uy || U8.eq v 255uy}
+// val is_valid_flag_reserved_check: flags:U8.t -> (r:U8.t{U8.v r <= 1})
+// let is_valid_flag_reserved_check flags =
+//   if
+
+// val is_valid_flags_check:
+//   message_type: U8.t
+//   -> flags: U8.t
+//   -> dup_flag: U8.t
+//   -> qos_flag: U8.t
+//   -> retain_flag: U8.t
+//   -> r:U8.t
+// let is_valid_flags_check message_type flags dup_flag qos_flag retain_flag =
+//       (
+//         // let sum = U8.(dup_flag +^ qos_flag +^ retain_flag) in
+//         if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
+//           (
+//             if (flags <> define_flag_PUBREL) then
+//               1uy
+//             else
+//               0uy
+//           )
+//         else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
+//           (
+//             if (flags <> define_flag_SUBSCRIBE) then
+//               2uy
+//             else
+//               0uy
+//           )
+//         else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
+//           (
+//             if (flags <> define_flag_UNSUBSCRIBE) then
+//               3uy
+//             else
+//               0uy
+//           )
+//         else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+//           (
+//             (
+//               if (dup_flag <> define_dup_flag_first_delivery && dup_flag <> define_dup_flag_re_delivery) then
+//                 4uy
+//               else if (qos_flag <> define_qos_flag_at_least_once_delivery &&
+//                   qos_flag <> define_qos_flag_at_most_once_delivery &&
+//                   qos_flag <> define_qos_flag_exactly_once_delivery) then
+//                 5uy
+//               else if (U8.eq qos_flag define_qos_flag_reserved) then
+//                 6uy
+//               else if (retain_flag <> define_retain_flag_must_not_store_application_message &&
+//                   retain_flag <> define_retain_flag_must_store_application_message) then
+//                 7uy
+//               else
+//                 0uy
+//             )
+//           )
+//         else
+//           if (flags <> define_flag_CONNECT &&
+//               flags <> define_flag_CONNACK &&
+//               flags <> define_flag_PUBACK &&
+//               flags <> define_flag_PUBREC &&
+//               flags <> define_flag_PUBCOMP &&
+//               flags <> define_flag_SUBACK &&
+//               flags <> define_flag_UNSUBACK &&
+//               flags <> define_flag_PINGREQ &&
+//               flags <> define_flag_PINGRESP &&
+//               flags <> define_flag_DISCONNECT &&
+//               flags <> define_flag_AUTH) then
+//             8uy
+//           else
+//             0uy
+//       )
+
+// type type_flags_restrict
+//   (message_type: U8.t)
+//   (dup_flag: U8.t)
+//   (qos_flag: U8.t)
+//   (retain_flag: U8.t)=
+
+//   v: U8.t{U8.eq (is_valid_flags_check message_type v dup_flag qos_flag retain_flag) 0uy || U8.eq v 255uy}
 
 // debug tool
 assume val extern_print_hex (i:U8.t): Stack unit
@@ -497,16 +553,16 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
 
 type struct_flags = {
   is_reserved: bool;
-  dup_flag: U8.t;
-  qos_flag: U8.t;
-  retain_flag: U8.t;
+  dup_flag: type_dup_flags_restrict;
+  qos_flag: type_qos_flags_restrict;
+  retain_flag: type_retain_flags_restrict;
 }
 
 // TODO: PUBLISH の場合どう扱うか検討
 // TODO: 返り値の値域を決定する
 type struct_fixed_header = {
   message_name: C.String.t;
-  message_type: U8.t;
+  message_type: type_mqtt_control_packets_restrict;
   flags: struct_flags;
   remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455});
   error_message: C.String.t;
@@ -609,33 +665,63 @@ let bytes_loop request packet_size =
       else
         255uy
     ) in
-  let dup_flag: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
-  let qos_flag: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
-  let retain_flag: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
-  let flags: type_flags_restrict message_type dup_flag qos_flag retain_flag =
+  let dup_flag: type_dup_flags_restrict =
     (
-      let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
-      if (U8.eq (is_valid_flags_check message_type v dup_flag qos_flag retain_flag) 0uy) then
+      let v = slice_byte fixed_header_first_one_byte 4uy 5uy in
+      if (U8.eq (is_valid_dup_flag v) 0uy) then
         v
       else
         255uy
     ) in
+  let qos_flag: type_qos_flags_restrict =
+    (
+      let v = slice_byte fixed_header_first_one_byte 5uy 7uy in
+      if (U8.eq (is_valid_qos_flag v) 0uy) then
+        v
+      else
+        255uy
+    ) in
+  let retain_flag: type_retain_flags_restrict =
+    (
+      let v = slice_byte fixed_header_first_one_byte 7uy 8uy in
+      if (U8.eq (is_valid_retain_flag v) 0uy) then
+        v
+      else
+        255uy
+    ) in
+  // let flags_v: type_flags_restrict message_type dup_flag qos_flag retain_flag =
+  //   (
+  //     let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
+  //     if (U8.eq (is_valid_flags_check message_type v dup_flag qos_flag retain_flag) 0uy) then
+  //       v
+  //     else
+  //       255uy
+  //   ) in
+    let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455})
+      = ptr_remaining_length.(0ul) in
+    let is_reserved =
+      (
+        if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+          false
+        else
+          true
+      ) in
   let is_valid_message_type: U8.t = is_valid_message_type_check message_type in
-  let is_valid_flags: U8.t = is_valid_flags_check message_type flags dup_flag qos_flag retain_flag in
+  // let is_valid_flags: U8.t = is_valid_flags_check message_type flags_v dup_flag qos_flag retain_flag in
   let is_valid_mqtt_packet: bool =
     (U8.eq is_valid_message_type 0uy) &&
-    (U8.eq is_valid_flags 0uy) &&
+    // (U8.eq is_valid_flags 0uy) &&
     (U8.eq status 0uy) in
   if (is_valid_mqtt_packet = false) then
     (
       let data: struct_fixed_header = {
             message_name = !$"";
-            message_type = 0uy;
+            message_type = 255uy;
             flags = {
               is_reserved = false;
-              dup_flag = 0uy;
-              qos_flag = 0uy;
-              retain_flag = 0uy;
+              dup_flag = 255uy;
+              qos_flag = 255uy;
+              retain_flag = 255uy;
             };
             remaining_length = 0ul;
             error_message = !$"invalid mqtt-packets"; // TODO: 一時的
@@ -648,46 +734,37 @@ let bytes_loop request packet_size =
       let message_name: C.String.t =
         (
           if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
-            !$"CONNECT"
+            define_mqtt_control_packet_CONNECT_label
           else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then
-            !$"CONNACK"
+            define_mqtt_control_packet_CONNACK_label
           else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-            !$"PUBLISH"
+            define_mqtt_control_packet_PUBLISH_label
           else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then
-            !$"PUBACK"
+            define_mqtt_control_packet_PUBACK_label
           else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then
-            !$"PUBREC"
+            define_mqtt_control_packet_PUBREC_label
           else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
-            !$"PUBREL"
+            define_mqtt_control_packet_PUBREL_label
           else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then
-            !$"PUBCOMP"
+            define_mqtt_control_packet_PUBCOMP_label
           else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
-            !$"SUBSCRIBE"
+            define_mqtt_control_packet_SUBSCRIBE_label
           else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then
-            !$"SUBACK"
+            define_mqtt_control_packet_SUBACK_label
           else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-            !$"UNSUBSCRIBE"
+            define_mqtt_control_packet_UNSUBSCRIBE_label
           else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then
-            !$"UNSUBACK"
+            define_mqtt_control_packet_UNSUBACK_label
           else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then
-            !$"PINGREQ"
+            define_mqtt_control_packet_PINGREQ_label
           else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then
-            !$"PINGRESP"
+            define_mqtt_control_packet_PINGRESP_label
           else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
-            !$"DISCONNECT"
+            define_mqtt_control_packet_DISCONNECT_label
           else if (U8.eq message_type define_mqtt_control_packet_AUTH) then
-            !$"AUTH"
+            define_mqtt_control_packet_AUTH_label
           else
             !$"UNKNOWN"
-        ) in
-      let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455})
-        = ptr_remaining_length.(0ul) in
-      let is_reserved =
-        (
-          if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-            false
-          else
-            true
         ) in
       let flags: struct_flags = {
           is_reserved = is_reserved;
