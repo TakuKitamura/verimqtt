@@ -4,7 +4,6 @@ module B = LowStar.Buffer
 module M = LowStar.Modifies
 module HS = FStar.HyperStack
 module ST = FStar.HyperStack.ST
-// module U32 = FStar.UInt32
 
 open FStar.HyperStack.ST
 open LowStar.BufferOps
@@ -14,7 +13,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 10 --z3rlimit 100"
+#set-options "--max_ifuel 0 --z3rlimit 1000"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -58,7 +57,26 @@ let define_mqtt_control_packet_PINGREQ_label : type_mqtt_control_packet_label = 
 let define_mqtt_control_packet_PINGRESP_label : type_mqtt_control_packet_label = !$"PINGRESP"
 let define_mqtt_control_packet_DISCONNECT_label : type_mqtt_control_packet_label = !$"DISCONNECT"
 let define_mqtt_control_packet_AUTH_label : type_mqtt_control_packet_label = !$"AUTH"
-
+type type_message_name_restrict =
+  v:type_mqtt_control_packet_label{
+    v = define_mqtt_control_packet_RESERVED_label ||
+    v = define_mqtt_control_packet_CONNECT_label ||
+    v = define_mqtt_control_packet_CONNACK_label ||
+    v = define_mqtt_control_packet_PUBLISH_label ||
+    v = define_mqtt_control_packet_PUBACK_label ||
+    v = define_mqtt_control_packet_PUBREC_label ||
+    v = define_mqtt_control_packet_PUBREL_label ||
+    v = define_mqtt_control_packet_PUBCOMP_label ||
+    v = define_mqtt_control_packet_SUBSCRIBE_label ||
+    v = define_mqtt_control_packet_SUBACK_label ||
+    v = define_mqtt_control_packet_UNSUBSCRIBE_label ||
+    v = define_mqtt_control_packet_UNSUBACK_label ||
+    v = define_mqtt_control_packet_PINGREQ_label ||
+    v = define_mqtt_control_packet_PINGRESP_label ||
+    v = define_mqtt_control_packet_DISCONNECT_label ||
+    v = define_mqtt_control_packet_AUTH_label ||
+    v = !$""
+  }
 val is_valid_message_type_check: message_type: U8.t -> r:U8.t
 let is_valid_message_type_check message_type =
   if (U8.eq message_type define_mqtt_control_packet_RESERVED) then
@@ -166,83 +184,27 @@ let is_valid_retain_flag retain_flag =
 type type_retain_flags_restrict =
   retain_flag: type_retain_flags{U8.eq (is_valid_retain_flag retain_flag) 0uy || U8.eq retain_flag 255uy}
 
-// val is_valid_flag_reserved_check: flags:U8.t -> (r:U8.t{U8.v r <= 1})
-// let is_valid_flag_reserved_check flags =
-//   if
+// TODO: この条件判定は間違っている
+type type_flag_restrict =
+  flag: U8.t{
+    U8.eq define_flag_CONNECT flag ||
+    U8.eq define_flag_CONNACK flag ||
+    U8.eq define_flag_PUBACK flag ||
+    U8.eq define_flag_PUBREC flag ||
+    U8.eq define_flag_PUBREL flag ||
+    U8.eq define_flag_PUBCOMP flag ||
+    U8.eq define_flag_SUBSCRIBE flag ||
+    U8.eq define_flag_SUBACK flag ||
+    U8.eq define_flag_UNSUBSCRIBE flag ||
+    U8.eq define_flag_UNSUBACK flag ||
+    U8.eq define_flag_PINGREQ flag ||
+    U8.eq define_flag_PINGRESP flag ||
+    U8.eq define_flag_DISCONNECT flag ||
+    U8.eq define_flag_AUTH flag ||
+    U8.eq flag 255uy
+  }
 
-// val is_valid_flags_check:
-//   message_type: U8.t
-//   -> flags: U8.t
-//   -> dup_flag: U8.t
-//   -> qos_flag: U8.t
-//   -> retain_flag: U8.t
-//   -> r:U8.t
-// let is_valid_flags_check message_type flags dup_flag qos_flag retain_flag =
-//       (
-//         // let sum = U8.(dup_flag +^ qos_flag +^ retain_flag) in
-//         if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
-//           (
-//             if (flags <> define_flag_PUBREL) then
-//               1uy
-//             else
-//               0uy
-//           )
-//         else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
-//           (
-//             if (flags <> define_flag_SUBSCRIBE) then
-//               2uy
-//             else
-//               0uy
-//           )
-//         else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-//           (
-//             if (flags <> define_flag_UNSUBSCRIBE) then
-//               3uy
-//             else
-//               0uy
-//           )
-//         else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-//           (
-//             (
-//               if (dup_flag <> define_dup_flag_first_delivery && dup_flag <> define_dup_flag_re_delivery) then
-//                 4uy
-//               else if (qos_flag <> define_qos_flag_at_least_once_delivery &&
-//                   qos_flag <> define_qos_flag_at_most_once_delivery &&
-//                   qos_flag <> define_qos_flag_exactly_once_delivery) then
-//                 5uy
-//               else if (U8.eq qos_flag define_qos_flag_reserved) then
-//                 6uy
-//               else if (retain_flag <> define_retain_flag_must_not_store_application_message &&
-//                   retain_flag <> define_retain_flag_must_store_application_message) then
-//                 7uy
-//               else
-//                 0uy
-//             )
-//           )
-//         else
-//           if (flags <> define_flag_CONNECT &&
-//               flags <> define_flag_CONNACK &&
-//               flags <> define_flag_PUBACK &&
-//               flags <> define_flag_PUBREC &&
-//               flags <> define_flag_PUBCOMP &&
-//               flags <> define_flag_SUBACK &&
-//               flags <> define_flag_UNSUBACK &&
-//               flags <> define_flag_PINGREQ &&
-//               flags <> define_flag_PINGRESP &&
-//               flags <> define_flag_DISCONNECT &&
-//               flags <> define_flag_AUTH) then
-//             8uy
-//           else
-//             0uy
-//       )
-
-// type type_flags_restrict
-//   (message_type: U8.t)
-//   (dup_flag: U8.t)
-//   (qos_flag: U8.t)
-//   (retain_flag: U8.t)=
-
-//   v: U8.t{U8.eq (is_valid_flags_check message_type v dup_flag qos_flag retain_flag) 0uy || U8.eq v 255uy}
+type type_remaining_length = (remaining_length: U32.t{U32.v remaining_length <= 268435455})
 
 // debug tool
 assume val extern_print_hex (i:U8.t): Stack unit
@@ -379,18 +341,18 @@ let except_most_significant_four_bit_to_zero i =
 // TODO: 下限値チェック
 val decodeing_variable_bytes: ptr_for_decoding_packets: B.buffer U8.t
   -> bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4}
-  -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+  -> Stack (remaining_length:type_remaining_length)
     (requires fun h0 -> B.live h0 ptr_for_decoding_packets  /\ B.length ptr_for_decoding_packets = 4)
     (ensures fun h0 r h1 -> true)
 let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
   push_frame ();
   let ptr_for_decoding_packet: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_for_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455}) = B.alloca 0ul 1ul in
+  let ptr_for_remaining_length: B.buffer type_remaining_length = B.alloca 0ul 1ul in
   let ptr_status: B.buffer (status:U8.t{U8.v status <= 1}) = B.alloca 1uy 1ul in
   let ptr_temp1 : B.buffer (temp: U32.t{U32.v temp <= 127}) = B.alloca 0ul 1ul in
   let ptr_temp2 : B.buffer (temp: U32.t{U32.v temp <= 16383}) = B.alloca 0ul 1ul in
   let ptr_temp3 : B.buffer (temp: U32.t{U32.v temp <= 2097151}) = B.alloca 0ul 1ul in
-  let ptr_temp4 : B.buffer (temp: U32.t{U32.v temp <= 268435455}) = B.alloca 0ul 1ul in
+  let ptr_temp4 : B.buffer type_remaining_length = B.alloca 0ul 1ul in
   let inv h (i: nat) = B.live h ptr_for_decoding_packets /\
     B.live h ptr_for_decoding_packet /\
     B.live h ptr_for_remaining_length /\
@@ -452,7 +414,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
             )
       in
       C.Loops.for 0ul 4ul inv body;
-      let (remaining_length: U32.t{0 <= U32.v remaining_length && U32.v remaining_length <= 268435455}) =
+      let remaining_length: type_remaining_length =
         ptr_for_remaining_length.(0ul) in
       let s: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
       pop_frame ();
@@ -480,20 +442,20 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
 
 // // TODO: 値域の設定
 val get_remaining_length: bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4} -> ptr_for_decoding_packets: B.buffer U8.t -> packet_size:U32.t{1 <= U32.v packet_size}
-  -> Stack (remaining_length:U32.t{U32.v remaining_length <= 268435455}) // TODO: エラーの返り値をどうするか
+  -> Stack (remaining_length:type_remaining_length) // TODO: エラーの返り値をどうするか
   (requires fun h0 -> B.live h0 ptr_for_decoding_packets /\ B.length ptr_for_decoding_packets = 4)
   (ensures fun _ _ _ -> true)
 let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
   push_frame ();
   let fixed_value = U32.(packet_size -^ 1ul) in
-  let rr: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+  let rr: (remaining_length:type_remaining_length) =
   (
     if (bytes_length = 1uy) then
       (
         let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
         let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
         decoding_packets.(0ul) <- decoding_packet_first;
-        let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes decoding_packets bytes_length in
+        let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
           if (U32.(1ul +^ r) = fixed_value) then
             r
           else
@@ -509,7 +471,7 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
           let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
           decoding_packets.(0ul) <- decoding_packet_first;
           decoding_packets.(1ul) <- decoding_packet_second;
-          let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes decoding_packets bytes_length in
+          let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
             if (U32.(2ul +^ r) = fixed_value) then
               r
             else
@@ -527,7 +489,7 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
           decoding_packets.(0ul) <- decoding_packet_first;
           decoding_packets.(1ul) <- decoding_packet_second;
           decoding_packets.(2ul) <- decoding_packet_third;
-          let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes decoding_packets bytes_length in
+          let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
             if (U32.(3ul +^ r) = fixed_value) then
               r
             else
@@ -538,7 +500,7 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
         )
       else
         (
-          let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) = decodeing_variable_bytes ptr_for_decoding_packets bytes_length in
+          let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes ptr_for_decoding_packets bytes_length in
             if (U32.(4ul +^ r) = fixed_value) then
               r
             else
@@ -552,7 +514,8 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
   rr
 
 type struct_flags = {
-  is_reserved: bool;
+  flag: type_flag_restrict;
+  // is_reserved: bool;
   dup_flag: type_dup_flags_restrict;
   qos_flag: type_qos_flags_restrict;
   retain_flag: type_retain_flags_restrict;
@@ -561,10 +524,10 @@ type struct_flags = {
 // TODO: PUBLISH の場合どう扱うか検討
 // TODO: 返り値の値域を決定する
 type struct_fixed_header = {
-  message_name: C.String.t;
+  message_name: type_message_name_restrict;
   message_type: type_mqtt_control_packets_restrict;
   flags: struct_flags;
-  remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455});
+  remaining_length: type_remaining_length;
   error_message: C.String.t;
 }
 
@@ -576,7 +539,7 @@ let bytes_loop request packet_size =
   let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_status: B.buffer (status:U8.t{U8.v status <= 1}) = B.alloca 1uy 1ul in
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-  let ptr_remaining_length: B.buffer (remaining_length: U32.t{U32.v remaining_length <= 268435455}) =
+  let ptr_remaining_length: B.buffer type_remaining_length =
    B.alloca 0ul 1ul in
   let inv h (i: nat) =
     B.live h ptr_fixed_header_first_one_byte /\
@@ -598,7 +561,7 @@ let bytes_loop request packet_size =
       else if (i = 1ul) then
         (
           ptr_for_decoding_packets.(0ul) <- one_byte;
-          let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+          let r: (remaining_length:type_remaining_length) =
             get_remaining_length 1uy ptr_for_decoding_packets packet_size in
           if (U32.gt r 0ul) then
             (
@@ -616,7 +579,7 @@ let bytes_loop request packet_size =
           if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(1ul) <- one_byte;
-              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455}) =
+              let r: (remaining_length:type_remaining_length) =
                 get_remaining_length 2uy ptr_for_decoding_packets packet_size in
               if (U32.gt r 0ul) then
                 (
@@ -630,7 +593,7 @@ let bytes_loop request packet_size =
           if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(2ul) <- one_byte;
-              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+              let r: (remaining_length:type_remaining_length)
                 = get_remaining_length 3uy ptr_for_decoding_packets packet_size in
               if (U32.gt r 0ul) then
                 (
@@ -644,7 +607,7 @@ let bytes_loop request packet_size =
           if (ptr_status_v = 1uy) then
             (
               ptr_for_decoding_packets.(3ul) <- one_byte;
-              let r: (remaining_length:U32.t{U32.v remaining_length <= 268435455})
+              let r: (remaining_length:type_remaining_length)
                 = get_remaining_length 4uy ptr_for_decoding_packets packet_size in
               if (U32.gt r 0ul) then
                 (
@@ -689,49 +652,31 @@ let bytes_loop request packet_size =
       else
         255uy
     ) in
-  // let flags_v: type_flags_restrict message_type dup_flag qos_flag retain_flag =
-  //   (
-  //     let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
-  //     if (U8.eq (is_valid_flags_check message_type v dup_flag qos_flag retain_flag) 0uy) then
-  //       v
-  //     else
-  //       255uy
-  //   ) in
-    let remaining_length: (remaining_length: U32.t{U32.v remaining_length <= 268435455})
+    let remaining_length: type_remaining_length
       = ptr_remaining_length.(0ul) in
-    let is_reserved =
+
+    let flag: type_flag_restrict = //slice_byte fixed_header_first_one_byte 4uy 8uy in
       (
-        if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-          false
+        let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
+        if (U8.eq define_flag_CONNECT v ||
+          U8.eq define_flag_CONNACK v ||
+          U8.eq define_flag_PUBACK v ||
+          U8.eq define_flag_PUBREC v ||
+          U8.eq define_flag_PUBREL v ||
+          U8.eq define_flag_PUBCOMP v ||
+          U8.eq define_flag_SUBSCRIBE v ||
+          U8.eq define_flag_SUBACK v ||
+          U8.eq define_flag_UNSUBSCRIBE v ||
+          U8.eq define_flag_UNSUBACK v ||
+          U8.eq define_flag_PINGREQ v ||
+          U8.eq define_flag_PINGRESP v ||
+          U8.eq define_flag_DISCONNECT v ||
+          U8.eq define_flag_AUTH v) then
+            v
         else
-          true
+          255uy
       ) in
-  let is_valid_message_type: U8.t = is_valid_message_type_check message_type in
-  // let is_valid_flags: U8.t = is_valid_flags_check message_type flags_v dup_flag qos_flag retain_flag in
-  let is_valid_mqtt_packet: bool =
-    (U8.eq is_valid_message_type 0uy) &&
-    // (U8.eq is_valid_flags 0uy) &&
-    (U8.eq status 0uy) in
-  if (is_valid_mqtt_packet = false) then
-    (
-      let data: struct_fixed_header = {
-            message_name = !$"";
-            message_type = 255uy;
-            flags = {
-              is_reserved = false;
-              dup_flag = 255uy;
-              qos_flag = 255uy;
-              retain_flag = 255uy;
-            };
-            remaining_length = 0ul;
-            error_message = !$"invalid mqtt-packets"; // TODO: 一時的
-          } in
-          pop_frame ();
-          data
-    )
-  else
-    (
-      let message_name: C.String.t =
+      let message_name: type_message_name_restrict =
         (
           if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
             define_mqtt_control_packet_CONNECT_label
@@ -764,10 +709,65 @@ let bytes_loop request packet_size =
           else if (U8.eq message_type define_mqtt_control_packet_AUTH) then
             define_mqtt_control_packet_AUTH_label
           else
-            !$"UNKNOWN"
+            !$""
         ) in
+  // let is_reserved =
+  //   (
+  //     if (U8.eq flag 255uy) then
+  //       false
+  //     else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+  //       false
+  //     else
+  //       true
+  //   ) in
+  let is_valid_message_type: U8.t = is_valid_message_type_check message_type in
+  let have_error: bool =
+    (U8.eq status 1uy) ||
+    (U8.eq message_type 255uy) ||
+    (U32.eq (C.String.strlen message_name) 0ul) ||
+    (U8.eq flag 255uy) ||
+    (U8.eq dup_flag 255uy) ||
+    (U8.eq qos_flag 255uy) ||
+    (U8.eq retain_flag 255uy) in
+  if (have_error = true) then
+    (
+      let data: struct_fixed_header = {
+            message_name = !$"";
+            message_type = 255uy;
+            flags = {
+              flag = 255uy;
+              // is_reserved = false;
+              dup_flag = 255uy;
+              qos_flag = 255uy;
+              retain_flag = 255uy;
+            };
+            remaining_length = 0ul;
+            error_message =
+              if (U8.eq status 1uy) then
+                !$"remaining_length is invalid."
+              else if (U8.eq message_type 255uy) then
+                !$"message_type is invalid."
+              else if (U32.eq (C.String.strlen message_name) 0ul) then
+                !$"message_name is invalid."
+              else if (U8.eq flag 255uy) then
+                !$"flag is invalid."
+              else if (U8.eq dup_flag 255uy) then
+                !$"dup_flag is invalid."
+              else if (U8.eq qos_flag 255uy) then
+                !$"qos_flag is invalid."
+              else if (U8.eq retain_flag 255uy) then
+                !$"retain_flag is invalid."
+              else
+                !$"unexpected error."
+          } in
+          pop_frame ();
+          data
+    )
+  else
+    (
       let flags: struct_flags = {
-          is_reserved = is_reserved;
+          flag = flag;
+          // is_reserved = is_reserved;
           dup_flag = dup_flag;
           qos_flag = qos_flag;
           retain_flag = retain_flag;
