@@ -13,7 +13,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --z3rlimit 1000"
+#set-options "--max_ifuel 100 --max_fuel 100 --z3rlimit 1000"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -658,6 +658,7 @@ let bytes_loop request packet_size =
     let flag: type_flag_restrict = //slice_byte fixed_header_first_one_byte 4uy 8uy in
       (
         let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
+        // TODO: この条件判定は間違っている
         if (U8.eq define_flag_CONNECT v ||
           U8.eq define_flag_CONNACK v ||
           U8.eq define_flag_PUBACK v ||
