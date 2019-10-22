@@ -14,7 +14,7 @@ let main () =
     push_frame ();
     check_ui8 !$"UInt8での比較" 1uy 1uy;
     check_i32 !$"Int32での比較" 1000l 1001l;
-    check_bool !$"boolがTrueであるか" (1uy = 1uy);
+    check_bool !$"boolがTrueであるか" (1uy = 1uy) true;
     check_string !$"文字列の比較" !$"apple" !$"orange";
     pop_frame ();
     test_end ();

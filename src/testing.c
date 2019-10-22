@@ -55,8 +55,8 @@ MK_UCHECK(16)
 MK_UCHECK(32)
 MK_UCHECK(64)
 
-void Testing_check_bool(C_String_t title, bool b) {
-  bool is_pass = (b);
+void Testing_check_bool(C_String_t title, bool expect, bool result) {
+  bool is_pass = (expect == result);
   test_static(is_pass);
   if (is_pass) {
     printf("\x1b[32m✔\x1b[0m %s\n", title);

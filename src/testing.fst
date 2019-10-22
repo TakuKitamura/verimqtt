@@ -11,5 +11,5 @@ assume val check_ui8: C.String.t -> UInt8.t -> UInt8.t -> Stack unit (fun _ -> t
 assume val check_ui16: C.String.t -> UInt16.t -> UInt16.t -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
 assume val check_ui32: C.String.t -> UInt32.t -> UInt32.t -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
 assume val check_ui64: C.String.t -> UInt64.t -> UInt64.t -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
-assume val check_bool: C.String.t -> bool -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
+assume val check_bool: C.String.t -> bool -> bool -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
 assume val check_string: C.String.t -> C.String.t -> C.String.t -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
