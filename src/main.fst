@@ -184,122 +184,122 @@ let is_valid_retain_flag retain_flag =
 type type_retain_flags_restrict =
   retain_flag: type_retain_flags{U8.eq (is_valid_retain_flag retain_flag) 0uy || U8.eq retain_flag 255uy}
 
-val is_valid_connect_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_connect_flag flag =
-  if (flag <> define_flag_CONNECT) then
-    1uy
-  else
-    0uy
+val is_valid_connect_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_connect_flag flag =
+ if (flag <> define_flag_CONNECT) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_connack_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_connack_flag flag =
-  if (flag <> define_flag_CONNACK) then
-    1uy
-  else
-    0uy
+val is_valid_connack_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_connack_flag flag =
+ if (flag <> define_flag_CONNACK) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_puback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_puback_flag flag =
-  if (flag <> define_flag_PUBACK) then
-    1uy
-  else
-    0uy
+val is_valid_puback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_puback_flag flag =
+ if (flag <> define_flag_PUBACK) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_pubrec_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_pubrec_flag flag =
-  if (flag <> define_flag_PUBREC) then
-    1uy
-  else
-    0uy
+val is_valid_pubrec_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pubrec_flag flag =
+ if (flag <> define_flag_PUBREC) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_pubrel_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_pubrel_flag flag =
-  if (flag <> define_flag_PUBREL) then
-    1uy
-  else
-    0uy
+val is_valid_pubrel_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pubrel_flag flag =
+ if (flag <> define_flag_PUBREL) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_pubcomp_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_pubcomp_flag flag =
-  if (flag <> define_flag_PUBCOMP) then
-    1uy
-  else
-    0uy
+val is_valid_pubcomp_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pubcomp_flag flag =
+ if (flag <> define_flag_PUBCOMP) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_subscribe_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_subscribe_flag flag =
-  if (flag <> define_flag_SUBSCRIBE) then
-    1uy
-  else
-    0uy
+val is_valid_subscribe_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_subscribe_flag flag =
+ if (flag <> define_flag_SUBSCRIBE) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_suback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_suback_flag flag =
-  if (flag <> define_flag_SUBACK) then
-    1uy
-  else
-    0uy
+val is_valid_suback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_suback_flag flag =
+ if (flag <> define_flag_SUBACK) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_unsubscribe_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_unsubscribe_flag flag =
-  if (flag <> define_flag_UNSUBSCRIBE) then
-    1uy
-  else
-    0uy
+val is_valid_unsubscribe_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_unsubscribe_flag flag =
+ if (flag <> define_flag_UNSUBSCRIBE) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_unsuback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_unsuback_flag flag =
-  if (flag <> define_flag_UNSUBACK) then
-    1uy
-  else
-    0uy
+val is_valid_unsuback_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_unsuback_flag flag =
+ if (flag <> define_flag_UNSUBACK) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_pingreq_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_pingreq_flag flag =
-  if (flag <> define_flag_PINGREQ) then
-    1uy
-  else
-    0uy
+val is_valid_pingreq_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pingreq_flag flag =
+ if (flag <> define_flag_PINGREQ) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_pingresp_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_pingresp_flag flag =
-  if (flag <> define_flag_PINGRESP) then
-    1uy
-  else
-    0uy
+val is_valid_pingresp_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_pingresp_flag flag =
+ if (flag <> define_flag_PINGRESP) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_disconnect_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_disconnect_flag flag =
-  if (flag <> define_flag_DISCONNECT) then
-    1uy
-  else
-    0uy
+val is_valid_disconnect_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_disconnect_flag flag =
+ if (flag <> define_flag_DISCONNECT) then
+ 1uy
+ else
+ 0uy
 
-val is_valid_auth_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
-let is_valid_auth_flag flag =
-  if (flag <> define_flag_AUTH) then
-    1uy
-  else
-    0uy
+val is_valid_auth_flag: flag:U8.t -> (r:U8.t{U8.v r <= 1})
+let is_valid_auth_flag flag =
+ if (flag <> define_flag_AUTH) then
+ 1uy
+ else
+ 0uy
 
-type type_flag_restrict =
-  flag: U8.t{
-    U8.eq (is_valid_connect_flag flag) 0uy ||
-    U8.eq (is_valid_connack_flag flag) 0uy ||
-    U8.eq (is_valid_puback_flag flag) 0uy ||
-    U8.eq (is_valid_pubrec_flag flag) 0uy ||
-    U8.eq (is_valid_pubrel_flag flag) 0uy ||
-    U8.eq (is_valid_pubcomp_flag flag) 0uy ||
-    U8.eq (is_valid_subscribe_flag flag) 0uy ||
-    U8.eq (is_valid_suback_flag flag) 0uy ||
-    U8.eq (is_valid_unsubscribe_flag flag) 0uy ||
-    U8.eq (is_valid_unsuback_flag flag) 0uy ||
-    U8.eq (is_valid_pingreq_flag flag) 0uy ||
-    U8.eq (is_valid_pingresp_flag flag) 0uy ||
-    U8.eq (is_valid_disconnect_flag flag) 0uy ||
-    U8.eq (is_valid_auth_flag flag) 0uy ||
-    U8.eq flag 255uy
-  }
+type type_flag_restrict =
+ flag: U8.t{
+ U8.eq (is_valid_connect_flag flag) 0uy ||
+ U8.eq (is_valid_connack_flag flag) 0uy ||
+ U8.eq (is_valid_puback_flag flag) 0uy ||
+ U8.eq (is_valid_pubrec_flag flag) 0uy ||
+ U8.eq (is_valid_pubrel_flag flag) 0uy ||
+ U8.eq (is_valid_pubcomp_flag flag) 0uy ||
+ U8.eq (is_valid_subscribe_flag flag) 0uy ||
+ U8.eq (is_valid_suback_flag flag) 0uy ||
+ U8.eq (is_valid_unsubscribe_flag flag) 0uy ||
+ U8.eq (is_valid_unsuback_flag flag) 0uy ||
+ U8.eq (is_valid_pingreq_flag flag) 0uy ||
+ U8.eq (is_valid_pingresp_flag flag) 0uy ||
+ U8.eq (is_valid_disconnect_flag flag) 0uy ||
+ U8.eq (is_valid_auth_flag flag) 0uy ||
+ U8.eq flag 255uy
+ }
 
 
 type type_remaining_length = (remaining_length: U32.t{U32.v remaining_length <= 268435455})
@@ -309,6 +309,7 @@ assume val extern_print_hex (i:U8.t): Stack unit
   (requires (fun h -> true))
   (ensures (fun h0 ret h1 -> true))
 
+// TODO: テストする
 val slice_byte:
   byte:U8.t
   -> a:U8.t{U8.v a <= 7}
@@ -338,19 +339,19 @@ let slice_byte byte a b =
     ) in
   let for_mask_temp2 =
     (
-      if (U32.eq 1ul (uint8_to_uint32 a)) then
+      if (U32.eq 1ul (uint8_to_uint32 b)) then
         0b10000000uy
-      else if (U32.eq 2ul (uint8_to_uint32 a)) then
+      else if (U32.eq 2ul (uint8_to_uint32 b)) then
         0b11000000uy
-      else if (U32.eq 3ul (uint8_to_uint32 a)) then
+      else if (U32.eq 3ul (uint8_to_uint32 b)) then
         0b11100000uy
-      else if (U32.eq 4ul (uint8_to_uint32 a)) then
+      else if (U32.eq 4ul (uint8_to_uint32 b)) then
         0b11110000uy
-      else if (U32.eq 5ul (uint8_to_uint32 a)) then
+      else if (U32.eq 5ul (uint8_to_uint32 b)) then
         0b11111000uy
-      else if (U32.eq 6ul (uint8_to_uint32 a)) then
+      else if (U32.eq 6ul (uint8_to_uint32 b)) then
         0b11111100uy
-      else if (U32.eq 7ul (uint8_to_uint32 a)) then
+      else if (U32.eq 7ul (uint8_to_uint32 b)) then
         0b11111110uy
       else
         0b11111111uy
@@ -639,38 +640,38 @@ let get_retain_flag retain_flag_bits =
   else
     255uy
 
-val get_flag : flags_bits:U8.t -> type_flag_restrict 
+val get_flag : flags_bits:U8.t -> type_flag_restrict
 let get_flag flags_bits =
-  if (U8.eq (is_valid_connect_flag flags_bits) 0uy) then
+  if (U8.eq (is_valid_connect_flag flags_bits) 0uy) then
     flags_bits
-  else if (U8.eq (is_valid_connack_flag flags_bits) 0uy) then
+  else if (U8.eq (is_valid_connack_flag flags_bits) 0uy) then
     flags_bits
-  else if (U8.eq (is_valid_puback_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_pubrec_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_pubrel_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_pubcomp_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_subscribe_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_suback_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_unsubscribe_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_unsuback_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_pingreq_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_pingresp_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_disconnect_flag flags_bits) 0uy) then
-    flags_bits
-  else if (U8.eq (is_valid_auth_flag flags_bits) 0uy) then
-    flags_bits
+  else if (U8.eq (is_valid_puback_flag flags_bits) 0uy) then
+    flags_bits
+  else if (U8.eq (is_valid_pubrec_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_pubrel_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_pubcomp_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_subscribe_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_suback_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_unsubscribe_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_unsuback_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_pingreq_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_pingresp_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_disconnect_flag flags_bits) 0uy) then
+   flags_bits
+  else if (U8.eq (is_valid_auth_flag flags_bits) 0uy) then
+   flags_bits
   else
-    255uy
+   255uy
 
 val get_message_name: message_type:type_mqtt_control_packets_restrict -> r:type_message_name_restrict
 let get_message_name message_type =
@@ -815,16 +816,34 @@ let bytes_loop request packet_size =
   let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
   let message_type_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in
   let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
-  let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
-  let dup_flag: type_dup_flags_restrict = get_dup_flag dup_flag_bits in
-  let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
-  let qos_flag: type_qos_flags_restrict = get_qos_flag qos_flag_bits in
-  let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
-  let retain_flag: type_retain_flags_restrict = get_retain_flag retain_flag_bits in
+  let flags_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 8uy in
+  let flag: type_flag_restrict = get_flag flags_bits in
+  let dup_flag: type_dup_flags_restrict =
+   (
+    if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+        let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
+        get_dup_flag dup_flag_bits
+    else
+      255uy
+    ) in
+  let qos_flag: type_qos_flags_restrict =
+   (
+    if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+        let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
+        get_qos_flag qos_flag_bits
+    else
+      255uy
+    ) in
+  let retain_flag: type_retain_flags_restrict =
+   (
+    if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+      let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
+        get_retain_flag retain_flag_bits
+    else
+      255uy
+    ) in
   let remaining_length: type_remaining_length
     = ptr_remaining_length.(0ul) in
-  let flags_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 8uy in
-  let flag: type_flag_restrict = get_flag flags_bits in
   let message_name: type_message_name_restrict = get_message_name message_type in
   let is_valid_message_type: U8.t = is_valid_message_type_check message_type in
   let have_error: bool =
@@ -832,9 +851,9 @@ let bytes_loop request packet_size =
     (U8.eq message_type 255uy) ||
     (U32.eq (C.String.strlen message_name) 0ul) ||
     (U8.eq flag 255uy) ||
-    (U8.eq dup_flag 255uy) ||
-    (U8.eq qos_flag 255uy) ||
-    (U8.eq retain_flag 255uy) in
+    (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq dup_flag 255uy) ||
+    (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq qos_flag 255uy) ||
+    (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq retain_flag 255uy) in
   if (have_error = true) then
     (
       let data: struct_fixed_header = {
@@ -842,7 +861,6 @@ let bytes_loop request packet_size =
             message_type = 255uy;
             flags = {
               flag = 255uy;
-              // is_reserved = false;
               dup_flag = 255uy;
               qos_flag = 255uy;
               retain_flag = 255uy;
@@ -857,11 +875,11 @@ let bytes_loop request packet_size =
                 !$"message_name is invalid."
               else if (U8.eq flag 255uy) then
                 !$"flag is invalid."
-              else if (U8.eq dup_flag 255uy) then
+              else if (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq dup_flag 255uy) then
                 !$"dup_flag is invalid."
-              else if (U8.eq qos_flag 255uy) then
+              else if (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq qos_flag 255uy) then
                 !$"qos_flag is invalid."
-              else if (U8.eq retain_flag 255uy) then
+              else if (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq retain_flag 255uy) then
                 !$"retain_flag is invalid."
               else
                 !$"unexpected error."
