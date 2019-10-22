@@ -29,11 +29,11 @@ int main(int argc, char *argv[]) {
     free(request);
 
     printf("message_name=%s\n", data.message_name);
-    printf("message_type=%04x\n", data.message_type);
-    printf("flag=%04x\n", data.flags.flag);
-    printf("dup_flag=%04x\n", data.flags.dup_flag);
-    printf("qos_flag=%04x\n", data.flags.qos_flag);
-    printf("retain_flag=%01x\n", data.flags.retain_flag);
+    printf("message_type=0x%02x\n", data.message_type);
+    printf("flag=0x%02x\n", data.flags.flag);
+    printf("dup_flag=0x%02x\n", data.flags.dup_flag);
+    printf("qos_flag=0x%02x\n", data.flags.qos_flag);
+    printf("retain_flag=0x%02x\n", data.flags.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
     printf("error_message=\"%s\"\n", data.error_message);
     return 0;
