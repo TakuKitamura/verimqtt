@@ -305,7 +305,7 @@ type type_flag_restrict =
 type type_remaining_length = (remaining_length: U32.t{U32.v remaining_length <= 268435455})
 
 // debug tool
-assume val extern_print_hex (i:U8.t): Stack unit
+assume val print_hex (i:U8.t): Stack unit
   (requires (fun h -> true))
   (ensures (fun h0 ret h1 -> true))
 
