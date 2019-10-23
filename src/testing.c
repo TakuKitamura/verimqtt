@@ -1,6 +1,7 @@
 #include "Testing.h"
 #include <stdbool.h>
-#include<string.h>
+#include <string.h>
+#include <limits.h>
 
 static unsigned int total = 0;
 static unsigned int pass = 0;
@@ -20,13 +21,18 @@ void Testing_test_end() {
 
 void test_static(bool is_pass) {
   total++;
+  if (total == UINT_MAX) {
+    puts("test-code has so many tests.");
+    exit(1);
+  }
+
   if (is_pass == true) {
     pass++;
   }
 }
 
 #define MK_CHECK(n)\
-  void Testing_check_i##n(C_String_t title, int##n##_t expect, int##n##_t result) {\
+  void Testing_eq_i##n(C_String_t title, int##n##_t expect, int##n##_t result) {\
     bool is_pass = (expect == result);\
     test_static(is_pass);\
     if (is_pass) {\
@@ -41,7 +47,7 @@ MK_CHECK(32)
 MK_CHECK(64)
 
 #define MK_UCHECK(n)\
-  void Testing_check_ui##n(C_String_t title, uint##n##_t expect, uint##n##_t result) {\
+  void Testing_eq_u##n(C_String_t title, uint##n##_t expect, uint##n##_t result) {\
     bool is_pass = (expect == result);\
     test_static(is_pass);\
     if (is_pass) {\
@@ -55,7 +61,7 @@ MK_UCHECK(16)
 MK_UCHECK(32)
 MK_UCHECK(64)
 
-void Testing_check_bool(C_String_t title, bool expect, bool result) {
+void Testing_eq_bool(C_String_t title, bool expect, bool result) {
   bool is_pass = (expect == result);
   test_static(is_pass);
   if (is_pass) {
@@ -65,7 +71,7 @@ void Testing_check_bool(C_String_t title, bool expect, bool result) {
   }
 }
 
-void Testing_check_string(C_String_t title, C_String_t expect, C_String_t result) {
+void Testing_eq_str(C_String_t title, C_String_t expect, C_String_t result) {
   bool is_pass = (strcmp(expect, result) == 0);
   test_static(is_pass);
   if (is_pass) {
