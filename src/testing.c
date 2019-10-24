@@ -15,7 +15,7 @@ void Testing_test_end() {
     printf("  \x1b[35mSOME TESTS FAILED (%u/%u) (PASS/TOTAL)\x1b[0m\n", pass, total);
     // exit(1);
   } else {
-    puts("  \x1b[32mALL TESTS PASSED!\x1b[0m\n");
+    puts("  \x1b[32mALL TESTS PASSED\x1b[0m\n");
   }
 }
 
