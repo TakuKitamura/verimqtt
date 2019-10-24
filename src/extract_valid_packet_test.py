@@ -28,6 +28,7 @@ file_size_str = str(file_size) + 'ul'
 
 out = \
 """
+val {}: u:unit -> St unit
 let {} u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy {} in
 {}
@@ -41,7 +42,7 @@ let {} u =
         T.eq_u32 !$"TEST_TITLE remaining_length check" ???ul s.remaining_length;
         T.eq_str !$"TEST_TITLE error_message check" !$"???" s.error_message;
 B.free request
-""".format(func_name, file_size_str, hex_list_str, file_size_str).replace('TEST_TITLE', test_title)
+""".format(func_name, func_name, file_size_str, hex_list_str, file_size_str).replace('TEST_TITLE', test_title)
 
 print(out)
 
