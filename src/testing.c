@@ -6,16 +6,16 @@
 static unsigned int total = 0;
 static unsigned int pass = 0;
 
-void Testing_test_start() {
-  puts("TEST START.");
+void Testing_test_start(C_String_t title) {
+  printf("  \x1b[36m[%s]\x1b[0m\n", title);
 }
 
 void Testing_test_end() {
   if (total != pass) {
-    printf("\x1b[35mSOME TESTS FAILED (%u/%u) (PASS/TOTAL)\x1b[0m\n", pass, total);
-    exit(1);
+    printf("  \x1b[35mSOME TESTS FAILED (%u/%u) (PASS/TOTAL)\x1b[0m\n", pass, total);
+    // exit(1);
   } else {
-    puts("\x1b[36mALL TESTS PASSED!\x1b[0m\n");
+    puts("  \x1b[32mALL TESTS PASSED!\x1b[0m\n");
   }
 }
 
@@ -36,7 +36,7 @@ void test_static(bool is_pass) {
     bool is_pass = (expect == result);\
     test_static(is_pass);\
     if (is_pass) {\
-          printf("\x1b[32m✔\x1b[0m %s\n", title);\
+          /*printf("\x1b[32m✔\x1b[0m %s\n", title);*/\
     } else {\
           printf("\x1b[31m✘\x1b[0m %s\n\t expected is %" PRId##n " but result is %" PRId##n "\n", title, expect, result);\
     }\
@@ -51,7 +51,7 @@ MK_CHECK(64)
     bool is_pass = (expect == result);\
     test_static(is_pass);\
     if (is_pass) {\
-          printf("\x1b[32m✔\x1b[0m %s\n", title);\
+          /*printf("\x1b[32m✔\x1b[0m %s\n", title);*/\
     } else {\
           printf("\x1b[31m✘\x1b[0m %s\n\t expected is %" PRId##n " but result is %" PRId##n "\n", title, expect, result);\
     }\
@@ -65,7 +65,7 @@ void Testing_eq_bool(C_String_t title, bool expect, bool result) {
   bool is_pass = (expect == result);
   test_static(is_pass);
   if (is_pass) {
-    printf("\x1b[32m✔\x1b[0m %s\n", title);
+    // printf("\x1b[32m✔\x1b[0m %s\n", title);
   } else {
     printf("\x1b[31m✘\x1b[0m %s\n\t expected is true but result is false\n", title);
   }
@@ -75,7 +75,7 @@ void Testing_eq_str(C_String_t title, C_String_t expect, C_String_t result) {
   bool is_pass = (strcmp(expect, result) == 0);
   test_static(is_pass);
   if (is_pass) {
-    printf("\x1b[32m✔\x1b[0m %s\n", title);
+    // printf("\x1b[32m✔\x1b[0m %s\n", title);
   } else {
     printf("\x1b[31m✘\x1b[0m %s\n\t expected is %s but result is %s\n", title, expect, result);
   }

@@ -1,7 +1,7 @@
 module Testing
 open FStar.HyperStack.ST
 
-assume val test_start: unit ->  Stack unit (fun _ -> true) (fun _ _ _ -> true)
+assume val test_start: C.String.t ->  Stack unit (fun _ -> true) (fun _ _ _ -> true)
 assume val test_end: unit -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
 assume val eq_i8: C.String.t -> Int8.t -> Int8.t -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
 assume val eq_i16: C.String.t -> Int16.t -> Int16.t -> Stack unit (fun _ -> true) (fun _ _ _ -> true)
