@@ -301,8 +301,9 @@ type type_flag_restrict =
  U8.eq flag 255uy
  }
 
-
 type type_remaining_length = (remaining_length: U32.t{U32.v remaining_length <= 268435455})
+
+type type_error_message_restrict = (error_message: C.String.t{C.String.length error_message <= 30})
 
 // debug tool
 assume val print_hex (i:U8.t): Stack unit
@@ -715,14 +716,12 @@ type struct_flags = {
   retain_flag: type_retain_flags_restrict;
 }
 
-// TODO: PUBLISH の場合どう扱うか検討
-// TODO: 返り値の値域を決定する
 type struct_fixed_header = {
   message_name: type_message_name_restrict;
   message_type: type_mqtt_control_packets_restrict;
   flags: struct_flags;
   remaining_length: type_remaining_length;
-  error_message: C.String.t;
+  error_message: type_error_message_restrict;
 }
 
 val bytes_loop: request: B.buffer U8.t -> packet_size: U32.t -> Stack struct_fixed_header

@@ -45,20 +45,3 @@ B.free request
 """.format(func_name, func_name, file_size_str, hex_list_str, file_size_str).replace('TEST_TITLE', test_title)
 
 print(out)
-
-# let valid_pubcomp_packet_test u =
-#     let request = B.malloc HyperStack.root 0uy 4ul in
-#         request.(0ul) <- 0x70uy;
-#         request.(1ul) <- 0x02uy;
-#         request.(2ul) <- 0x00uy;
-#         request.(3ul) <- 0x01uy;
-#     let s : struct_fixed_header = parse request 4ul in
-#         T.eq_str !$"Valid PUBCOMP Packet message_name check" !$"PUBCOMP" s.message_name;
-#         T.eq_u8 !$"Valid PUBCOMP Packet message_type check" 7uy s.message_type;
-#         T.eq_u8 !$"Valid PUBCOMP Packet flag check" 0uy s.flags.flag;
-#         T.eq_u8 !$"Valid PUBCOMP Packet dup_flag check" 255uy s.flags.dup_flag;
-#         T.eq_u8 !$"Valid PUBCOMP Packet qos_flag check" 255uy s.flags.qos_flag;
-#         T.eq_u8 !$"Valid PUBCOMP Packet retain_flag check" 255uy s.flags.retain_flag;
-#         T.eq_u32 !$"Valid PUBCOMP Packet remaining_length check" 2ul s.remaining_length;
-#         T.eq_str !$"Valid PUBCOMP Packet error_message check" !$"" s.error_message;
-#     B.free request
