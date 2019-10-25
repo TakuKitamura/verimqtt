@@ -8,6 +8,13 @@
 ### exec
 ```sh
 $ make test_exec
+All files linked successfully 👍
+...
+  [TestValidPackets]
+  ALL TESTS PASSED
+
+  [TestSliceByte]
+  ALL TESTS PASSED
 $ make exec
 ...
 All files linked successfully 👍
