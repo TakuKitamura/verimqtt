@@ -53,7 +53,7 @@ MK_CHECK(64)
     if (is_pass) {\
           /*printf("\x1b[32m✔\x1b[0m %s\n", title);*/\
     } else {\
-          printf("\x1b[31m✘\x1b[0m %s\n\t expected is %" PRId##n " but result is %" PRId##n "\n", title, expect, result);\
+          printf("\x1b[31m✘\x1b[0m %s\n\t expected is %" PRIu##n " but result is %" PRIu##n "\n", title, expect, result);\
     }\
   }
 MK_UCHECK(8)
