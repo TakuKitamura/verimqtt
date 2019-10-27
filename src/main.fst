@@ -393,7 +393,7 @@ let is_valid_decoding_packet_check ptr_for_decoding_packets bytes_length =
                       // print_string "<-decoding_packet\n";
                       if (U8.eq bytes_length 1uy) then
                           (
-                            if (U8.lt bytes_length 0uy || U8.gt bytes_length 127uy) then
+                            if (U8.lt decoding_packet 0uy || U8.gt decoding_packet 127uy) then
                               (
                                 // print_string "err1\n";
                                 ptr_status.(0ul) <- 1uy

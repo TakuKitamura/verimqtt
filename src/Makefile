@@ -18,5 +18,17 @@ test_slice_byte:
 test_slice_byte_exec:
 	krml -add-include '"Testing.h"' -drop WasmSupport -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix TestSliceByte -o ./out/testSliceByte.out testSliceByte.fst testing.c fstarHelper.c
 
+test_decoding_packets:
+	krml -verify -add-include '"Testing.h"' -drop WasmSupport -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix TestDecodingPackets -o ./out/testDecodingPackets.out testDecodingPackets.fst testing.c fstarHelper.c && \
+	./out/testDecodingPackets.out
+
+test_decoding_packets_exec:
+	krml -add-include '"Testing.h"' -drop WasmSupport -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix TestDecodingPackets -o ./out/testDecodingPackets.out testDecodingPackets.fst testing.c fstarHelper.c
+
 test_exec:
-	make test_valid_packets_exec && make test_slice_byte_exec && ./out/testValidPackets.out && ./out/testSliceByte.out
+	make test_valid_packets_exec && \
+	make test_slice_byte_exec && \
+	make test_decoding_packets_exec && \
+	./out/testValidPackets.out && \
+	./out/testSliceByte.out && \
+	./out/testDecodingPackets.out
