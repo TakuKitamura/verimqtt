@@ -1,5 +1,5 @@
 all:
-	make test_exec && krml -verify -drop WasmSupport -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/main.out main.fst callMain.c fstarHelper.c && ./out/main.out
+	make test_exec && sleep 3 && krml -verify -drop WasmSupport -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/main.out main.fst callMain.c fstarHelper.c && ./out/main.out
 
 exec:
 	krml  -drop WasmSupport -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/main.out main.fst callMain.c fstarHelper.c && ./out/main.out

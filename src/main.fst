@@ -18,6 +18,9 @@ module U8 = FStar.UInt8
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
 
+val max_u32 : U32.t
+let max_u32 = 4294967295ul
+
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
 // 2.1.2 MQTT Control Packet type
 // Table 2‑1 MQTT Control Packet types
@@ -301,7 +304,8 @@ type type_flag_restrict =
  U8.eq flag 255uy
  }
 
-type type_remaining_length = (remaining_length: U32.t{U32.v remaining_length <= 268435455})
+type type_remaining_length =
+  (remaining_length: U32.t{U32.v remaining_length <= 268435455 || U32.eq remaining_length max_u32})
 
 type type_error_message_restrict = (error_message: C.String.t{C.String.length error_message <= 30})
 
@@ -437,8 +441,6 @@ let except_most_significant_four_bit_to_zero i =
     else
       128uy
 
-// TODO: 値の条件チェックがいる
-// TODO: 下限値チェック
 val decodeing_variable_bytes: ptr_for_decoding_packets: B.buffer U8.t
   -> bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4}
   -> Stack (remaining_length:type_remaining_length)
@@ -466,7 +468,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
   if (is_valid_decoding_packet <> 0uy) then
     (
       pop_frame ();
-      0ul
+      max_u32
     )
   else
     (
@@ -487,7 +489,6 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
               let b2_u8: (x:U8.t{U8.v x = 0 || U8.v x = 128}) =
                 except_most_significant_four_bit_to_zero decoding_packet in
 
-              // TODO: 再帰的に書けそう
               if (i = 0ul) then
                 (
                   ptr_temp1.(0ul) <- U32.(b_u32 *^ 1ul);
@@ -516,18 +517,8 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
       C.Loops.for 0ul 4ul inv body;
       let remaining_length: type_remaining_length =
         ptr_for_remaining_length.(0ul) in
-      let s: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
       pop_frame ();
-      if (s = 1uy) then
-        (
-          // TODO: エラー処理をどうするか
-          // print_string "malformed variable byte integer\n";
-          0ul
-        )
-      else
-        (
-          remaining_length
-        )
+      remaining_length
   )
 
 // (1byte) + (msg len byte 1 or 2 or 3 or 4) + (msg byte) = 25
@@ -556,13 +547,20 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
         let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
         decoding_packets.(0ul) <- decoding_packet_first;
         let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
-          if (U32.(1ul +^ r) = fixed_value) then
-            r
-          else
-            (
-              // print_string("first bit is not remaining length");
-              0ul
-            )
+          (
+            if (r <> max_u32) then
+              (
+                if (U32.(1ul +^ r) = fixed_value) then
+                  r
+                else
+                  (
+                    // print_string("first bit is not remaining length");
+                    max_u32
+                  )
+              )
+            else
+              max_u32
+          )
       )
       else if (bytes_length = 2uy) then
         (
@@ -572,13 +570,20 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
           decoding_packets.(0ul) <- decoding_packet_first;
           decoding_packets.(1ul) <- decoding_packet_second;
           let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
-            if (U32.(2ul +^ r) = fixed_value) then
-              r
-            else
+          (
+            if (r <> max_u32) then
               (
-                // print_string("first bit is not remaining length");
-                0ul
+                if (U32.(2ul +^ r) = fixed_value) then
+                  r
+                else
+                  (
+                    // print_string("first bit is not remaining length");
+                    max_u32
+                  )
               )
+            else
+              max_u32
+          )
         )
       else if (bytes_length = 3uy) then
         (
@@ -590,24 +595,38 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
           decoding_packets.(1ul) <- decoding_packet_second;
           decoding_packets.(2ul) <- decoding_packet_third;
           let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
-            if (U32.(3ul +^ r) = fixed_value) then
-              r
-            else
+          (
+            if (r <> max_u32) then
               (
-                // print_string("first bit is not remaining length");
-                0ul
+                if (U32.(3ul +^ r) = fixed_value) then
+                  r
+                else
+                  (
+                    // print_string("first bit is not remaining length");
+                    max_u32
+                  )
               )
+            else
+              max_u32
+          )
         )
       else
         (
           let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes ptr_for_decoding_packets bytes_length in
-            if (U32.(4ul +^ r) = fixed_value) then
-              r
-            else
+          (
+            if (r <> max_u32) then
               (
-                // print_string("first bit is not remaining length");
-                0ul
+                if (U32.(4ul +^ r) = fixed_value) then
+                  r
+                else
+                  (
+                    // print_string("first bit is not remaining length");
+                    max_u32
+                  )
               )
+            else
+              max_u32
+          )
         )
   ) in
   pop_frame ();
@@ -756,16 +775,10 @@ let bytes_loop request packet_size =
           ptr_for_decoding_packets.(0ul) <- one_byte;
           let r: (remaining_length:type_remaining_length) =
             get_remaining_length 1uy ptr_for_decoding_packets packet_size in
-          if (U32.gt r 0ul) then
-            (
-              ptr_status.(0ul) <- 0uy;
-              ptr_remaining_length.(0ul) <- r
-            )
-            else if (U8.eq one_byte 0uy && U32.eq packet_size 2ul) then
-                (
-                  ptr_status.(0ul) <- 0uy;
-                  ptr_remaining_length.(0ul) <- r
-                )
+          if (r <> max_u32) then (
+            ptr_status.(0ul) <- 0uy;
+            ptr_remaining_length.(0ul) <- r
+          )
         )
       else if (i = 2ul) then
         (
@@ -774,11 +787,10 @@ let bytes_loop request packet_size =
               ptr_for_decoding_packets.(1ul) <- one_byte;
               let r: (remaining_length:type_remaining_length) =
                 get_remaining_length 2uy ptr_for_decoding_packets packet_size in
-              if (U32.gt r 0ul) then
-                (
-                  ptr_status.(0ul) <- 0uy;
-                  ptr_remaining_length.(0ul) <- r
-                )
+              if (r <> max_u32) then (
+                ptr_status.(0ul) <- 0uy;
+                ptr_remaining_length.(0ul) <- r
+              )
             )
         )
       else if (i = 3ul) then
@@ -788,11 +800,10 @@ let bytes_loop request packet_size =
               ptr_for_decoding_packets.(2ul) <- one_byte;
               let r: (remaining_length:type_remaining_length)
                 = get_remaining_length 3uy ptr_for_decoding_packets packet_size in
-              if (U32.gt r 0ul) then
-                (
-                  ptr_status.(0ul) <- 0uy;
-                  ptr_remaining_length.(0ul) <- r
-                )
+              if (r <> max_u32) then (
+                ptr_status.(0ul) <- 0uy;
+                ptr_remaining_length.(0ul) <- r
+              )
             )
         )
       else if (i = 4ul) then
@@ -802,11 +813,10 @@ let bytes_loop request packet_size =
               ptr_for_decoding_packets.(3ul) <- one_byte;
               let r: (remaining_length:type_remaining_length)
                 = get_remaining_length 4uy ptr_for_decoding_packets packet_size in
-              if (U32.gt r 0ul) then
-                (
-                  ptr_status.(0ul) <- 0uy;
-                  ptr_remaining_length.(0ul) <- r
-                )
+              if (r <> max_u32) then (
+                ptr_status.(0ul) <- 0uy;
+                ptr_remaining_length.(0ul) <- r
+              )
             )
         )
   in
