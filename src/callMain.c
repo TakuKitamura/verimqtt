@@ -28,8 +28,8 @@ int main(int argc, char *argv[]) {
     struct_fixed_header data = parse(request, tcp_payload);
     free(request);
 
-    printf("message_name=%s\n", data.message_name);
     printf("message_type=0x%02x\n", data.message_type);
+    printf("message_name=%s\n", data.message_name);
     printf("flag=0x%02x\n", data.flags.flag);
     printf("dup_flag=0x%02x\n", data.flags.dup_flag);
     printf("qos_flag=0x%02x\n", data.flags.qos_flag);

@@ -127,7 +127,7 @@ let valid_publish_packet_test u =
     let s : struct_fixed_header = parse request 24ul in
         T.eq_str !$"Valid PUBLISH Packet message_name check" !$"PUBLISH" s.message_name;
         T.eq_u8 !$"Valid PUBLISH Packet message_type check" 3uy s.message_type;
-        T.eq_u8 !$"Valid PUBLISH Packet flag check" 0uy s.flags.flag;
+        T.eq_u8 !$"Valid PUBLISH Packet flag check" 255uy s.flags.flag;
         T.eq_u8 !$"Valid PUBLISH Packet dup_flag check" 0uy s.flags.dup_flag;
         T.eq_u8 !$"Valid PUBLISH Packet qos_flag check" 0uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBLISH Packet retain_flag check" 0uy s.flags.retain_flag;
