@@ -927,10 +927,22 @@ let bytes_loop request packet_size =
       let flag: type_flag_restrict =
         let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
           (
-            if (v <> 0b0000uy && v <> 0b0010uy && v <> max_u8) then
-              max_u8
+            if (U8.eq message_type define_mqtt_control_packet_PUBREL ||
+              U8.eq message_type define_mqtt_control_packet_SUBSCRIBE ||
+              U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
+              (
+                if (v <> 0b0010uy) then
+                  max_u8
+                else
+                  v
+              )
             else
-              v
+              (
+                if (v <> 0b0000uy) then
+                  max_u8
+                else
+                  v
+              )
           ) in
       let data: struct_fixed_header_constant =
         if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
