@@ -77,6 +77,6 @@ void Testing_eq_str(C_String_t title, C_String_t expect, C_String_t result) {
   if (is_pass) {
     // printf("\x1b[32m✔\x1b[0m %s\n", title);
   } else {
-    printf("\x1b[31m✘\x1b[0m %s\n\t expected is %s but result is %s\n", title, expect, result);
+    printf("\x1b[31m✘\x1b[0m %s\n\t expected is \'%s\' but result is \'%s\'\n", title, expect, result);
   }
 }

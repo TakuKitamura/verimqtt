@@ -858,7 +858,7 @@ let bytes_loop request packet_size =
   let have_error: bool =
     (U8.eq status 1uy) ||
     (U8.eq message_type 255uy) ||
-    (U32.eq (C.String.strlen message_name) 0ul) ||
+    // (U32.eq (C.String.strlen message_name) 0ul) ||
     (U8.eq flag 255uy) ||
     (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq dup_flag 255uy) ||
     (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq qos_flag 255uy) ||
@@ -880,8 +880,8 @@ let bytes_loop request packet_size =
                 !$"remaining_length is invalid."
               else if (U8.eq message_type 255uy) then
                 !$"message_type is invalid."
-              else if (U32.eq (C.String.strlen message_name) 0ul) then
-                !$"message_name is invalid."
+              // else if (U32.eq (C.String.strlen message_name) 0ul) then
+              //   !$"message_name is invalid." ここは､message_typeを判定すれば不必要
               else if (U8.eq flag 255uy) then
                 !$"flag is invalid."
               else if (U8.eq message_type define_mqtt_control_packet_PUBLISH && U8.eq dup_flag 255uy) then
