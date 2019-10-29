@@ -83,32 +83,9 @@ type type_message_name_restrict =
     v = define_mqtt_control_packet_AUTH_label ||
     v = !$""
   }
-val is_valid_message_type_check: message_type: U8.t -> r:U8.t
-let is_valid_message_type_check message_type =
-  if (U8.eq message_type define_mqtt_control_packet_RESERVED) then
-    1uy
-  else if (message_type <> define_mqtt_control_packet_CONNECT &&
-      message_type <> define_mqtt_control_packet_CONNACK &&
-      message_type <> define_mqtt_control_packet_PUBLISH &&
-      message_type <> define_mqtt_control_packet_PUBACK &&
-      message_type <> define_mqtt_control_packet_PUBREC &&
-      message_type <> define_mqtt_control_packet_PUBREL &&
-      message_type <> define_mqtt_control_packet_PUBCOMP &&
-      message_type <> define_mqtt_control_packet_SUBSCRIBE &&
-      message_type <> define_mqtt_control_packet_SUBACK &&
-      message_type <> define_mqtt_control_packet_UNSUBSCRIBE &&
-      message_type <> define_mqtt_control_packet_UNSUBACK &&
-      message_type <> define_mqtt_control_packet_PINGREQ &&
-      message_type <> define_mqtt_control_packet_PINGRESP &&
-      message_type <> define_mqtt_control_packet_DISCONNECT &&
-      message_type <> define_mqtt_control_packet_AUTH
-  ) then
-    2uy
-  else
-    0uy
 
 type type_mqtt_control_packets_restrict =
-  v:type_mqtt_control_packets{U8.eq (is_valid_message_type_check v) 0uy || U8.eq v max_u8}
+  v:type_mqtt_control_packets{U8.v v >= 1 && U8.v v <= 15 || U8.eq v max_u8}
 
 
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
@@ -524,10 +501,10 @@ let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
 
 val get_message_type: message_type_bits: U8.t -> type_mqtt_control_packets_restrict
 let get_message_type message_type_bits =
-  if (U8.eq (is_valid_message_type_check message_type_bits) 0uy) then
-    message_type_bits
-  else
+  if (U8.lt message_type_bits 1uy || U8.gt message_type_bits 15uy) then
     max_u8
+  else
+    message_type_bits
 
 val get_dup_flag: dup_flag_bits: U8.t -> type_dup_flags
 let get_dup_flag dup_flag_bits =
