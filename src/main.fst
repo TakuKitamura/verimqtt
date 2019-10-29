@@ -151,7 +151,28 @@ type type_flag_restrict =
 type type_remaining_length =
   (remaining_length: U32.t{U32.v remaining_length <= 268435455 || U32.eq remaining_length max_u32})
 
-type type_error_message_restrict = (error_message: C.String.t{C.String.length error_message <= 30})
+type type_error_message = C.String.t
+let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
+let define_error_message_type_invalid: type_error_message = !$"message_type is invalid."
+let define_error_flag_invalid: type_error_message = !$"flag is invalid."
+let define_error_dup_flag_invalid: type_error_message = !$"dup_flag is invalid."
+let define_error_qos_flag_invalid: type_error_message = !$"qos_flag is invalid."
+let define_error_retain_flag_invalid: type_error_message = !$"retain_flag is invalid."
+let define_error_unexpected: type_error_message = !$"unexpected error."
+
+type type_error_message_restrict =
+  (v:
+    type_error_message{
+      (v = define_error_remaining_length_invalid ||
+      v = define_error_message_type_invalid ||
+      v = define_error_flag_invalid ||
+      v = define_error_dup_flag_invalid ||
+      v = define_error_qos_flag_invalid ||
+      v = define_error_retain_flag_invalid ||
+      v = define_error_unexpected ||
+      v = !$"")
+    }
+  )
 
 // debug tool
 assume val print_hex (i:U8.t): Stack unit
@@ -808,17 +829,17 @@ let bytes_loop request packet_size =
         (
           if (have_error) then (
             if (U8.eq status 1uy) then
-              !$"remaining_length is invalid."
+              define_error_remaining_length_invalid
             else if (U8.eq message_type max_u8) then
-              !$"message_type is invalid."
+              define_error_message_type_invalid
             else if (U8.eq dup_flag max_u8) then
-              !$"dup_flag is invalid."
+              define_error_dup_flag_invalid
             else if (U8.eq qos_flag max_u8) then
-              !$"qos_flag is invalid."
+              define_error_qos_flag_invalid
             else if (U8.eq retain_flag max_u8) then
-              !$"retain_flag is invalid."
+              define_error_retain_flag_invalid
             else
-              !$"unexpected error."
+              define_error_unexpected
           ) else
             !$""
         ) in
@@ -922,13 +943,13 @@ let bytes_loop request packet_size =
               remaining_length = 0ul;
               error_message =
                 if (U8.eq status 1uy) then
-                  !$"remaining_length is invalid."
+                  define_error_remaining_length_invalid
                 else if (U8.eq message_type max_u8) then
-                  !$"message_type is invalid."
+                  define_error_message_type_invalid
                 else if (is_valid_flag data flag = false) then
-                  !$"flag is invalid."
+                  define_error_flag_invalid
                 else
-                  !$"unexpected error."
+                  define_error_unexpected
               }
             )
         else
