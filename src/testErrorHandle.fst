@@ -47,18 +47,19 @@ let message_type_error_check u =
         T.eq_str !$"message_type_error_check" !$"message_type is invalid." s.error_message;
 B.free request
 
-// val message_name_error_check: u:unit -> St unit
-// let message_name_error_check u =
-//     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
-//         request.(0ul) <- 0x00uy;
-//         request.(1ul) <- 0x00uy;
+val invalid_pubrel_flag_check: u:unit -> St unit
+let invalid_pubrel_flag_check u =
+    let request = B.malloc HyperStack.root 0uy 4ul in
+            request.(0ul) <- 0x60uy;
+            request.(1ul) <- 0x02uy;
+            request.(2ul) <- 0x00uy;
+            request.(3ul) <- 0x01uy;
+    let s : struct_fixed_header = parse request 4ul in
+        T.eq_str !$"pubrel flag is invalid" !$"flag is invalid." s.error_message;
+    B.free request
 
-//     let s : struct_fixed_header = parse request 2ul in
-//         T.eq_str !$"message_name_error_check" !$"message_name is invalid." s.error_message;
-// B.free request
-
-val flag_error_check: u:unit -> St unit
-let flag_error_check u =
+val invalid_subscribe_flag_check: u:unit -> St unit
+let invalid_subscribe_flag_check u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 17ul in
         request.(0ul) <- 0x80uy;
         request.(1ul) <- 0x0Fuy;
@@ -79,7 +80,43 @@ let flag_error_check u =
         request.(16ul) <- 0x00uy;
 
     let s : struct_fixed_header = parse request 17ul in
-        T.eq_str !$"invalid Packet error_message check" !$"flag is invalid." s.error_message;
+        T.eq_str !$"subscribe flag is invalid" !$"flag is invalid." s.error_message;
+B.free request
+
+val invalid_unsubscribe_flag_check: u:unit -> St unit
+let invalid_unsubscribe_flag_check u =
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 16ul in
+        request.(0ul) <- 0xA0uy;
+        request.(1ul) <- 0x0Euy;
+        request.(2ul) <- 0x00uy;
+        request.(3ul) <- 0x02uy;
+        request.(4ul) <- 0x00uy;
+        request.(5ul) <- 0x0Auy;
+        request.(6ul) <- 0x74uy;
+        request.(7ul) <- 0x65uy;
+        request.(8ul) <- 0x73uy;
+        request.(9ul) <- 0x74uy;
+        request.(10ul) <- 0x2Fuy;
+        request.(11ul) <- 0x74uy;
+        request.(12ul) <- 0x6Fuy;
+        request.(13ul) <- 0x70uy;
+        request.(14ul) <- 0x69uy;
+        request.(15ul) <- 0x63uy;
+
+    let s : struct_fixed_header = parse request 16ul in
+        T.eq_str !$"unsubscribe flag is invalid" !$"flag is invalid." s.error_message;
+B.free request
+
+val invalid_unsuback_flag_check: u:unit -> St unit
+let invalid_unsuback_flag_check u =
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
+        request.(0ul) <- 0xB2uy;
+        request.(1ul) <- 0x02uy;
+        request.(2ul) <- 0x00uy;
+        request.(3ul) <- 0x02uy;
+
+    let s : struct_fixed_header = parse request 4ul in
+        T.eq_str !$"unsuback flag is invalid" !$"flag is invalid." s.error_message;
 B.free request
 
 val main : u:unit -> St C.exit_code
@@ -88,8 +125,10 @@ let main () =
     remaining_length_error_check1 ();
     remaining_length_error_check2 ();
     message_type_error_check ();
-    // message_name_error_check ();
-    flag_error_check ();
+    invalid_pubrel_flag_check ();
+    invalid_subscribe_flag_check ();
+    invalid_unsubscribe_flag_check ();
+    invalid_unsuback_flag_check ();
 
     T.test_end ();
     C.EXIT_SUCCESS
