@@ -97,8 +97,8 @@ let valid_connack_packet_test u =
         T.eq_str !$"Valid CONNACK Packet error_message check" !$"" s.error_message;
     B.free request
 
-val valid_publish_packet_test: u:unit -> St unit
-let valid_publish_packet_test u =
+val valid_publish_packet_test1: u:unit -> St unit
+let valid_publish_packet_test1 u =
     let request = B.malloc HyperStack.root 0uy 24ul in
         request.(0ul) <- 0x30uy;
         request.(1ul) <- 0x16uy;
@@ -131,6 +131,44 @@ let valid_publish_packet_test u =
         T.eq_u8 !$"Valid PUBLISH Packet dup_flag check" 0uy s.flags.dup_flag;
         T.eq_u8 !$"Valid PUBLISH Packet qos_flag check" 0uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBLISH Packet retain_flag check" 0uy s.flags.retain_flag;
+        T.eq_u32 !$"Valid PUBLISH Packet remaining_length check" 22ul s.remaining_length;
+        T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error_message;
+    B.free request
+
+val valid_publish_packet_test2: u:unit -> St unit
+let valid_publish_packet_test2 u =
+    let request = B.malloc HyperStack.root 0uy 24ul in
+        request.(0ul) <- 0x3Duy;
+        request.(1ul) <- 0x16uy;
+        request.(2ul) <- 0x00uy;
+        request.(3ul) <- 0x0Auy;
+        request.(4ul) <- 0x74uy;
+        request.(5ul) <- 0x65uy;
+        request.(6ul) <- 0x73uy;
+        request.(7ul) <- 0x74uy;
+        request.(8ul) <- 0x2Fuy;
+        request.(9ul) <- 0x74uy;
+        request.(10ul) <- 0x6Fuy;
+        request.(11ul) <- 0x70uy;
+        request.(12ul) <- 0x69uy;
+        request.(13ul) <- 0x63uy;
+        request.(14ul) <- 0x68uy;
+        request.(15ul) <- 0x65uy;
+        request.(16ul) <- 0x6Cuy;
+        request.(17ul) <- 0x6Cuy;
+        request.(18ul) <- 0x6Fuy;
+        request.(19ul) <- 0x20uy;
+        request.(20ul) <- 0x6Duy;
+        request.(21ul) <- 0x71uy;
+        request.(22ul) <- 0x74uy;
+        request.(23ul) <- 0x74uy;
+    let s : struct_fixed_header = parse request 24ul in
+        T.eq_str !$"Valid PUBLISH Packet message_name check" !$"PUBLISH" s.message_name;
+        T.eq_u8 !$"Valid PUBLISH Packet message_type check" 3uy s.message_type;
+        T.eq_u8 !$"Valid PUBLISH Packet flag check" 255uy s.flags.flag;
+        T.eq_u8 !$"Valid PUBLISH Packet dup_flag check" 1uy s.flags.dup_flag;
+        T.eq_u8 !$"Valid PUBLISH Packet qos_flag check" 2uy s.flags.qos_flag;
+        T.eq_u8 !$"Valid PUBLISH Packet retain_flag check" 1uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBLISH Packet remaining_length check" 22ul s.remaining_length;
         T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error_message;
     B.free request
@@ -378,7 +416,8 @@ let main () =
     T.test_start !$"TestValidPackets";
     valid_connect_packet_test ();
     valid_connack_packet_test ();
-    valid_publish_packet_test ();
+    valid_publish_packet_test1 ();
+    valid_publish_packet_test2 ();
     valid_puback_packet_test ();
     valid_pubrec_packet_test ();
     valid_pubrel_packet_test ();
