@@ -115,16 +115,8 @@ type type_dup_flags = U8.t // Base 10
 let define_dup_flag_first_delivery : type_dup_flags = 0uy
 let define_dup_flag_re_delivery : type_dup_flags = 1uy
 
-val is_valid_dup_flag: dup_flag:type_dup_flags -> (r:U8.t{U8.v r <= 1})
-let is_valid_dup_flag dup_flag =
-  if (dup_flag <> define_dup_flag_first_delivery &&
-      dup_flag <> define_dup_flag_re_delivery) then
-    1uy
-  else
-    0uy
-
 type type_dup_flags_restrict =
-  dup_flag: type_dup_flags{U8.eq (is_valid_dup_flag dup_flag) 0uy || U8.eq dup_flag max_u8}
+  dup_flag: type_dup_flags{U8.v dup_flag <= 1 || U8.eq dup_flag max_u8}
 
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
 // 3.3.1.2 QoS
@@ -134,19 +126,10 @@ type type_qos_flags = U8.t // Base 2
 let define_qos_flag_at_most_once_delivery : type_qos_flags = 0b00uy
 let define_qos_flag_at_least_once_delivery : type_qos_flags = 0b01uy
 let define_qos_flag_exactly_once_delivery : type_qos_flags = 0b10uy
-let define_qos_flag_reserved : type_qos_flags = 0b11uy
-
-val is_valid_qos_flag: qos_flag:type_qos_flags -> (r:U8.t{U8.v r <= 1})
-let is_valid_qos_flag qos_flag =
-  if (qos_flag <> define_qos_flag_at_least_once_delivery &&
-      qos_flag <> define_qos_flag_at_most_once_delivery &&
-      qos_flag <> define_qos_flag_exactly_once_delivery) then
-    1uy
-  else
-    0uy
+// let define_qos_flag_reserved : type_qos_flags = 0b11uy
 
 type type_qos_flags_restrict =
-  qos_flag: type_qos_flags{U8.eq (is_valid_qos_flag qos_flag) 0uy || U8.eq qos_flag max_u8}
+  qos_flag: type_qos_flags{U8.v qos_flag <= 2 || U8.eq qos_flag max_u8}
 
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
 // 3.3.1.3 RETAIN
@@ -155,16 +138,8 @@ type type_retain_flags = U8.t // Base 10
 let define_retain_flag_must_not_store_application_message : type_retain_flags = 0uy
 let define_retain_flag_must_store_application_message : type_retain_flags = 1uy
 
-val is_valid_retain_flag: retain_flag:type_retain_flags -> (r:U8.t{U8.v r <= 1})
-let is_valid_retain_flag retain_flag =
-  if (retain_flag <> define_retain_flag_must_not_store_application_message &&
-      retain_flag <> define_retain_flag_must_store_application_message) then
-    1uy
-  else
-    0uy
-
 type type_retain_flags_restrict =
-  retain_flag: type_retain_flags{U8.eq (is_valid_retain_flag retain_flag) 0uy || U8.eq retain_flag max_u8}
+  retain_flag: type_retain_flags{U8.v retain_flag <= 1 || U8.eq retain_flag max_u8}
 
 type type_flag_restrict =
   flag: U8.t{
@@ -505,27 +480,6 @@ let get_message_type message_type_bits =
   else
     message_type_bits
 
-val get_dup_flag: dup_flag_bits: U8.t -> type_dup_flags
-let get_dup_flag dup_flag_bits =
-  if (U8.eq (is_valid_dup_flag dup_flag_bits) 0uy) then
-    dup_flag_bits
-  else
-    max_u8
-
-val get_qos_flag: qos_flag_bits: U8.t -> type_qos_flags
-let get_qos_flag qos_flag_bits =
-  if (U8.eq (is_valid_qos_flag qos_flag_bits) 0uy) then
-    qos_flag_bits
-  else
-    max_u8
-
-val get_retain_flag: retain_flag_bits: U8.t -> type_retain_flags
-let get_retain_flag retain_flag_bits =
-  if (U8.eq (is_valid_retain_flag retain_flag_bits) 0uy) then
-    retain_flag_bits
-  else
-    max_u8
-
 type struct_flags = {
   flag: type_flag_restrict;
   dup_flag: type_dup_flags_restrict;
@@ -822,27 +776,27 @@ let bytes_loop request packet_size =
     (
       let dup_flag: type_dup_flags_restrict =
       (
-        if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-            let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
-            get_dup_flag dup_flag_bits
-        else
+        let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
+        if (U8.gt dup_flag_bits 1uy) then
           max_u8
+        else
+          dup_flag_bits
         ) in
       let qos_flag: type_qos_flags_restrict =
       (
-        if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-            let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
-            get_qos_flag qos_flag_bits
-        else
+        let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
+        if (U8.gt qos_flag_bits 2uy) then
           max_u8
+        else
+          qos_flag_bits
         ) in
       let retain_flag: type_retain_flags_restrict =
       (
-        if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-          let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
-            get_retain_flag retain_flag_bits
-        else
+        let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
+        if (U8.gt retain_flag_bits 1uy) then
           max_u8
+        else
+          retain_flag_bits
       ) in
       let have_error: bool =
           (U8.eq status 1uy) ||
