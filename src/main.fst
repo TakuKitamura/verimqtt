@@ -29,7 +29,7 @@ let max_u8 = 255uy
 // Table 2‑1 MQTT Control Packet types
 type type_mqtt_control_packets = U8.t // Base 10
 
-let define_mqtt_control_packet_RESERVED : type_mqtt_control_packets = 0uy
+// let define_mqtt_control_packet_RESERVED : type_mqtt_control_packets = 0uy
 let define_mqtt_control_packet_CONNECT : type_mqtt_control_packets = 1uy
 let define_mqtt_control_packet_CONNACK : type_mqtt_control_packets = 2uy
 let define_mqtt_control_packet_PUBLISH : type_mqtt_control_packets = 3uy
@@ -47,7 +47,7 @@ let define_mqtt_control_packet_DISCONNECT : type_mqtt_control_packets = 14uy
 let define_mqtt_control_packet_AUTH : type_mqtt_control_packets = 15uy
 
 type type_mqtt_control_packet_label = C.String.t
-let define_mqtt_control_packet_RESERVED_label : type_mqtt_control_packet_label = !$"RESERVED"
+// let define_mqtt_control_packet_RESERVED_label : type_mqtt_control_packet_label = !$"RESERVED"
 let define_mqtt_control_packet_CONNECT_label : type_mqtt_control_packet_label = !$"CONNECT"
 let define_mqtt_control_packet_CONNACK_label : type_mqtt_control_packet_label = !$"CONNACK"
 let define_mqtt_control_packet_PUBLISH_label : type_mqtt_control_packet_label = !$"PUBLISH"
@@ -65,7 +65,6 @@ let define_mqtt_control_packet_DISCONNECT_label : type_mqtt_control_packet_label
 let define_mqtt_control_packet_AUTH_label : type_mqtt_control_packet_label = !$"AUTH"
 type type_message_name_restrict =
   v:type_mqtt_control_packet_label{
-    v = define_mqtt_control_packet_RESERVED_label ||
     v = define_mqtt_control_packet_CONNECT_label ||
     v = define_mqtt_control_packet_CONNACK_label ||
     v = define_mqtt_control_packet_PUBLISH_label ||
