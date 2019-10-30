@@ -8,6 +8,7 @@ open LowStar.BufferOps
 module T = Testing
 module B = LowStar.Buffer
 module U8 = FStar.UInt8
+module UT = Utils
 
 #set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 30"
 
@@ -20,11 +21,11 @@ let print x =  C.String.print x
 val print_struct_fixed_header: s:struct_fixed_header -> St unit
 let print_struct_fixed_header s =
     print !$"message_name: "; print s.message_name; new_line ();
-    print !$"message_type: 0x"; print_hex s.message_type; new_line ();
-    print !$"flag: 0x"; print_hex s.flags.flag; new_line ();
-    print !$"dup_flag: 0x"; print_hex s.flags.dup_flag; new_line ();
-    print !$"qos_flag: 0x"; print_hex s.flags.qos_flag; new_line ();
-    print !$"retain_flag: 0x"; print_hex s.flags.retain_flag; new_line ();
+    print !$"message_type: 0x"; UT.print_hex s.message_type; new_line ();
+    print !$"flag: 0x"; UT.print_hex s.flags.flag; new_line ();
+    print !$"dup_flag: 0x"; UT.print_hex s.flags.dup_flag; new_line ();
+    print !$"qos_flag: 0x"; UT.print_hex s.flags.qos_flag; new_line ();
+    print !$"retain_flag: 0x"; UT.print_hex s.flags.retain_flag; new_line ();
     print !$"remaining_length: "; print_u32 s.remaining_length; new_line ();
     print !$"error_message: "; print s.error_message; new_line ()
 
