@@ -14,7 +14,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 1000"
+#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 30"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -726,843 +726,257 @@ val bytes_loop: request: B.buffer U8.t -> packet_size: U32.t -> Stack struct_fix
   (ensures fun _ _ _ -> true)
 let bytes_loop request packet_size =
   push_frame ();
-  // let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_status: B.buffer (status:U8.t{U8.v status <= 1}) = B.alloca 1uy 1ul in
-  let ptr_message_type: B.buffer type_mqtt_control_packets_restrict = B.alloca max_u8 1ul in
-  let ptr_message_name: B.buffer type_message_name_restrict = B.alloca !$"" 1ul in
-  let ptr_dup_flag: B.buffer type_dup_flags_restrict = B.alloca max_u8 1ul in
-  let ptr_qos_flag: B.buffer type_qos_flags_restrict = B.alloca max_u8 1ul in
-  let ptr_retain_flag: B.buffer type_retain_flags_restrict = B.alloca max_u8 1ul in
-  let ptr_flag: B.buffer type_flag_restrict = B.alloca max_u8 1ul in
+  let ptr_is_break: B.buffer bool = B.alloca false 1ul in
+  let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_message_type: B.buffer type_mqtt_control_packets_restrict
+    = B.alloca max_u8 1ul in
+  let ptr_is_searching_remaining_length: B.buffer bool = B.alloca true 1ul in
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-  let ptr_remaining_length: B.buffer type_remaining_length = B.alloca max_u32 1ul in
-  let ptr_error_message: B.buffer type_error_message_restrict = B.alloca define_error_unexpected 1ul in
-  let ptr_have_error: B.buffer bool = B.alloca false 1ul in
-  // let v: struct_fixed_header = {
-  //     message_type = max_u8;
-  //     message_name = !$"";
-  //     flags = {
-  //       flag = max_u8;
-  //       dup_flag = max_u8;
-  //       qos_flag = max_u8;
-  //       retain_flag = max_u8;
-  //     };
-  //     remaining_length = 0ul;
-  //     error_message = define_error_unexpected;
-  //   } in
-  let ptr_struct_fixed_header: B.buffer struct_fixed_header =
-    B.alloca ({
-      message_type = max_u8;
-      message_name = !$"";
-      flags = {
-        flag = max_u8;
-        dup_flag = max_u8;
-        qos_flag = max_u8;
-        retain_flag = max_u8;
-      };
-      remaining_length = 0ul;
-      error_message = define_error_unexpected;
-    } ) 1ul in
+  let ptr_remaining_length: B.buffer type_remaining_length =
+   B.alloca 0ul 1ul in
   let inv h (i: nat) =
+    B.live h ptr_is_break /\
+    B.live h ptr_fixed_header_first_one_byte /\
+    B.live h ptr_message_type /\
     B.live h request /\
     B.live h ptr_for_decoding_packets /\
-    B.live h ptr_status /\
-    B.live h ptr_message_type /\
-    B.live h ptr_message_name /\
-    B.live h ptr_dup_flag /\
-    B.live h ptr_qos_flag /\
-    B.live h ptr_retain_flag /\
-    B.live h ptr_flag /\
-    B.live h ptr_remaining_length /\
-    B.live h ptr_error_message /\
-    B.live h ptr_struct_fixed_header /\
-    B.live h ptr_have_error
+    B.live h ptr_is_searching_remaining_length /\
+    B.live h ptr_remaining_length
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
-    let one_byte: U8.t = request.(i) in
-      let ptr_status_v: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
-      // let have_error: bool = ptr_have_error.(0ul) in
-      (
-        if (i = 0ul) then
-          (
-            // ptr_fixed_header_first_one_byte.(0ul) <- one_byte
-            let fixed_header_first_one_byte: U8.t = one_byte in
-            let message_type_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in
-            let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
-              let have_error: bool = ptr_have_error.(0ul) in
-              if (U8.eq message_type max_u8 && have_error = false) then
-                (
-                  ptr_error_message.(0ul) <- define_error_message_type_invalid;
-                  ptr_have_error.(0ul) <- true
-                )
-              else
-                ptr_message_type.(0ul) <- message_type;
-            if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-              (
-                let dup_flag: type_dup_flags_restrict =
-                (
-                  let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
-                  if (U8.gt dup_flag_bits 1uy) then
-                    (
-                      let have_error: bool = ptr_have_error.(0ul) in
-                      if (have_error = false) then
-                        (
-                          ptr_error_message.(0ul) <- define_error_dup_flag_invalid;
-                          ptr_have_error.(0ul) <- true
-                        );
-                      max_u8
-                    )
-                  else
-                    dup_flag_bits
-                ) in
-                  if (dup_flag <> max_u8) then
-                    ptr_dup_flag.(0ul) <- dup_flag;
-                let qos_flag: type_qos_flags_restrict =
-                (
-                  let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
-                  if (U8.gt qos_flag_bits 2uy) then
-                    (
-                      let have_error: bool = ptr_have_error.(0ul) in
-                      if (have_error = false) then
-                        (
-                          ptr_error_message.(0ul) <- define_error_qos_flag_invalid;
-                          ptr_have_error.(0ul) <- true
-                        );
-                      max_u8
-                    )
-                  else
-                    qos_flag_bits
-                  ) in
-                    if (qos_flag <> max_u8) then
-                      ptr_qos_flag.(0ul) <- qos_flag;
-                let retain_flag: type_retain_flags_restrict =
-                (
-                  let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
-                  if (U8.gt retain_flag_bits 1uy) then
-                    (
-                      let have_error: bool = ptr_have_error.(0ul) in
-                      if (have_error = false) then
-                        (
-                          ptr_error_message.(0ul) <- define_error_retain_flag_invalid;
-                          ptr_have_error.(0ul) <- true
-                        );
-                      max_u8
-                    )
-                  else
-                    retain_flag_bits
-                ) in
-                  if (retain_flag <> max_u8) then
-                    ptr_retain_flag.(0ul) <- retain_flag;
-                  if ((dup_flag <> max_u8) &&
-                      (qos_flag <> max_u8) &&
-                      (retain_flag <> max_u8)
-                    ) then (
-                      let constant_data: struct_fixed_header_constant =
-                        struct_fixed_publish dup_flag qos_flag retain_flag in
-                      ptr_message_type.(0ul) <- constant_data.message_type_constant;
-                      ptr_message_name.(0ul) <- constant_data.message_name_constant;
-                      ptr_flag.(0ul) <- constant_data.flags_constant.flag;
-                      ptr_dup_flag.(0ul) <- constant_data.flags_constant.dup_flag;
-                      ptr_qos_flag.(0ul) <- constant_data.flags_constant.qos_flag;
-                      ptr_retain_flag.(0ul) <- constant_data.flags_constant.retain_flag
-                    )
-              )
-          else // not publish
-            (
-              let constant_data: struct_fixed_header_constant =
-                (
-                  if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
-                    struct_fixed_connect ()
-                  else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then
-                    struct_fixed_connack ()
-                  else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then
-                    struct_fixed_puback ()
-                  else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then
-                    struct_fixed_pubrec ()
-                  else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
-                    struct_fixed_pubrel ()
-                  else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then
-                    struct_fixed_pubcomp ()
-                  else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
-                    struct_fixed_subscribe ()
-                  else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then
-                    struct_fixed_suback ()
-                  else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-                    struct_fixed_unsubscribe ()
-                  else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then
-                    struct_fixed_unsuback ()
-                  else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then
-                    struct_fixed_pingreq ()
-                  else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then
-                    struct_fixed_pingresp ()
-                  else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
-                    struct_fixed_disconnect ()
-                  else
-                    struct_fixed_auth ()
-                ) in
-              let flag: type_flag_restrict =
-                let untrust_flag = slice_byte fixed_header_first_one_byte 4uy 8uy in
-                  (
-                    let have_error: bool = ptr_have_error.(0ul) in
-                    if (U8.eq message_type define_mqtt_control_packet_PUBREL ||
-                      U8.eq message_type define_mqtt_control_packet_SUBSCRIBE ||
-                      U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-                      (
-                        if (untrust_flag <> 0b0010uy || is_valid_flag constant_data untrust_flag = false) then
-                          (
-                            if (have_error = false) then
-                              (
-                                ptr_error_message.(0ul) <- define_error_flag_invalid;
-                                ptr_have_error.(0ul) <- true
-                              );
-                            max_u8
-                          )
-                        else
-                          untrust_flag
-                      )
-                    else
-                      (
-                        if (untrust_flag <> 0b0000uy || is_valid_flag constant_data untrust_flag = false) then
-                          (
-                            if (have_error = false) then
-                              (
-                                ptr_error_message.(0ul) <- define_error_flag_invalid;
-                                ptr_have_error.(0ul) <- true
-                              );
-                            max_u8
-                          )
-                        else
-                          untrust_flag
-                      )
-                    ) in
-                  if (flag <> max_u8) then
-                    (
-                      ptr_message_type.(0ul) <- constant_data.message_type_constant;
-                      ptr_message_name.(0ul) <- constant_data.message_name_constant;
-                      ptr_flag.(0ul) <- constant_data.flags_constant.flag;
-                      ptr_dup_flag.(0ul) <- constant_data.flags_constant.dup_flag;
-                      ptr_qos_flag.(0ul) <- constant_data.flags_constant.qos_flag;
-                      ptr_retain_flag.(0ul) <- constant_data.flags_constant.retain_flag
-                    )
-            )
-          )
-      else if (U32.eq i (U32.sub packet_size 1ul) && U32.gt i 4ul) then (
-        if (ptr_status_v = 1uy) then
-          (
-            ptr_struct_fixed_header.(0ul) <-
-              {
-                message_type = max_u8;
-                message_name = !$"";
-                flags = {
-                  flag = max_u8;
-                  dup_flag = max_u8;
-                  qos_flag = max_u8;
-                  retain_flag = max_u8;
-                };
-                remaining_length = 0ul;
-                error_message = define_error_remaining_length_invalid;
-              }
-          )
-        // else if (ptr_status_v = 0uy) then
-        //   (
-        //   ptr_struct_fixed_header.(0ul) <-
-        //     {
-        //       message_type = ptr_message_type.(0ul);
-        //       message_name = ptr_message_name.(0ul);
-        //       flags = {
-        //         flag = ptr_flag.(0ul);
-        //         dup_flag = ptr_dup_flag.(0ul);
-        //         qos_flag = ptr_qos_flag.(0ul);
-        //         retain_flag = ptr_retain_flag.(0ul);
-        //       };
-        //       remaining_length = ptr_remaining_length.(0ul);
-        //       error_message = !$""
-        //     }
-        //   )
-        else if (ptr_have_error.(0ul) = true) then
-          (
-            ptr_struct_fixed_header.(0ul) <-
-              {
-                message_type = max_u8;
-                message_name = !$"";
-                flags = {
-                  flag = max_u8;
-                  dup_flag = max_u8;
-                  qos_flag = max_u8;
-                  retain_flag = max_u8;
-                };
-                remaining_length = 0ul;
-                error_message = ptr_error_message.(0ul);
-              }
-          )
-        else (
-          ptr_struct_fixed_header.(0ul) <-
-            {
-              message_type = ptr_message_type.(0ul);
-              message_name = ptr_message_name.(0ul);
-              flags = {
-                flag = ptr_flag.(0ul);
-                dup_flag = ptr_dup_flag.(0ul);
-                qos_flag = ptr_qos_flag.(0ul);
-                retain_flag = ptr_retain_flag.(0ul);
-              };
-              remaining_length = ptr_remaining_length.(0ul);
-              error_message = !$""
-            }
-        )
-      )
-      else if (U32.eq i (U32.sub packet_size 1ul) && U32.lte i 4ul) then
+    let one_byte : U8.t = request.(i) in
+        let is_searching_remaining_length: bool =
+         ptr_is_searching_remaining_length.(0ul) in
+        let is_break: bool = ptr_is_break.(0ul) in
+      if (is_break) then
+        print_string ""
+      else if (i = 0ul) then
         (
-          // let _ = print_string "B:" ; print_u32 i; new_line () in
-          let have_error: bool = ptr_have_error.(0ul) in
-          if (ptr_status_v = 1uy) then
-            (
-              let i_u8: U8.t = uint32_to_uint8(i) in
-              let i_minus_one: U32.t = U32.sub i 1ul in
-              ptr_for_decoding_packets.(i_minus_one) <- one_byte;
-              let r: (remaining_length:type_remaining_length) =
-                get_remaining_length i_u8 ptr_for_decoding_packets packet_size in
-              if (r <> max_u32) then
-
-                ptr_struct_fixed_header.(0ul) <-
-                  {
-                    message_type = ptr_message_type.(0ul);
-                    message_name = ptr_message_name.(0ul);
-                    flags = {
-                      flag = ptr_flag.(0ul);
-                      dup_flag = ptr_dup_flag.(0ul);
-                      qos_flag = ptr_qos_flag.(0ul);
-                      retain_flag = ptr_retain_flag.(0ul);
-                    };
-                    remaining_length = r;
-                    error_message = !$""
-                  }
-              else
-                ptr_struct_fixed_header.(0ul) <-
-                  {
-                    message_type = max_u8;
-                    message_name = !$"";
-                    flags = {
-                      flag = max_u8;
-                      dup_flag = max_u8;
-                      qos_flag = max_u8;
-                      retain_flag = max_u8;
-                    };
-                    remaining_length = 0ul;
-                    error_message = define_error_remaining_length_invalid;
-                  }
-            )
-            else if (have_error = true) then
+          let message_type_bits: U8.t = slice_byte one_byte 0uy 4uy in
+          let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
+            ptr_message_type.(0ul) <- message_type;
+            ptr_fixed_header_first_one_byte.(0ul) <- one_byte;
+            if (U8.eq message_type max_u8) then
               (
-                ptr_struct_fixed_header.(0ul) <-
-                  {
-                    message_type = max_u8;
-                    message_name = !$"";
-                    flags = {
-                      flag = max_u8;
-                      dup_flag = max_u8;
-                      qos_flag = max_u8;
-                      retain_flag = max_u8;
-                    };
-                    remaining_length = 0ul;
-                    error_message = ptr_error_message.(0ul);
-                  }
+                ptr_is_break.(0ul) <- true;
+                ptr_is_searching_remaining_length.(0ul) <- false
               )
-            else
-            (
-              ptr_struct_fixed_header.(0ul) <-
-              {
-                message_type = ptr_message_type.(0ul);
-                message_name = ptr_message_name.(0ul);
-                flags = {
-                  flag = ptr_flag.(0ul);
-                  dup_flag = ptr_dup_flag.(0ul);
-                  qos_flag = ptr_qos_flag.(0ul);
-                  retain_flag = ptr_retain_flag.(0ul);
-                };
-                remaining_length = ptr_remaining_length.(0ul);
-                error_message = !$""
-              }
-            )
         )
-      else if (U32.gte i 1ul && U32.lte i 4ul && ptr_status_v = 1uy) then
+      else if (U32.gte i 1ul && U32.lte i 4ul && is_searching_remaining_length) then
         (
-          // let _ = print_string "A:" ; print_u32 i; new_line () in
           let i_u8: U8.t = uint32_to_uint8(i) in
           let i_minus_one: U32.t = U32.sub i 1ul in
           ptr_for_decoding_packets.(i_minus_one) <- one_byte;
           let r: (remaining_length:type_remaining_length) =
             get_remaining_length i_u8 ptr_for_decoding_packets packet_size in
           if (r <> max_u32) then (
-            ptr_status.(0ul) <- 0uy;
+            ptr_is_searching_remaining_length.(0ul) <- false;
             ptr_remaining_length.(0ul) <- r
           )
         )
-      // else
-      //   (
-      //     // print_u8 ptr_status_v; new_line ();
-      //     // print_string "C:" ; print_u32 i; new_line ()
-      //   )
-      // else if (ptr_status_v = 0uy) then
-      //   (
-      //     print_u32 i
-      //   )
-      // else if (U32.eq i (U32.sub packet_size 1ul)) then
-      //   (
-      //     let status: (s:U8.t{U8.v s <= 1}) = ptr_status.(0ul) in
-      //     // let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
-      //     // let message_type_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in
-      //     let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
-      //     let remaining_length: type_remaining_length
-      //       = ptr_remaining_length.(0ul) in
-      //     if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-      //       (
-      //         let dup_flag: type_dup_flags_restrict = ptr_dup_flag.(0ul) in
-      //         let qos_flag: type_qos_flags_restrict = ptr_qos_flag.(0ul) in
-      //         let retain_flag: type_retain_flags_restrict = ptr_retain_flag.(0ul) in
-      //         let have_error: bool =
-      //             (U8.eq status 1uy) ||
-      //             (U8.eq message_type max_u8) ||
-      //             (U8.eq dup_flag max_u8) ||
-      //             (U8.eq qos_flag max_u8) ||
-      //             (U8.eq retain_flag max_u8) in
-      //         let error_message: type_error_message_restrict =
-      //           (
-      //             if (have_error) then (
-      //               if (U8.eq status 1uy) then
-      //                 define_error_remaining_length_invalid
-      //               else if (U8.eq message_type max_u8) then
-      //                 define_error_message_type_invalid
-      //               else if (U8.eq dup_flag max_u8) then
-      //                 define_error_dup_flag_invalid
-      //               else if (U8.eq qos_flag max_u8) then
-      //                 define_error_qos_flag_invalid
-      //               else if (U8.eq retain_flag max_u8) then
-      //                 define_error_retain_flag_invalid
-      //               else
-      //                 define_error_unexpected
-      //             ) else
-      //               !$""
-      //           ) in
-      //         // pop_frame ();
-      //         if (have_error) then
-      //           let data: struct_fixed_header = {
-      //             message_type = max_u8;
-      //             message_name = !$"";
-      //             flags = {
-      //               flag = max_u8;
-      //               dup_flag = max_u8;
-      //               qos_flag = max_u8;
-      //               retain_flag = max_u8;
-      //             };
-      //             remaining_length = 0ul;
-      //             error_message = error_message;
-      //           } in
-      //             ptr_struct_fixed_header.(0ul) <- data
-      //           // (
-      //           //   ptr_message_type.(0ul) <- max_u8;
-      //           //   ptr_message_name.(0ul) <- !$"";
-      //           //   ptr_flag.(0ul) <- max_u8;
-      //           //   ptr_dup_flag.(0ul) <- max_u8;
-      //           //   ptr_qos_flag.(0ul) <- max_u8;
-      //           //   ptr_retain_flag.(0ul) <- max_u8;
-      //           //   ptr_remaining_length.(0ul) <- 0ul;
-      //           //   ptr_error_message.(0ul) <- define_error_remaining_length_invalid.(0ul) <- error_message
-      //           // )
-      //         else
-      //           let constant_data: struct_fixed_header_constant =
-      //            struct_fixed_publish dup_flag qos_flag retain_flag in
-      //               // ptr_message_type.(0ul) <- constant_data.message_type_constant;
-      //               // ptr_message_name.(0ul) <- constant_data.message_name_constant;
-      //               // ptr_flag.(0ul) <- constant_data.flags_constant.flag;
-      //               // ptr_dup_flag.(0ul) <- constant_data.flags_constant.dup_flag;
-      //               // ptr_qos_flag.(0ul) <- constant_data.flags_constant.qos_flag;
-      //               // ptr_retain_flag.(0ul) <- constant_data.flags_constant.retain_flag;
-      //               // ptr_remaining_length.(0ul) <- remaining_length;
-      //               // ptr_error_message.(0ul) <- define_error_remaining_length_invalid.(0ul) <- !$""
-      //           let data: struct_fixed_header =
-      //             {
-      //               message_type = constant_data.message_type_constant;
-      //               message_name = constant_data.message_name_constant;
-      //               flags = {
-      //                 flag = constant_data.flags_constant.flag;
-      //                 dup_flag = constant_data.flags_constant.dup_flag;
-      //                 qos_flag = constant_data.flags_constant.qos_flag;
-      //                 retain_flag = constant_data.flags_constant.retain_flag;
-      //               };
-      //               remaining_length = remaining_length;
-      //               error_message = !$"";
-      //             } in
-      //               ptr_struct_fixed_header.(0ul) <- data
-      //       )
-      //       else
-      //         (
-      //           // let flag: type_flag_restrict =
-      //           //   let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
-      //           //     (
-      //           //       if (U8.eq message_type define_mqtt_control_packet_PUBREL ||
-      //           //         U8.eq message_type define_mqtt_control_packet_SUBSCRIBE ||
-      //           //         U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-      //           //         (
-      //           //           if (v <> 0b0010uy) then
-      //           //             max_u8
-      //           //           else
-      //           //             v
-      //           //         )
-      //           //       else
-      //           //         (
-      //           //           if (v <> 0b0000uy) then
-      //           //             max_u8
-      //           //           else
-      //           //             v
-      //           //         )
-      //           //     ) in
-      //           let flag: type_flag_restrict = ptr_flag.(0ul) in
-      //           let constant_data: struct_fixed_header_constant =
-      //             if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
-      //               struct_fixed_connect ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then
-      //               struct_fixed_connack ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then
-      //               struct_fixed_puback ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then
-      //               struct_fixed_pubrec ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
-      //               struct_fixed_pubrel ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then
-      //               struct_fixed_pubcomp ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
-      //               struct_fixed_subscribe ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then
-      //               struct_fixed_suback ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-      //               struct_fixed_unsubscribe ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then
-      //               struct_fixed_unsuback ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then
-      //               struct_fixed_pingreq ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then
-      //               struct_fixed_pingresp ()
-      //             else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
-      //               struct_fixed_disconnect ()
-      //             else
-      //               struct_fixed_auth () in
-      //           let have_error: bool =
-      //             (U8.eq status 1uy) ||
-      //             (U8.eq message_type max_u8) ||
-      //             (is_valid_flag constant_data flag = false) in
-      //             // pop_frame ();
-      //             if (have_error) then
-      //               (
-      //                 let error_message: type_error_message_restrict =
-      //                   (
-      //                     if (U8.eq status 1uy) then
-      //                       define_error_remaining_length_invalid
-      //                     else if (U8.eq message_type max_u8) then
-      //                       define_error_message_type_invalid
-      //                     else if (is_valid_flag constant_data flag = false) then
-      //                       define_error_flag_invalid
-      //                     else
-      //                       define_error_unexpected
-      //                   ) in
-      //                     // ptr_message_type.(0ul) <- max_u8;
-      //                     // ptr_message_name.(0ul) <- !$"";
-      //                     // ptr_flag.(0ul) <- max_u8;
-      //                     // ptr_dup_flag.(0ul) <- max_u8;
-      //                     // ptr_qos_flag.(0ul) <- max_u8;
-      //                     // ptr_retain_flag.(0ul) <- max_u8;
-      //                     // ptr_remaining_length.(0ul) <- 0ul;
-      //                     // ptr_error_message.(0ul) <- define_error_remaining_length_invalid.(0ul) <- error_message
-      //                 let data: struct_fixed_header = {
-      //                   message_type = max_u8;
-      //                   message_name = !$"";
-      //                   flags = {
-      //                     flag = max_u8;
-      //                     dup_flag = max_u8;
-      //                     qos_flag = max_u8;
-      //                     retain_flag = max_u8;
-      //                   };
-      //                   remaining_length = 0ul;
-      //                   error_message = error_message
-      //                   } in
-      //                     ptr_struct_fixed_header.(0ul) <- data
-      //                 )
-      //             else
-      //               let data: struct_fixed_header = {
-      //                 message_type = constant_data.message_type_constant;
-      //                 message_name = constant_data.message_name_constant;
-      //                 flags = {
-      //                   flag = constant_data.flags_constant.flag;
-      //                   dup_flag = constant_data.flags_constant.dup_flag;
-      //                   qos_flag = constant_data.flags_constant.qos_flag;
-      //                   retain_flag = constant_data.flags_constant.retain_flag;
-      //                 };
-      //                 remaining_length = remaining_length;
-      //                 error_message = !$"";
-      //               } in
-      //                 ptr_struct_fixed_header.(0ul) <- data
-      //               // (
-      //               //   ptr_message_type.(0ul) <- constant_data.message_type_constant;
-      //               //   ptr_message_name.(0ul) <- constant_data.message_name_constant;
-      //               //   ptr_flag.(0ul) <- constant_data.flags_constant.flag;
-      //               //   ptr_dup_flag.(0ul) <- constant_data.flags_constant.dup_flag;
-      //               //   ptr_qos_flag.(0ul) <- constant_data.flags_constant.qos_flag;
-      //               //   ptr_retain_flag.(0ul) <- constant_data.flags_constant.retain_flag;
-      //               //   ptr_remaining_length.(0ul) <- remaining_length;
-      //               //   ptr_error_message.(0ul) <- define_error_remaining_length_invalid.(0ul) <- !$""
-      //               // )
-      //         )
-      //   )
-        // else if (i = 2ul) then
-        //   (
-        //     if (ptr_status_v = 1uy) then
-        //       (
-        //         ptr_for_decoding_packets.(1ul) <- one_byte;
-        //         let r: (remaining_length:type_remaining_length) =
-        //           get_remaining_length (uint32_to_uint8(i)) ptr_for_decoding_packets packet_size in
-        //         if (r <> max_u32) then (
-        //           ptr_status.(0ul) <- 0uy;
-        //           ptr_remaining_length.(0ul) <- r
-        //         )
-        //       )
-        //   )
-        // else if (i = 3ul) then
-        //   (
-        //     if (ptr_status_v = 1uy) then
-        //       (
-        //         ptr_for_decoding_packets.(2ul) <- one_byte;
-        //         let r: (remaining_length:type_remaining_length)
-        //           = get_remaining_length (uint32_to_uint8(i)) ptr_for_decoding_packets packet_size in
-        //         if (r <> max_u32) then (
-        //           ptr_status.(0ul) <- 0uy;
-        //           ptr_remaining_length.(0ul) <- r
-        //         )
-        //       )
-        //   )
-        // else if (i = 4ul) then
-        //   (
-        //     if (ptr_status_v = 1uy) then
-        //       (
-        //         ptr_for_decoding_packets.(3ul) <- one_byte;
-        //         let r: (remaining_length:type_remaining_length)
-        //           = get_remaining_length (uint32_to_uint8(i)) ptr_for_decoding_packets packet_size in
-        //         if (r <> max_u32) then (
-        //           ptr_status.(0ul) <- 0uy;
-        //           ptr_remaining_length.(0ul) <- r
-        //         )
-        //       )
-        //   )
-      )
+      else if (not is_searching_remaining_length) then
+        (
+          let message_type: type_mqtt_control_packets_restrict =
+            ptr_message_type.(0ul) in
+          UT.print_hex one_byte; new_line ()
+        )
+      else
+        (
+          // unreach
+          print_string "unexpected error\n"
+        )
   in
   C.Loops.for 0ul packet_size inv body;
-  // let data: struct_fixed_header = {
-  //   message_type = ptr_message_type.(0ul);
-  //   message_name = ptr_message_name.(0ul);
-  //   flags = {
-  //     flag = ptr_flag.(0ul);
-  //     dup_flag = ptr_dup_flag.(0ul);
-  //     qos_flag = ptr_qos_flag.(0ul);
-  //     retain_flag = ptr_retain_flag.(0ul);
-  //   };
-  //   remaining_length = ptr_remaining_length.(0ul);
-  //   error_message = ptr_error_message.(0ul) <- define_error_remaining_length_invalid.(0ul);
-  // } in
-  let data: struct_fixed_header = ptr_struct_fixed_header.(0ul) in
-  pop_frame ();
-  data
-  // let status: (s:U8.t{U8.v s <= 1}) = ptr_status.(0ul) in
-  // let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
-  // let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
+  new_line ();
+  let is_searching_remaining_length: bool = ptr_is_searching_remaining_length.(0ul) in
+  let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
   // let message_type_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in
   // let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
-  // let remaining_length: type_remaining_length
-  //   = ptr_remaining_length.(0ul) in
-  // let dup_flag: type_dup_flags_restrict = ptr_dup_flag.(0ul) in
-  // let qos_flag: type_qos_flags_restrict = ptr_qos_flag.(0ul) in
-  // let retain_flag: type_retain_flags_restrict = ptr_retain_flag.(0ul) in
-  // if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-  //   (
-  //     let dup_flag: type_dup_flags_restrict =
-  //     (
-  //       let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
-  //       if (U8.gt dup_flag_bits 1uy) then
-  //         max_u8
-  //       else
-  //         dup_flag_bits
-  //       ) in
-  //     let qos_flag: type_qos_flags_restrict =
-  //     (
-  //       let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
-  //       if (U8.gt qos_flag_bits 2uy) then
-  //         max_u8
-  //       else
-  //         qos_flag_bits
-  //       ) in
-  //     let retain_flag: type_retain_flags_restrict =
-  //     (
-  //       let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
-  //       if (U8.gt retain_flag_bits 1uy) then
-  //         max_u8
-  //       else
-  //         retain_flag_bits
-  //     ) in
-      // let have_error: bool =
-      //     (U8.eq status 1uy) ||
-      //     (U8.eq message_type max_u8) ||
-      //     (U8.eq dup_flag max_u8) ||
-      //     (U8.eq qos_flag max_u8) ||
-      //     (U8.eq retain_flag max_u8) in
-      // let error_message: type_error_message_restrict =
-      //   (
-      //     if (have_error) then (
-      //       if (U8.eq status 1uy) then
-      //         define_error_remaining_length_invalid
-      //       else if (U8.eq message_type max_u8) then
-      //         define_error_message_type_invalid
-      //       else if (U8.eq dup_flag max_u8) then
-      //         define_error_dup_flag_invalid
-      //       else if (U8.eq qos_flag max_u8) then
-      //         define_error_qos_flag_invalid
-      //       else if (U8.eq retain_flag max_u8) then
-      //         define_error_retain_flag_invalid
-      //       else
-      //         define_error_unexpected
-      //     ) else
-      //       !$""
-      //   ) in
-      // pop_frame ();
-      // if (have_error) then
-      //   {
-      //     message_type = max_u8;
-      //     message_name = !$"";
-      //     flags = {
-      //       flag = max_u8;
-      //       dup_flag = max_u8;
-      //       qos_flag = max_u8;
-      //       retain_flag = max_u8;
-      //     };
-      //     remaining_length = 0ul;
-      //     error_message = error_message;
-      //   }
-      // else
-      //   let data: struct_fixed_header_constant =
-      //     struct_fixed_publish dup_flag qos_flag retain_flag in
-      //     {
-      //       message_type = data.message_type_constant;
-      //       message_name = data.message_name_constant;
-      //       flags = {
-      //         flag = data.flags_constant.flag;
-      //         dup_flag = data.flags_constant.dup_flag;
-      //         qos_flag = data.flags_constant.qos_flag;
-      //         retain_flag = data.flags_constant.retain_flag;
-      //       };
-      //       remaining_length = remaining_length;
-      //       error_message = !$"";
-      //     }
-    // )
-  // else
-  //   (
-  //     let flag: type_flag_restrict =
-  //       let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
-  //         (
-  //           if (U8.eq message_type define_mqtt_control_packet_PUBREL ||
-  //             U8.eq message_type define_mqtt_control_packet_SUBSCRIBE ||
-  //             U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-  //             (
-  //               if (v <> 0b0010uy) then
-  //                 max_u8
-  //               else
-  //                 v
-  //             )
-  //           else
-  //             (
-  //               if (v <> 0b0000uy) then
-  //                 max_u8
-  //               else
-  //                 v
-  //             )
-  //         ) in
-  //     let data: struct_fixed_header_constant =
-  //       if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
-  //         struct_fixed_connect ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then
-  //         struct_fixed_connack ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then
-  //         struct_fixed_puback ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then
-  //         struct_fixed_pubrec ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
-  //         struct_fixed_pubrel ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then
-  //         struct_fixed_pubcomp ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
-  //         struct_fixed_subscribe ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then
-  //         struct_fixed_suback ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
-  //         struct_fixed_unsubscribe ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then
-  //         struct_fixed_unsuback ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then
-  //         struct_fixed_pingreq ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then
-  //         struct_fixed_pingresp ()
-  //       else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
-  //         struct_fixed_disconnect ()
-  //       else
-  //         struct_fixed_auth () in
-  //     let have_error: bool =
-  //       (U8.eq status 1uy) ||
-  //       (U8.eq message_type max_u8) ||
-  //       (is_valid_flag data flag = false) in
-  //       pop_frame ();
-  //       if (have_error) then
-  //         (
-  //           {
-  //             message_type = max_u8;
-  //             message_name = !$"";
-  //             flags = {
-  //               flag = max_u8;
-  //               dup_flag = max_u8;
-  //               qos_flag = max_u8;
-  //               retain_flag = max_u8;
-  //             };
-  //             remaining_length = 0ul;
-  //             error_message =
-  //               if (U8.eq status 1uy) then
-  //                 define_error_remaining_length_invalid
-  //               else if (U8.eq message_type max_u8) then
-  //                 define_error_message_type_invalid
-  //               else if (is_valid_flag data flag = false) then
-  //                 define_error_flag_invalid
-  //               else
-  //                 define_error_unexpected
-  //             }
-  //           )
-  //       else
-  //         {
-  //           message_type = data.message_type_constant;
-  //           message_name = data.message_name_constant;
-  //           flags = {
-  //             flag = data.flags_constant.flag;
-  //             dup_flag = data.flags_constant.dup_flag;
-  //             qos_flag = data.flags_constant.qos_flag;
-  //             retain_flag = data.flags_constant.retain_flag;
-  //           };
-  //           remaining_length = remaining_length;
-  //           error_message = !$"";
-  //         }
-  //   )
+  let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
+  let remaining_length: type_remaining_length
+    = ptr_remaining_length.(0ul) in
+  if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+    (
+      let dup_flag: type_dup_flags_restrict =
+      (
+        let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
+        if (U8.gt dup_flag_bits 1uy) then
+          max_u8
+        else
+          dup_flag_bits
+        ) in
+      let qos_flag: type_qos_flags_restrict =
+      (
+        let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
+        if (U8.gt qos_flag_bits 2uy) then
+          max_u8
+        else
+          qos_flag_bits
+        ) in
+      let retain_flag: type_retain_flags_restrict =
+      (
+        let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
+        if (U8.gt retain_flag_bits 1uy) then
+          max_u8
+        else
+          retain_flag_bits
+      ) in
+      let have_error: bool =
+          (is_searching_remaining_length) ||
+          (U8.eq message_type max_u8) ||
+          (U8.eq dup_flag max_u8) ||
+          (U8.eq qos_flag max_u8) ||
+          (U8.eq retain_flag max_u8) in
+      let error_message: type_error_message_restrict =
+        (
+          if (have_error) then (
+            if (is_searching_remaining_length) then
+              define_error_remaining_length_invalid
+            else if (U8.eq message_type max_u8) then
+              define_error_message_type_invalid
+            else if (U8.eq dup_flag max_u8) then
+              define_error_dup_flag_invalid
+            else if (U8.eq qos_flag max_u8) then
+              define_error_qos_flag_invalid
+            else if (U8.eq retain_flag max_u8) then
+              define_error_retain_flag_invalid
+            else
+              define_error_unexpected
+          ) else
+            !$""
+        ) in
+      pop_frame ();
+      if (have_error) then
+        {
+          message_type = max_u8;
+          message_name = !$"";
+          flags = {
+            flag = max_u8;
+            dup_flag = max_u8;
+            qos_flag = max_u8;
+            retain_flag = max_u8;
+          };
+          remaining_length = 0ul;
+          error_message = error_message;
+        }
+      else
+        let data: struct_fixed_header_constant =
+          struct_fixed_publish dup_flag qos_flag retain_flag in
+          {
+            message_type = data.message_type_constant;
+            message_name = data.message_name_constant;
+            flags = {
+              flag = data.flags_constant.flag;
+              dup_flag = data.flags_constant.dup_flag;
+              qos_flag = data.flags_constant.qos_flag;
+              retain_flag = data.flags_constant.retain_flag;
+            };
+            remaining_length = remaining_length;
+            error_message = !$"";
+          }
+    )
+  else
+    (
+      let flag: type_flag_restrict =
+        let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
+          (
+            if (U8.eq message_type define_mqtt_control_packet_PUBREL ||
+              U8.eq message_type define_mqtt_control_packet_SUBSCRIBE ||
+              U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
+              (
+                if (v <> 0b0010uy) then
+                  max_u8
+                else
+                  v
+              )
+            else
+              (
+                if (v <> 0b0000uy) then
+                  max_u8
+                else
+                  v
+              )
+          ) in
+      let data: struct_fixed_header_constant =
+        if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
+          struct_fixed_connect ()
+        else if (U8.eq message_type define_mqtt_control_packet_CONNACK) then
+          struct_fixed_connack ()
+        else if (U8.eq message_type define_mqtt_control_packet_PUBACK) then
+          struct_fixed_puback ()
+        else if (U8.eq message_type define_mqtt_control_packet_PUBREC) then
+          struct_fixed_pubrec ()
+        else if (U8.eq message_type define_mqtt_control_packet_PUBREL) then
+          struct_fixed_pubrel ()
+        else if (U8.eq message_type define_mqtt_control_packet_PUBCOMP) then
+          struct_fixed_pubcomp ()
+        else if (U8.eq message_type define_mqtt_control_packet_SUBSCRIBE) then
+          struct_fixed_subscribe ()
+        else if (U8.eq message_type define_mqtt_control_packet_SUBACK) then
+          struct_fixed_suback ()
+        else if (U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
+          struct_fixed_unsubscribe ()
+        else if (U8.eq message_type define_mqtt_control_packet_UNSUBACK) then
+          struct_fixed_unsuback ()
+        else if (U8.eq message_type define_mqtt_control_packet_PINGREQ) then
+          struct_fixed_pingreq ()
+        else if (U8.eq message_type define_mqtt_control_packet_PINGRESP) then
+          struct_fixed_pingresp ()
+        else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
+          struct_fixed_disconnect ()
+        else
+          struct_fixed_auth () in
+      let have_error: bool =
+        (is_searching_remaining_length) ||
+        (U8.eq message_type max_u8) ||
+        (is_valid_flag data flag = false) in
+        pop_frame ();
+        if (have_error) then
+          (
+            {
+              message_type = max_u8;
+              message_name = !$"";
+              flags = {
+                flag = max_u8;
+                dup_flag = max_u8;
+                qos_flag = max_u8;
+                retain_flag = max_u8;
+              };
+              remaining_length = 0ul;
+              error_message =
+                if (is_searching_remaining_length) then
+                  define_error_remaining_length_invalid
+                else if (U8.eq message_type max_u8) then
+                  define_error_message_type_invalid
+                else if (is_valid_flag data flag = false) then
+                  define_error_flag_invalid
+                else
+                  define_error_unexpected
+              }
+            )
+        else
+          {
+            message_type = data.message_type_constant;
+            message_name = data.message_name_constant;
+            flags = {
+              flag = data.flags_constant.flag;
+              dup_flag = data.flags_constant.dup_flag;
+              qos_flag = data.flags_constant.qos_flag;
+              retain_flag = data.flags_constant.retain_flag;
+            };
+            remaining_length = remaining_length;
+            error_message = !$"";
+          }
+    )
 
 val parse (request: B.buffer U8.t) (packet_size: U32.t):
   Stack struct_fixed_header
     (requires (fun h ->
       B.live h request /\
       B.length request <= 268435460 /\
-      B.length request >= 2 /\
       U32.v packet_size <= 268435460 /\
       B.length request = U32.v packet_size))
     (ensures (fun h0 _ h1 ->
