@@ -14,8 +14,8 @@ module U8 = FStar.UInt8
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
 
-val message_type_error_check: u:unit -> St unit
-let message_type_error_check u =
+val message_type_error_check1: u:unit -> St unit
+let message_type_error_check1 u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
         request.(0ul) <- 0x00uy;
         request.(1ul) <- 0x02uy;
@@ -23,8 +23,17 @@ let message_type_error_check u =
         request.(3ul) <- 0x00uy;
 
     let s : struct_fixed_header = parse request 4ul in
-        T.eq_str !$"message_type_error_check" define_error_message_type_invalid s.error_message;
+        T.eq_str !$"message type_error check1" define_error_message_type_invalid s.error_message;
 B.free request
+
+val message_type_error_check2: u:unit -> St unit
+let message_type_error_check2 u =
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 1ul in
+
+    let s : struct_fixed_header = parse request 1ul in
+        T.eq_str !$"message type_error check2" define_error_message_type_invalid s.error_message;
+B.free request
+
 
 val invalid_pubrel_flag_check: u:unit -> St unit
 let invalid_pubrel_flag_check u =
@@ -111,14 +120,6 @@ let remaining_length_error_check u =
         T.eq_str !$"remaining_length error check" define_error_remaining_length_invalid s.error_message;
 B.free request
 
-// val remaining_length_error_check2: u:unit -> St unit
-// let remaining_length_error_check2 u =
-//     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 1ul in
-
-//     let s : struct_fixed_header = parse request 1ul in
-//         T.eq_str !$"remaining_length error check2" define_error_remaining_length_invalid s.error_message;
-// B.free request
-
 val invalid_qos_flag_check: u:unit -> St unit
 let invalid_qos_flag_check u =
     let request = B.malloc HyperStack.root 0uy 24ul in
@@ -153,13 +154,13 @@ let invalid_qos_flag_check u =
 val main : u:unit -> St C.exit_code
 let main () =
     T.test_start !$"TestErrorHandle";
-    message_type_error_check ();
+    message_type_error_check1 ();
+    message_type_error_check2 ();
     invalid_pubrel_flag_check ();
     invalid_subscribe_flag_check ();
     invalid_unsubscribe_flag_check ();
     invalid_unsuback_flag_check ();
     remaining_length_error_check ();
-    // remaining_length_error_check2 ();
     invalid_qos_flag_check ();
 
     T.test_end ();
