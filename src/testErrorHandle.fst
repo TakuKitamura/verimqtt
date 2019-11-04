@@ -98,8 +98,8 @@ let invalid_unsuback_flag_check u =
         T.eq_str !$"unsuback flag is invalid" define_error_flag_invalid s.error_message;
 B.free request
 
-val remaining_length_error_check1: u:unit -> St unit
-let remaining_length_error_check1 u =
+val remaining_length_error_check: u:unit -> St unit
+let remaining_length_error_check u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 5ul in
         request.(0ul) <- 0x30uy;
         request.(1ul) <- 0xD4uy;
@@ -108,16 +108,16 @@ let remaining_length_error_check1 u =
         request.(4ul) <- 0x0Auy;
 
     let s : struct_fixed_header = parse request 5ul in
-        T.eq_str !$"remaining_length error check1" define_error_remaining_length_invalid s.error_message;
+        T.eq_str !$"remaining_length error check" define_error_remaining_length_invalid s.error_message;
 B.free request
 
-val remaining_length_error_check2: u:unit -> St unit
-let remaining_length_error_check2 u =
-    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 1ul in
+// val remaining_length_error_check2: u:unit -> St unit
+// let remaining_length_error_check2 u =
+//     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 1ul in
 
-    let s : struct_fixed_header = parse request 1ul in
-        T.eq_str !$"remaining_length error check2" define_error_remaining_length_invalid s.error_message;
-B.free request
+//     let s : struct_fixed_header = parse request 1ul in
+//         T.eq_str !$"remaining_length error check2" define_error_remaining_length_invalid s.error_message;
+// B.free request
 
 val invalid_qos_flag_check: u:unit -> St unit
 let invalid_qos_flag_check u =
@@ -158,8 +158,8 @@ let main () =
     invalid_subscribe_flag_check ();
     invalid_unsubscribe_flag_check ();
     invalid_unsuback_flag_check ();
-    remaining_length_error_check1 ();
-    remaining_length_error_check2 ();
+    remaining_length_error_check ();
+    // remaining_length_error_check2 ();
     invalid_qos_flag_check ();
 
     T.test_end ();
