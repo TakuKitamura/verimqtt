@@ -133,6 +133,7 @@ let valid_publish_packet_test1 u =
         T.eq_u8 !$"Valid PUBLISH Packet qos_flag check" 0uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBLISH Packet retain_flag check" 0uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBLISH Packet remaining_length check" 22ul s.remaining_length;
+        T.eq_u32 !$"Valid PUBLISH Packet topic_length check" 10ul s.publish.topic_length;
         T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error_message;
     B.free request
 
@@ -171,6 +172,7 @@ let valid_publish_packet_test2 u =
         T.eq_u8 !$"Valid PUBLISH Packet qos_flag check" 2uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBLISH Packet retain_flag check" 1uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBLISH Packet remaining_length check" 22ul s.remaining_length;
+        T.eq_u32 !$"Valid PUBLISH Packet topic_length check" 10ul s.publish.topic_length;
         T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error_message;
     B.free request
 
