@@ -152,6 +152,9 @@ type type_flag_restrict =
 type type_remaining_length =
   (remaining_length: U32.t{U32.v remaining_length <= 268435455 || U32.eq remaining_length max_u32})
 
+type type_topic_length_restrict =
+  (topic_length_restrict: U32.t{U32.v topic_length_restrict <= 65535 || U32.eq topic_length_restrict max_u32})
+
 type type_error_message = C.String.t
 let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
 let define_error_message_type_invalid: type_error_message = !$"message_type is invalid."
@@ -159,6 +162,7 @@ let define_error_flag_invalid: type_error_message = !$"flag is invalid."
 let define_error_dup_flag_invalid: type_error_message = !$"dup_flag is invalid."
 let define_error_qos_flag_invalid: type_error_message = !$"qos_flag is invalid."
 let define_error_retain_flag_invalid: type_error_message = !$"retain_flag is invalid."
+let define_error_topic_length_invalid: type_error_message = !$"topic_length is invalid"
 let define_error_unexpected: type_error_message = !$"unexpected error."
 
 type type_error_message_restrict =
@@ -526,11 +530,16 @@ type struct_fixed_header_constant = {
   flags_constant: struct_flags;
 }
 
+type struct_variable_header_publish = {
+  topic_length: type_topic_length_restrict;
+}
+
 type struct_fixed_header = {
   message_type: type_mqtt_control_packets_restrict;
   message_name: type_message_name_restrict;
   flags: struct_flags;
   remaining_length: type_remaining_length;
+  publish: struct_variable_header_publish;
   error_message: type_error_message_restrict;
 }
 
@@ -734,6 +743,8 @@ let bytes_loop request packet_size =
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
   let ptr_remaining_length: B.buffer type_remaining_length =
    B.alloca 0ul 1ul in
+  let ptr_variable_header_index: B.buffer U32.t = B.alloca 0ul 1ul in
+  let ptr_topic_length: B.buffer U8.t = B.alloca 0uy 2ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -741,7 +752,9 @@ let bytes_loop request packet_size =
     B.live h request /\
     B.live h ptr_for_decoding_packets /\
     B.live h ptr_is_searching_remaining_length /\
-    B.live h ptr_remaining_length
+    B.live h ptr_remaining_length /\
+    B.live h ptr_variable_header_index /\
+    B.live h ptr_topic_length
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -779,9 +792,31 @@ let bytes_loop request packet_size =
         )
       else if (not is_searching_remaining_length) then
         (
+          let variable_header_index: U32.t = ptr_variable_header_index.(0ul) in
           let message_type: type_mqtt_control_packets_restrict =
             ptr_message_type.(0ul) in
-          UT.print_hex one_byte; new_line ()
+            if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+              (
+                if (variable_header_index = 0ul) then
+                  ptr_topic_length.(0ul) <- one_byte
+                else if (variable_header_index = 1ul) then
+                  ptr_topic_length.(1ul) <- one_byte
+                // else
+                // let topic_length: (v:U32.t{U32.v v >= 0 && U32.v v <= 65535 || U32.eq v max_u32}) =
+                //   (
+                //     let v: U32.t = slice_byte one_byte 0uy 2uy in
+                //       if (U32.gte v 65535ul) then
+                //         max_u32
+                //       else
+                //         v
+                //   ) in
+                // print_u32 topic_length
+                // UT.print_hex one_byte; new_line ()
+              );
+            if (U32.lte variable_header_index (U32.sub max_u32 1ul)) then
+              ptr_variable_header_index.(0ul) <-
+                U32.(variable_header_index +^ 1ul)
+
         )
       else
         (
@@ -790,7 +825,7 @@ let bytes_loop request packet_size =
         )
   in
   C.Loops.for 0ul packet_size inv body;
-  new_line ();
+  // new_line ();
   let is_searching_remaining_length: bool = ptr_is_searching_remaining_length.(0ul) in
   let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
   // let message_type_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in
@@ -824,12 +859,26 @@ let bytes_loop request packet_size =
         else
           retain_flag_bits
       ) in
+      let topic_length: type_topic_length_restrict =
+      (
+        let msb_u8 = ptr_topic_length.(0ul) in
+        let lsb_u8 = ptr_topic_length.(1ul) in
+        let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
+        let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
+        let untrust_topic_length: U32.t =
+          U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
+        if (U32.gt untrust_topic_length 65535ul) then
+          max_u32
+        else
+          untrust_topic_length
+      ) in
       let have_error: bool =
           (is_searching_remaining_length) ||
           (U8.eq message_type max_u8) ||
           (U8.eq dup_flag max_u8) ||
           (U8.eq qos_flag max_u8) ||
-          (U8.eq retain_flag max_u8) in
+          (U8.eq retain_flag max_u8) ||
+          (U32.eq topic_length max_u32) in
       let error_message: type_error_message_restrict =
         (
           if (have_error) then (
@@ -843,6 +892,8 @@ let bytes_loop request packet_size =
               define_error_qos_flag_invalid
             else if (U8.eq retain_flag max_u8) then
               define_error_retain_flag_invalid
+            else if (U32.eq topic_length max_u32) then
+              define_error_topic_length_invalid
             else
               define_error_unexpected
           ) else
@@ -860,6 +911,9 @@ let bytes_loop request packet_size =
             retain_flag = max_u8;
           };
           remaining_length = 0ul;
+          publish = {
+            topic_length = 0ul;
+          };
           error_message = error_message;
         }
       else
@@ -875,6 +929,9 @@ let bytes_loop request packet_size =
               retain_flag = data.flags_constant.retain_flag;
             };
             remaining_length = remaining_length;
+            publish = {
+              topic_length = topic_length;
+            };
             error_message = !$"";
           }
     )
@@ -946,6 +1003,9 @@ let bytes_loop request packet_size =
                 retain_flag = max_u8;
               };
               remaining_length = 0ul;
+              publish = {
+                topic_length = 0ul;
+              };
               error_message =
                 if (is_searching_remaining_length) then
                   define_error_remaining_length_invalid
@@ -968,6 +1028,9 @@ let bytes_loop request packet_size =
               retain_flag = data.flags_constant.retain_flag;
             };
             remaining_length = remaining_length;
+            publish = {
+              topic_length = 0ul;
+            };
             error_message = !$"";
           }
     )
