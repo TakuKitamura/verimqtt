@@ -14,7 +14,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 90"
+#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 120"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -155,6 +155,11 @@ type type_remaining_length =
 type type_topic_length_restrict =
   (topic_length_restrict: U32.t{U32.v topic_length_restrict <= 65535 || U32.eq topic_length_restrict max_u32})
 
+type type_topic_name_restrict =
+  (
+    topic_name: C.String.t{U32.v (C.String.strlen topic_name) <= 65535}
+  )
+
 type type_error_message = C.String.t
 let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
 let define_error_message_type_invalid: type_error_message = !$"message_type is invalid."
@@ -163,6 +168,7 @@ let define_error_dup_flag_invalid: type_error_message = !$"dup_flag is invalid."
 let define_error_qos_flag_invalid: type_error_message = !$"qos_flag is invalid."
 let define_error_retain_flag_invalid: type_error_message = !$"retain_flag is invalid."
 let define_error_topic_length_invalid: type_error_message = !$"topic_length is invalid."
+let define_error_topic_name_invalid: type_error_message = !$"topic_name is invalid."
 let define_error_unexpected: type_error_message = !$"unexpected error."
 
 type type_error_message_restrict =
@@ -176,9 +182,11 @@ type type_error_message_restrict =
       v = define_error_retain_flag_invalid ||
       v = define_error_topic_length_invalid ||
       v = define_error_unexpected ||
+      v = define_error_topic_name_invalid ||
       v = !$"")
     }
   )
+
 
 let new_line () = print_string "\n"
 
@@ -533,7 +541,7 @@ type struct_fixed_header_constant = {
 
 type struct_variable_header_publish = {
   topic_length: type_topic_length_restrict;
-  topic_name: C.String.t;
+  topic_name: type_topic_name_restrict;
 }
 
 type struct_fixed_header = {
@@ -748,7 +756,9 @@ let bytes_loop request packet_size =
   let ptr_variable_header_index: B.buffer U32.t = B.alloca 0ul 1ul in
   let ptr_for_topic_length: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_topic_length: B.buffer type_topic_length_restrict = B.alloca max_u32 1ul in
-  let ptr_topic_name: B.buffer U8.t = B.alloca 0uy 65536ul in
+  let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
+  let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
+  let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -760,7 +770,9 @@ let bytes_loop request packet_size =
     B.live h ptr_variable_header_index /\
     B.live h ptr_for_topic_length /\
     B.live h ptr_topic_length /\
-    B.live h ptr_topic_name
+    B.live h ptr_topic_name_u8 /\
+    B.live h ptr_topic_name /\
+    B.live h ptr_topic_name_error_status
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -839,7 +851,20 @@ let bytes_loop request packet_size =
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
                           print_string "topic_name: "; UT.print_hex one_byte; new_line ();
-                          ptr_topic_name.(U32.sub variable_header_index 2ul) <- one_byte
+                          ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
+                          if (variable_header_index = (U32.(topic_length +^ 1ul))) then
+                            (
+                              let topic_name: type_topic_name_restrict =
+                                (
+                                  if (ptr_topic_name_u8.(65535ul) = 0uy) then
+                                    UT.buffer_uint8_to_c_string ptr_topic_name_u8
+                                  else
+                                  (
+                                    ptr_topic_name_error_status.(0ul) <- 1uy;
+                                    !$""
+                                  )
+                                ) in ptr_topic_name.(0ul) <- topic_name
+                            )
                         )
                       else
                         (print_string "message: "; UT.print_hex one_byte; new_line ())
@@ -850,18 +875,6 @@ let bytes_loop request packet_size =
                     // unreach
                     print_string "unexpected error"; new_line ()
                   )
-                  // ptr_for_topic_length.(1ul) <- one_byte
-                // else
-                // let topic_length: (v:U32.t{U32.v v >= 0 && U32.v v <= 65535 || U32.eq v max_u32}) =
-                //   (
-                //     let v: U32.t = slice_byte one_byte 0uy 2uy in
-                //       if (U32.gte v 65535ul) then
-                //         max_u32
-                //       else
-                //         v
-                //   ) in
-                // print_u32 topic_length
-                // UT.print_hex one_byte; new_line ()
               );
             if (U32.lte variable_header_index (U32.sub max_u32 1ul)) then
               ptr_variable_header_index.(0ul) <-
@@ -910,17 +923,15 @@ let bytes_loop request packet_size =
           retain_flag_bits
       ) in
       let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
-      // let aaa = ptr_topic_name.(65534ul) in
-      let topic_name: C.String.t =
-        if (ptr_topic_name.(65535ul) = 0uy) then
-         UT.buffer_uint8_to_c_string ptr_topic_name
-        else !$"" in // TODO: エラーチェック
+      let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
+      let ptr_topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
       let have_error: bool =
           (is_searching_remaining_length) ||
           (U8.eq message_type max_u8) ||
           (U8.eq dup_flag max_u8) ||
           (U8.eq qos_flag max_u8) ||
           (U8.eq retain_flag max_u8) ||
+          (U8.gt ptr_topic_name_error_status 0uy) ||
           (U32.eq topic_length max_u32) in
       let error_message: type_error_message_restrict =
         (
@@ -937,6 +948,8 @@ let bytes_loop request packet_size =
               define_error_retain_flag_invalid
             else if (U32.eq topic_length max_u32) then
               define_error_topic_length_invalid
+            else if (U8.gt ptr_topic_name_error_status 0uy) then
+              define_error_topic_name_invalid
             else
               define_error_unexpected
           ) else
