@@ -14,7 +14,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 60"
+#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 90"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -748,7 +748,7 @@ let bytes_loop request packet_size =
   let ptr_variable_header_index: B.buffer U32.t = B.alloca 0ul 1ul in
   let ptr_for_topic_length: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_topic_length: B.buffer type_topic_length_restrict = B.alloca max_u32 1ul in
-  let ptr_topic_name: B.buffer U8.t = B.alloca 0uy 65535ul in
+  let ptr_topic_name: B.buffer U8.t = B.alloca 0uy 65536ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -759,7 +759,8 @@ let bytes_loop request packet_size =
     B.live h ptr_remaining_length /\
     B.live h ptr_variable_header_index /\
     B.live h ptr_for_topic_length /\
-    B.live h ptr_topic_length
+    B.live h ptr_topic_length /\
+    B.live h ptr_topic_name
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -814,23 +815,31 @@ let bytes_loop request packet_size =
                     let untrust_topic_length: U32.t =
                       U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
                     if (U32.gt untrust_topic_length 65535ul) then
-                      ptr_topic_length.(0ul) <- max_u32
+                      (
+                        ptr_topic_length.(0ul) <- max_u32;
+                        ptr_is_break.(0ul) <- true;
+                        ptr_is_searching_remaining_length.(0ul) <- false
+                      )
                     else
-                      ptr_topic_length.(0ul) <- untrust_topic_length
+                      (
+                        ptr_topic_length.(0ul) <- untrust_topic_length
+                      )
                   )
                 else if (U32.gte variable_header_index 2ul) then
                   (
                     if (topic_length = max_u32) then
                       (
-                        ptr_is_break.(0ul) <- true
-                        // TODO: エラーコードを追加
-                        // ptr_is_searching_remaining_length.(0ul) <- false
+                        ptr_topic_length.(0ul) <- max_u32;
+                        ptr_is_break.(0ul) <- true;
+                        ptr_is_searching_remaining_length.(0ul) <- false
                       )
                     else
                       (
+                        print_u32 variable_header_index;
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
-                          print_string "topic_name: "; UT.print_hex one_byte; new_line ()
+                          print_string "topic_name: "; UT.print_hex one_byte; new_line ();
+                          ptr_topic_name.(U32.sub variable_header_index 2ul) <- one_byte
                         )
                       else
                         (print_string "message: "; UT.print_hex one_byte; new_line ())
@@ -901,18 +910,11 @@ let bytes_loop request packet_size =
           retain_flag_bits
       ) in
       let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
-      // (
-      //   let msb_u8 = ptr_topic_length.(0ul) in
-      //   let lsb_u8 = ptr_topic_length.(1ul) in
-      //   let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
-      //   let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
-      //   let untrust_topic_length: U32.t =
-      //     U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
-      //   if (U32.gt untrust_topic_length 65535ul) then
-      //     max_u32
-      //   else
-      //     untrust_topic_length
-      // ) in
+      // let aaa = ptr_topic_name.(65534ul) in
+      let topic_name: C.String.t =
+        if (ptr_topic_name.(65535ul) = 0uy) then
+         UT.buffer_uint8_to_c_string ptr_topic_name
+        else !$"" in // TODO: エラーチェック
       let have_error: bool =
           (is_searching_remaining_length) ||
           (U8.eq message_type max_u8) ||
@@ -973,7 +975,7 @@ let bytes_loop request packet_size =
             remaining_length = remaining_length;
             publish = {
               topic_length = topic_length;
-              topic_name = !$"";
+              topic_name = topic_name;
             };
             error_message = !$"";
           }
