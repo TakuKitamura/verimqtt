@@ -14,7 +14,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 30"
+#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 60"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -162,7 +162,7 @@ let define_error_flag_invalid: type_error_message = !$"flag is invalid."
 let define_error_dup_flag_invalid: type_error_message = !$"dup_flag is invalid."
 let define_error_qos_flag_invalid: type_error_message = !$"qos_flag is invalid."
 let define_error_retain_flag_invalid: type_error_message = !$"retain_flag is invalid."
-let define_error_topic_length_invalid: type_error_message = !$"topic_length is invalid"
+let define_error_topic_length_invalid: type_error_message = !$"topic_length is invalid."
 let define_error_unexpected: type_error_message = !$"unexpected error."
 
 type type_error_message_restrict =
@@ -174,6 +174,7 @@ type type_error_message_restrict =
       v = define_error_dup_flag_invalid ||
       v = define_error_qos_flag_invalid ||
       v = define_error_retain_flag_invalid ||
+      v = define_error_topic_length_invalid ||
       v = define_error_unexpected ||
       v = !$"")
     }
@@ -532,6 +533,7 @@ type struct_fixed_header_constant = {
 
 type struct_variable_header_publish = {
   topic_length: type_topic_length_restrict;
+  topic_name: C.String.t;
 }
 
 type struct_fixed_header = {
@@ -744,7 +746,9 @@ let bytes_loop request packet_size =
   let ptr_remaining_length: B.buffer type_remaining_length =
    B.alloca 0ul 1ul in
   let ptr_variable_header_index: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_topic_length: B.buffer U8.t = B.alloca 0uy 2ul in
+  let ptr_for_topic_length: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_topic_length: B.buffer type_topic_length_restrict = B.alloca max_u32 1ul in
+  let ptr_topic_name: B.buffer U8.t = B.alloca 0uy 65535ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -754,6 +758,7 @@ let bytes_loop request packet_size =
     B.live h ptr_is_searching_remaining_length /\
     B.live h ptr_remaining_length /\
     B.live h ptr_variable_header_index /\
+    B.live h ptr_for_topic_length /\
     B.live h ptr_topic_length
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
@@ -765,7 +770,7 @@ let bytes_loop request packet_size =
          ptr_is_searching_remaining_length.(0ul) in
         let is_break: bool = ptr_is_break.(0ul) in
       if (is_break) then
-        print_string ""
+        ()
       else if (i = 0ul) then
         (
           let message_type_bits: U8.t = slice_byte one_byte 0uy 4uy in
@@ -795,12 +800,48 @@ let bytes_loop request packet_size =
           let variable_header_index: U32.t = ptr_variable_header_index.(0ul) in
           let message_type: type_mqtt_control_packets_restrict =
             ptr_message_type.(0ul) in
+          let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
             if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
               (
                 if (variable_header_index = 0ul) then
-                  ptr_topic_length.(0ul) <- one_byte
+                  ptr_for_topic_length.(0ul) <- one_byte
                 else if (variable_header_index = 1ul) then
-                  ptr_topic_length.(1ul) <- one_byte
+                  (
+                    let msb_u8 = ptr_for_topic_length.(0ul) in
+                    let lsb_u8 = one_byte in
+                    let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
+                    let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
+                    let untrust_topic_length: U32.t =
+                      U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
+                    if (U32.gt untrust_topic_length 65535ul) then
+                      ptr_topic_length.(0ul) <- max_u32
+                    else
+                      ptr_topic_length.(0ul) <- untrust_topic_length
+                  )
+                else if (U32.gte variable_header_index 2ul) then
+                  (
+                    if (topic_length = max_u32) then
+                      (
+                        ptr_is_break.(0ul) <- true
+                        // TODO: エラーコードを追加
+                        // ptr_is_searching_remaining_length.(0ul) <- false
+                      )
+                    else
+                      (
+                      if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
+                        (
+                          print_string "topic_name: "; UT.print_hex one_byte; new_line ()
+                        )
+                      else
+                        (print_string "message: "; UT.print_hex one_byte; new_line ())
+                      )
+                  )
+                else
+                  (
+                    // unreach
+                    print_string "unexpected error"; new_line ()
+                  )
+                  // ptr_for_topic_length.(1ul) <- one_byte
                 // else
                 // let topic_length: (v:U32.t{U32.v v >= 0 && U32.v v <= 65535 || U32.eq v max_u32}) =
                 //   (
@@ -859,19 +900,19 @@ let bytes_loop request packet_size =
         else
           retain_flag_bits
       ) in
-      let topic_length: type_topic_length_restrict =
-      (
-        let msb_u8 = ptr_topic_length.(0ul) in
-        let lsb_u8 = ptr_topic_length.(1ul) in
-        let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
-        let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
-        let untrust_topic_length: U32.t =
-          U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
-        if (U32.gt untrust_topic_length 65535ul) then
-          max_u32
-        else
-          untrust_topic_length
-      ) in
+      let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
+      // (
+      //   let msb_u8 = ptr_topic_length.(0ul) in
+      //   let lsb_u8 = ptr_topic_length.(1ul) in
+      //   let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
+      //   let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
+      //   let untrust_topic_length: U32.t =
+      //     U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
+      //   if (U32.gt untrust_topic_length 65535ul) then
+      //     max_u32
+      //   else
+      //     untrust_topic_length
+      // ) in
       let have_error: bool =
           (is_searching_remaining_length) ||
           (U8.eq message_type max_u8) ||
@@ -913,6 +954,7 @@ let bytes_loop request packet_size =
           remaining_length = 0ul;
           publish = {
             topic_length = 0ul;
+            topic_name = !$"";
           };
           error_message = error_message;
         }
@@ -931,6 +973,7 @@ let bytes_loop request packet_size =
             remaining_length = remaining_length;
             publish = {
               topic_length = topic_length;
+              topic_name = !$"";
             };
             error_message = !$"";
           }
@@ -1005,6 +1048,7 @@ let bytes_loop request packet_size =
               remaining_length = 0ul;
               publish = {
                 topic_length = 0ul;
+                topic_name = !$"";
               };
               error_message =
                 if (is_searching_remaining_length) then
@@ -1030,6 +1074,7 @@ let bytes_loop request packet_size =
             remaining_length = remaining_length;
             publish = {
               topic_length = 0ul;
+              topic_name = !$"";
             };
             error_message = !$"";
           }
