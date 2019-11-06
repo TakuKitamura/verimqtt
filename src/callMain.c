@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
     printf("qos_flag=0x%02x\n", data.flags.qos_flag);
     printf("retain_flag=0x%02x\n", data.flags.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
+    printf("topic_length=%u\n", data.publish.topic_length);
     printf("error_message=\"%s\"\n", data.error_message);
     return 0;
 }
