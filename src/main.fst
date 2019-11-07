@@ -14,7 +14,7 @@ open FStar.Int.Cast
 module U32 = FStar.UInt32
 module U8 = FStar.UInt8
 
-#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 120"
+#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 300"
 
 inline_for_extraction noextract
 let (!$) = C.String.of_literal
@@ -24,6 +24,17 @@ let max_u32 = 4294967295ul
 
 val max_u8: U8.t
 let max_u8 = 255uy
+
+val max_packet_size: U32.t
+let max_packet_size = 268435460ul
+
+val min_packet_size: U32.t
+let min_packet_size = 2ul
+
+type type_packet_size =
+  packet_size:
+    U32.t{U32.v packet_size >= U32.v min_packet_size && U32.v packet_size <= U32.v max_packet_size}
+// let tymax_packet_size = 268435460ul
 
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
 // 2.1.2 MQTT Control Packet type
@@ -160,6 +171,15 @@ type type_topic_name_restrict =
     topic_name: C.String.t{U32.v (C.String.strlen topic_name) <= 65535}
   )
 
+type type_property_length = type_remaining_length
+
+type type_payload_offset = payload_offset: U32.t{U32.v payload_offset < U32.v max_packet_size}
+
+type type_payload_restrict =
+  (
+    payload: C.String.t{U32.v (C.String.strlen payload) <= 268435459}
+  )
+
 type type_error_message = C.String.t
 let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
 let define_error_message_type_invalid: type_error_message = !$"message_type is invalid."
@@ -169,6 +189,8 @@ let define_error_qos_flag_invalid: type_error_message = !$"qos_flag is invalid."
 let define_error_retain_flag_invalid: type_error_message = !$"retain_flag is invalid."
 let define_error_topic_length_invalid: type_error_message = !$"topic_length is invalid."
 let define_error_topic_name_invalid: type_error_message = !$"topic_name is invalid."
+let define_error_property_length_invalid: type_error_message = !$"property_length is invalid."
+let define_error_payload_invalid: type_error_message = !$"payload is invalid."
 let define_error_unexpected: type_error_message = !$"unexpected error."
 
 type type_error_message_restrict =
@@ -183,6 +205,8 @@ type type_error_message_restrict =
       v = define_error_topic_length_invalid ||
       v = define_error_unexpected ||
       v = define_error_topic_name_invalid ||
+      v = define_error_property_length_invalid ||
+      v = define_error_payload_invalid ||
       v = !$"")
     }
   )
@@ -419,7 +443,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
 // x (1byte) + (msg len byte 3 or 4) + (100012byte) = 100016
 // (1byte) + (3byte) + (100012byte) = 100016
 
-val get_remaining_length: bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4} -> ptr_for_decoding_packets: B.buffer U8.t -> packet_size:U32.t{1 <= U32.v packet_size}
+val get_remaining_length: bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4} -> ptr_for_decoding_packets: B.buffer U8.t -> packet_size: type_packet_size
   -> Stack (remaining_length:type_remaining_length)
   (requires fun h0 -> B.live h0 ptr_for_decoding_packets /\ B.length ptr_for_decoding_packets = 4)
   (ensures fun _ _ _ -> true)
@@ -542,6 +566,8 @@ type struct_fixed_header_constant = {
 type struct_variable_header_publish = {
   topic_length: type_topic_length_restrict;
   topic_name: type_topic_name_restrict;
+  property_length: type_property_length;
+  payload: type_payload_restrict;
 }
 
 type struct_fixed_header = {
@@ -740,7 +766,7 @@ let struct_fixed_auth u = {
   };
 }
 
-val bytes_loop: request: B.buffer U8.t -> packet_size: U32.t -> Stack struct_fixed_header
+val bytes_loop: request: B.buffer U8.t -> packet_size: type_packet_size -> Stack struct_fixed_header
   (requires fun h0 -> B.live h0 request /\ B.length request = U32.v packet_size )
   (ensures fun _ _ _ -> true)
 let bytes_loop request packet_size =
@@ -759,6 +785,10 @@ let bytes_loop request packet_size =
   let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
   let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
   let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_property_length: B.buffer type_property_length = B.alloca 0ul 1ul in
+  let ptr_is_searching_property_length: B.buffer bool = B.alloca true 1ul in
+  let ptr_payload: B.buffer type_payload_restrict = B.alloca !$"" 1ul in
+  let ptr_payload_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -772,7 +802,11 @@ let bytes_loop request packet_size =
     B.live h ptr_topic_length /\
     B.live h ptr_topic_name_u8 /\
     B.live h ptr_topic_name /\
-    B.live h ptr_topic_name_error_status
+    B.live h ptr_topic_name_error_status /\
+    B.live h ptr_property_length /\
+    B.live h ptr_is_searching_property_length /\
+    B.live h ptr_payload /\
+    B.live h ptr_payload_error_status
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -839,6 +873,8 @@ let bytes_loop request packet_size =
                   )
                 else if (U32.gte variable_header_index 2ul) then
                   (
+                    let is_searching_property_length: bool =
+                     ptr_is_searching_property_length.(0ul) in
                     if (topic_length = max_u32) then
                       (
                         ptr_topic_length.(0ul) <- max_u32;
@@ -847,7 +883,7 @@ let bytes_loop request packet_size =
                       )
                     else
                       (
-                        print_u32 variable_header_index;
+                      print_string "index "; print_u32 variable_header_index; print_string ", ";
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
                           print_string "topic_name: "; UT.print_hex one_byte; new_line ();
@@ -857,7 +893,7 @@ let bytes_loop request packet_size =
                               let topic_name: type_topic_name_restrict =
                                 (
                                   if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                                    UT.buffer_uint8_to_c_string ptr_topic_name_u8
+                                    UT.topic_name_uint8_to_c_string ptr_topic_name_u8
                                   else
                                   (
                                     ptr_topic_name_error_status.(0ul) <- 1uy;
@@ -866,8 +902,70 @@ let bytes_loop request packet_size =
                                 ) in ptr_topic_name.(0ul) <- topic_name
                             )
                         )
+                      // variable_header_index > 1
+                      // variable_header_index <= 5
+                      else if (U32.gt variable_header_index (U32.(topic_length +^ 1ul))
+                        && U32.lte variable_header_index (U32.(topic_length +^ 5ul))
+                        && is_searching_property_length
+                        ) then
+                        (
+                          if (one_byte = 0uy) then
+                            (
+                              print_string "topic_length: "; UT.print_hex one_byte; new_line ();
+                              ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
+                              // ptr_is_searching_remaining_length.(0ul) <- false;
+                              ptr_is_searching_property_length.(0ul) <- false
+                            )
+                        )
+                      else if (not is_searching_property_length) then
+                        (
+                          // print_u32 i;
+                          // let a = B.offset request i in
+                          // print_string "start\n";
+                          // buffer_loop a packet_size;
+                          // print_string "payload: "; UT.print_hex one_byte; new_line ()
+                          let payload_offset: type_payload_offset = i in
+                          let ptr_payload_u8: B.buffer U8.t = B.offset request payload_offset in
+                          let payload: type_payload_restrict =
+                            (
+                              let last_payload_index: U32.t =
+                                U32.(packet_size -^ payload_offset) in
+                                // print_string "packet_size\n";
+                                // print_u32 packet_size;
+                                // print_string "payload_offset\n";
+                                // print_u32 payload_offset;
+                                // print_string "last_payload_index\n";
+                                // print_u32 last_payload_index;
+                                // print_string "v\n";
+                                // UT.print_hex ptr_payload_u8.(11ul);
+                                // new_line ();
+
+                              let last_payload_element: U8.t =
+                                (
+                                  // last_payload_index < packet_size
+                                  if (U32.gte last_payload_index packet_size) then
+                                    max_u8
+                                  else
+                                    ptr_payload_u8.(last_payload_index)
+                                ) in
+                                if (last_payload_element <> 0uy ||
+                                    U32.lt packet_size 1ul ||
+                                    U8.eq last_payload_element max_u8) then
+                                  (
+                                    ptr_payload_error_status.(0ul) <- 1uy;
+                                    !$""
+                                  )
+                                else
+                                  UT.payload_uint8_to_c_string ptr_payload_u8 packet_size
+                            ) in
+                          ptr_payload.(0ul) <- payload;
+                          ptr_is_break.(0ul) <- true
+                        )
                       else
-                        (print_string "message: "; UT.print_hex one_byte; new_line ())
+                        (
+                          // unreach
+                          print_string "unexpected error"; new_line ()
+                        )
                       )
                   )
                 else
@@ -924,15 +1022,21 @@ let bytes_loop request packet_size =
       ) in
       let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
       let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
-      let ptr_topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
+      let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
+      let is_searching_property_length: bool = ptr_is_searching_property_length.(0ul) in
+      let property_length: type_property_length = ptr_property_length.(0ul) in
+      let payload: type_payload_restrict = ptr_payload.(0ul) in
+      let payload_error_status: U8.t = ptr_payload_error_status.(0ul) in
       let have_error: bool =
           (is_searching_remaining_length) ||
           (U8.eq message_type max_u8) ||
           (U8.eq dup_flag max_u8) ||
           (U8.eq qos_flag max_u8) ||
           (U8.eq retain_flag max_u8) ||
-          (U8.gt ptr_topic_name_error_status 0uy) ||
-          (U32.eq topic_length max_u32) in
+          (U8.gt topic_name_error_status 0uy) ||
+          (U32.eq topic_length max_u32) ||
+          (is_searching_property_length) ||
+          (U8.gt payload_error_status 0uy) in
       let error_message: type_error_message_restrict =
         (
           if (have_error) then (
@@ -948,8 +1052,12 @@ let bytes_loop request packet_size =
               define_error_retain_flag_invalid
             else if (U32.eq topic_length max_u32) then
               define_error_topic_length_invalid
-            else if (U8.gt ptr_topic_name_error_status 0uy) then
+            else if (U8.gt topic_name_error_status 0uy) then
               define_error_topic_name_invalid
+            else if (is_searching_property_length) then
+              define_error_property_length_invalid
+            else if (U8.gt payload_error_status 0uy) then
+              define_error_payload_invalid
             else
               define_error_unexpected
           ) else
@@ -970,6 +1078,8 @@ let bytes_loop request packet_size =
           publish = {
             topic_length = 0ul;
             topic_name = !$"";
+            property_length = 0ul;
+            payload = !$"";
           };
           error_message = error_message;
         }
@@ -989,6 +1099,8 @@ let bytes_loop request packet_size =
             publish = {
               topic_length = topic_length;
               topic_name = topic_name;
+              property_length = 0ul;
+              payload = payload;
             };
             error_message = !$"";
           }
@@ -1064,6 +1176,8 @@ let bytes_loop request packet_size =
               publish = {
                 topic_length = 0ul;
                 topic_name = !$"";
+                property_length = 0ul;
+                payload = !$"";
               };
               error_message =
                 if (is_searching_remaining_length) then
@@ -1090,17 +1204,20 @@ let bytes_loop request packet_size =
             publish = {
               topic_length = 0ul;
               topic_name = !$"";
+              property_length = 0ul;
+              payload = !$"";
             };
             error_message = !$"";
           }
     )
 
-val parse (request: B.buffer U8.t) (packet_size: U32.t):
+val parse (request: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
     (requires (fun h ->
       B.live h request /\
       B.length request <= 268435460 /\
-      U32.v packet_size <= 268435460 /\
+      // U32.v packet_size >= 2 /\
+      // U32.v packet_size <= 268435460 /\
       B.length request = U32.v packet_size))
     (ensures (fun h0 _ h1 ->
       B.live h1 request))

@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 
     tcp_payload = fsize;
 
-    request = (uint8_t*)malloc(sizeof(uint8_t) * tcp_payload);
+    request = (uint8_t*)malloc(sizeof(uint8_t) * (tcp_payload + 1));
 
     fread(request, sizeof(uint8_t), tcp_payload, fp);
     fclose(fp);
@@ -29,14 +29,16 @@ int main(int argc, char *argv[]) {
     free(request);
 
     printf("message_type=0x%02x\n", data.message_type);
-    printf("message_name=%s\n", data.message_name);
+    printf("message_name=\"%s\"\n", data.message_name);
     printf("flag=0x%02x\n", data.flags.flag);
     printf("dup_flag=0x%02x\n", data.flags.dup_flag);
     printf("qos_flag=0x%02x\n", data.flags.qos_flag);
     printf("retain_flag=0x%02x\n", data.flags.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
     printf("topic_length=%u\n", data.publish.topic_length);
-    printf("topic_name=%s\n", data.publish.topic_name);
+    printf("topic_name=\"%s\"\n", data.publish.topic_name);
+    printf("property_length=%u\n", data.publish.property_length);
+    printf("payload=\"%s\"\n", data.publish.topic_name);
     printf("error_message=\"%s\"\n", data.error_message);
     return 0;
 }
