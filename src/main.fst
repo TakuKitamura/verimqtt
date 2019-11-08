@@ -883,10 +883,10 @@ let bytes_loop request packet_size =
                       )
                     else
                       (
-                      print_string "index "; print_u32 variable_header_index; print_string ", ";
+                      // print_string "index "; print_u32 variable_header_index; print_string ", ";
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
-                          print_string "topic_name: "; UT.print_hex one_byte; new_line ();
+                          // print_string "topic_name: "; UT.print_hex one_byte; new_line ();
                           ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
                           if (variable_header_index = (U32.(topic_length +^ 1ul))) then
                             (
@@ -911,7 +911,7 @@ let bytes_loop request packet_size =
                         (
                           if (one_byte = 0uy) then
                             (
-                              print_string "topic_length: "; UT.print_hex one_byte; new_line ();
+                              // print_string "topic_length: "; UT.print_hex one_byte; new_line ();
                               ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
                               // ptr_is_searching_remaining_length.(0ul) <- false;
                               ptr_is_searching_property_length.(0ul) <- false
@@ -964,14 +964,16 @@ let bytes_loop request packet_size =
                       else
                         (
                           // unreach
-                          print_string "unexpected error"; new_line ()
+                          // print_string "unexpected error"; new_line ()
+                          ()
                         )
                       )
                   )
                 else
                   (
                     // unreach
-                    print_string "unexpected error"; new_line ()
+                    // print_string "unexpected error"; new_line ()
+                    ()
                   )
               );
             if (U32.lte variable_header_index (U32.sub max_u32 1ul)) then
@@ -982,7 +984,8 @@ let bytes_loop request packet_size =
       else
         (
           // unreach
-          print_string "unexpected error\n"
+          // print_string "unexpected error\n"
+          ()
         )
   in
   C.Loops.for 0ul packet_size inv body;
@@ -1172,11 +1175,11 @@ let bytes_loop request packet_size =
                 qos_flag = max_u8;
                 retain_flag = max_u8;
               };
-              remaining_length = 0ul;
+              remaining_length = max_u32;
               publish = {
-                topic_length = 0ul;
+                topic_length = max_u32;
                 topic_name = !$"";
-                property_length = 0ul;
+                property_length = max_u32;
                 payload = !$"";
               };
               error_message =
@@ -1202,9 +1205,9 @@ let bytes_loop request packet_size =
             };
             remaining_length = remaining_length;
             publish = {
-              topic_length = 0ul;
+              topic_length = max_u32;
               topic_name = !$"";
-              property_length = 0ul;
+              property_length = max_u32;
               payload = !$"";
             };
             error_message = !$"";
