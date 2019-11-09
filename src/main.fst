@@ -25,6 +25,12 @@ let max_u32 = 4294967295ul
 val max_u8: U8.t
 let max_u8 = 255uy
 
+val max_request_size: U32.t
+let max_request_size = 268435461ul
+
+val min_request_size: U32.t
+let min_request_size = 0ul
+
 val max_packet_size: U32.t
 let max_packet_size = 268435460ul
 
@@ -161,7 +167,7 @@ type type_flag_restrict =
 }
 
 type type_remaining_length =
-  (remaining_length: U32.t{U32.v remaining_length <= 268435455 || U32.eq remaining_length max_u32})
+  (remaining_length: U32.t{U32.v remaining_length <= U32.v (U32.sub max_packet_size 5ul) || U32.eq remaining_length max_u32})
 
 type type_topic_length_restrict =
   (topic_length_restrict: U32.t{U32.v topic_length_restrict <= 65535 || U32.eq topic_length_restrict max_u32})
@@ -177,7 +183,7 @@ type type_payload_offset = payload_offset: U32.t{U32.v payload_offset < U32.v ma
 
 type type_payload_restrict =
   (
-    payload: C.String.t{U32.v (C.String.strlen payload) <= 268435459}
+    payload: C.String.t{U32.v (C.String.strlen payload) <= U32.v max_packet_size}
   )
 
 type type_error_message = C.String.t
@@ -767,7 +773,7 @@ let struct_fixed_auth u = {
 }
 
 val bytes_loop: request: B.buffer U8.t -> packet_size: type_packet_size -> Stack struct_fixed_header
-  (requires fun h0 -> B.live h0 request /\ B.length request = U32.v packet_size )
+  (requires fun h0 -> B.live h0 request /\ (B.length request - 1) = U32.v packet_size)
   (ensures fun _ _ _ -> true)
 let bytes_loop request packet_size =
   push_frame ();
@@ -808,7 +814,7 @@ let bytes_loop request packet_size =
     B.live h ptr_payload /\
     B.live h ptr_payload_error_status
     in
-  let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size }): Stack unit
+  let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
@@ -913,50 +919,25 @@ let bytes_loop request packet_size =
                             (
                               // print_string "topic_length: "; UT.print_hex one_byte; new_line ();
                               ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
-                              // ptr_is_searching_remaining_length.(0ul) <- false;
                               ptr_is_searching_property_length.(0ul) <- false
                             )
                         )
                       else if (not is_searching_property_length) then
                         (
-                          // print_u32 i;
-                          // let a = B.offset request i in
-                          // print_string "start\n";
-                          // buffer_loop a packet_size;
-                          // print_string "payload: "; UT.print_hex one_byte; new_line ()
                           let payload_offset: type_payload_offset = i in
                           let ptr_payload_u8: B.buffer U8.t = B.offset request payload_offset in
                           let payload: type_payload_restrict =
                             (
                               let last_payload_index: U32.t =
                                 U32.(packet_size -^ payload_offset) in
-                                // print_string "packet_size\n";
-                                // print_u32 packet_size;
-                                // print_string "payload_offset\n";
-                                // print_u32 payload_offset;
-                                // print_string "last_payload_index\n";
-                                // print_u32 last_payload_index;
-                                // print_string "v\n";
-                                // UT.print_hex ptr_payload_u8.(11ul);
-                                // new_line ();
-
-                              let last_payload_element: U8.t =
-                                (
-                                  // last_payload_index < packet_size
-                                  if (U32.gte last_payload_index packet_size) then
-                                    max_u8
-                                  else
-                                    ptr_payload_u8.(last_payload_index)
-                                ) in
-                                if (last_payload_element <> 0uy ||
-                                    U32.lt packet_size 1ul ||
-                                    U8.eq last_payload_element max_u8) then
+                              let last_payload_element: U8.t = ptr_payload_u8.(last_payload_index) in
+                                if (last_payload_element <> 0uy) then
                                   (
                                     ptr_payload_error_status.(0ul) <- 1uy;
                                     !$""
                                   )
                                 else
-                                  UT.payload_uint8_to_c_string ptr_payload_u8 packet_size
+                                  UT.payload_uint8_to_c_string ptr_payload_u8 min_packet_size max_packet_size packet_size
                             ) in
                           ptr_payload.(0ul) <- payload;
                           ptr_is_break.(0ul) <- true
@@ -1218,10 +1199,10 @@ val parse (request: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
     (requires (fun h ->
       B.live h request /\
-      B.length request <= 268435460 /\
+      B.length request <= U32.v max_request_size /\
       // U32.v packet_size >= 2 /\
       // U32.v packet_size <= 268435460 /\
-      B.length request = U32.v packet_size))
+      (B.length request - 1) = U32.v packet_size))
     (ensures (fun h0 _ h1 ->
       B.live h1 request))
 let parse request packet_size =

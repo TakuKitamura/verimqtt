@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     uint8_t *request;
     uint32_t  i;
     fpos_t fsize = 0;
-    uint32_t tcp_payload;
+    uint32_t packet_size;
 
     fp = fopen(file_name, "rb");
 
@@ -29,22 +29,22 @@ int main(int argc, char *argv[]) {
     }
     fseek(fp, 0L, SEEK_SET);
 
-    tcp_payload = fsize;
+    packet_size = fsize;
 
-    request = (uint8_t*)malloc(sizeof(uint8_t) * (tcp_payload + 1));
+    request = (uint8_t*)malloc(sizeof(uint8_t) * (packet_size + 1));
     if(request == NULL) {
         fprintf(stderr, "malloc error.\n");
         exit(EXIT_FAILURE);
     }
 
-    fread(request, sizeof(uint8_t), tcp_payload, fp);
+    fread(request, sizeof(uint8_t), packet_size, fp);
     if (fclose(fp) == EOF) {
         fprintf(stderr, "fclose error.\n");
         exit(EXIT_FAILURE);
     }
 
     // parse関数が定理証明済み
-    struct_fixed_header data = parse(request, tcp_payload);
+    struct_fixed_header data = parse(request, packet_size);
     free(request);
 
     printf("message_type=0x%02x\n", data.message_type);
