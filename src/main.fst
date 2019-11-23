@@ -1,23 +1,17 @@
 module Main
 
 module B = LowStar.Buffer
-module M = LowStar.Modifies
-module HS = FStar.HyperStack
-module ST = FStar.HyperStack.ST
 module UT = Utils
+module U32 = FStar.UInt32
+module U8 = FStar.UInt8
 
 open FStar.HyperStack.ST
 open LowStar.BufferOps
 open LowStar.Printf
 open FStar.Int.Cast
+open C.String
 
-module U32 = FStar.UInt32
-module U8 = FStar.UInt8
-
-#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 300"
-
-inline_for_extraction noextract
-let (!$) = C.String.of_literal
+#set-options "--max_ifuel 0 --max_fuel 0 --z3rlimit 250"
 
 val max_u32: U32.t
 let max_u32 = 4294967295ul
@@ -174,7 +168,7 @@ type type_topic_length_restrict =
 
 type type_topic_name_restrict =
   (
-    topic_name: C.String.t{U32.v (C.String.strlen topic_name) <= 65535}
+    topic_name: C.String.t{U32.v (strlen topic_name) <= 65535}
   )
 
 type type_property_length = type_remaining_length
@@ -183,7 +177,7 @@ type type_payload_offset = payload_offset: U32.t{U32.v payload_offset < U32.v ma
 
 type type_payload_restrict =
   (
-    payload: C.String.t{U32.v (C.String.strlen payload) <= U32.v max_packet_size}
+    payload: C.String.t{U32.v (strlen payload) <= U32.v max_packet_size}
   )
 
 type type_error_message = C.String.t
@@ -216,23 +210,8 @@ type type_error_message_restrict =
       v = !$"")
     }
   )
-
-
+val new_line : unit -> StTrivial unit
 let new_line () = print_string "\n"
-
-val buffer_loop: src:B.buffer U8.t -> len:U32.t -> Stack unit
-  (requires fun h0 -> B.live h0 src /\ B.length src = U32.v len )
-  (ensures fun _ _ _ -> true)
-let buffer_loop src len =
-  let inv h (i: nat) = B.live h src in
-  let body (i: U32.t{ 0 <= U32.v i /\ U32.v i < U32.v len }): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
-    (ensures (fun _ _ _ -> true))
-  =
-    let v : U8.t = src.(i) in
-      UT.print_hex v; new_line ()
-  in
-  C.Loops.for 0ul len inv body
 
 val slice_byte:
   byte:U8.t
@@ -242,7 +221,7 @@ val slice_byte:
     (requires fun h0 -> true)
     (ensures fun h0 r h1 -> true)
 let slice_byte byte a b =
-  let for_mask_temp1 =
+  let for_mask_temp1: U8.t =
     (
       if (U32.eq 0ul (uint8_to_uint32 a)) then
         0b11111111uy
@@ -261,7 +240,7 @@ let slice_byte byte a b =
       else
         0b00000001uy
     ) in
-  let for_mask_temp2 =
+  let for_mask_temp2: U8.t =
     (
       if (U32.eq 1ul (uint8_to_uint32 b)) then
         0b10000000uy
@@ -280,8 +259,8 @@ let slice_byte byte a b =
       else
         0b11111111uy
     ) in
-    let mask = U8.logand for_mask_temp1 for_mask_temp2 in
-    let r = U8.shift_right (U8.logand byte mask) (U32.sub 8ul (uint8_to_uint32 b)) in
+    let mask: U8.t = U8.logand for_mask_temp1 for_mask_temp2 in
+    let r: U8.t = U8.shift_right (U8.logand byte mask) (U32.sub 8ul (uint8_to_uint32 b)) in
   r
 
 val is_valid_decoding_packet_check: ptr_for_decoding_packets: B.buffer U8.t
@@ -300,13 +279,13 @@ let is_valid_decoding_packet_check ptr_for_decoding_packets bytes_length =
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
-    let ptr_status_v = ptr_status.(0ul) in
-    let bytes_length_u32 = uint8_to_uint32(bytes_length) in
+    let ptr_status_v: (status:U8.t{U8.v status <= 3}) = ptr_status.(0ul) in
+    let bytes_length_u32: U32.t = uint8_to_uint32(bytes_length) in
       if (U8.eq ptr_status_v 0uy) then
         (
             if (U32.lt i bytes_length_u32) then
                 (
-                    let decoding_packet = ptr_for_decoding_packets.(i) in
+                    let decoding_packet: U8.t = ptr_for_decoding_packets.(i) in
                       // print_u8 decoding_packet;
                       // print_string "<-decoding_packet\n";
                       if (U8.eq bytes_length 1uy) then
@@ -394,11 +373,11 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
         (requires (fun h -> inv h (U32.v i)))
         (ensures (fun _ _ _ -> true))
       =
-        let ptr_status_v = ptr_status.(0ul) in
+        let ptr_status_v: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
           if (ptr_status_v = 1uy) then
             (
-              let _ = ptr_for_decoding_packet.(0ul) <- ptr_for_decoding_packets.(i) in
-              let decoding_packet: U8.t = ptr_for_decoding_packet.(0ul) in
+              // let _ = ptr_for_decoding_packet.(0ul) <- ptr_for_decoding_packets.(i) in
+              let decoding_packet: U8.t = ptr_for_decoding_packets.(i) in
 
               let b_u8: (x:U8.t{U8.v x >= 0 && U8.v x <= 127}) =
                 most_significant_four_bit_to_zero decoding_packet in
@@ -455,7 +434,7 @@ val get_remaining_length: bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes
   (ensures fun _ _ _ -> true)
 let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
   push_frame ();
-  let fixed_value = U32.(packet_size -^ 1ul) in
+  let fixed_value: U32.t = U32.(packet_size -^ 1ul) in
   let rr: (remaining_length:type_remaining_length) =
   (
     if (bytes_length = 1uy) then
@@ -860,8 +839,8 @@ let bytes_loop request packet_size =
                   ptr_for_topic_length.(0ul) <- one_byte
                 else if (variable_header_index = 1ul) then
                   (
-                    let msb_u8 = ptr_for_topic_length.(0ul) in
-                    let lsb_u8 = one_byte in
+                    let msb_u8: U8.t = ptr_for_topic_length.(0ul) in
+                    let lsb_u8: U8.t = one_byte in
                     let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
                     let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
                     let untrust_topic_length: U32.t =
@@ -972,7 +951,7 @@ let bytes_loop request packet_size =
   C.Loops.for 0ul packet_size inv body;
   // new_line ();
   let is_searching_remaining_length: bool = ptr_is_searching_remaining_length.(0ul) in
-  let fixed_header_first_one_byte = ptr_fixed_header_first_one_byte.(0ul) in
+  let fixed_header_first_one_byte: U8.t = ptr_fixed_header_first_one_byte.(0ul) in
   // let message_type_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 4uy in
   // let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
   let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
@@ -1092,7 +1071,7 @@ let bytes_loop request packet_size =
   else
     (
       let flag: type_flag_restrict =
-        let v = slice_byte fixed_header_first_one_byte 4uy 8uy in
+        let v: U8.t = slice_byte fixed_header_first_one_byte 4uy 8uy in
           (
             if (U8.eq message_type define_mqtt_control_packet_PUBREL ||
               U8.eq message_type define_mqtt_control_packet_SUBSCRIBE ||
@@ -1206,7 +1185,5 @@ val parse (request: B.buffer U8.t) (packet_size: type_packet_size):
     (ensures (fun h0 _ h1 ->
       B.live h1 request))
 let parse request packet_size =
-    push_frame ();
     let data: struct_fixed_header = bytes_loop request packet_size in
-    pop_frame ();
     data
