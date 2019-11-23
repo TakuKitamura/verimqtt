@@ -1,5 +1,15 @@
 # Change Log
 
+## [v0.0.2](https://github.com/TakuKitamura/verimqtt/tree/v0.0.2) (2019-11-23)
+
+**Implemented enhancements:**
+- get topic_length
+- get topic_name
+- get property_length
+- get payload
+- refacta
+- some test-codes
+
 ## [v0.0.1](https://github.com/TakuKitamura/verimqtt/tree/v0.0.1) (2019-10-29)
 
 **Implemented enhancements:**
