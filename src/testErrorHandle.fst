@@ -37,7 +37,7 @@ B.free request
 
 val invalid_pubrel_flag_check: u:unit -> St unit
 let invalid_pubrel_flag_check u =
-    let request = B.malloc HyperStack.root 0uy 4ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
             request.(0ul) <- 0x60uy;
             request.(1ul) <- 0x02uy;
             request.(2ul) <- 0x00uy;
@@ -122,7 +122,7 @@ B.free request
 
 val invalid_qos_flag_check: u:unit -> St unit
 let invalid_qos_flag_check u =
-    let request = B.malloc HyperStack.root 0uy 24ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 24ul in
         request.(0ul) <- 0x3Fuy;
         request.(1ul) <- 0x16uy;
         request.(2ul) <- 0x00uy;

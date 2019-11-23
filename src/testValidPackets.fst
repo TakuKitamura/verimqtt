@@ -33,7 +33,7 @@ let print_struct_fixed_header s =
 
 val valid_connect_packet_test: u:unit -> St unit
 let valid_connect_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 37ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 37ul in
         request.(0ul) <- 0x10uy;
         request.(1ul) <- 0x23uy;
         request.(2ul) <- 0x00uy;
@@ -84,7 +84,7 @@ let valid_connect_packet_test u =
 
 val valid_connack_packet_test: u:unit -> St unit
 let valid_connack_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 4ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
         request.(0ul) <- 0x20uy;
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
@@ -147,7 +147,7 @@ B.free request
 
 // val valid_publish_packet_test2: u:unit -> St unit
 // let valid_publish_packet_test2 u =
-//     let request = B.malloc HyperStack.root 0uy 24ul in
+//     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 24ul in
 //         request.(0ul) <- 0x3Duy;
 //         request.(1ul) <- 0x16uy;
 //         request.(2ul) <- 0x00uy;
@@ -186,7 +186,7 @@ B.free request
 
 val valid_puback_packet_test: u:unit -> St unit
 let valid_puback_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 4ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
         request.(0ul) <- 0x40uy;
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
@@ -205,7 +205,7 @@ let valid_puback_packet_test u =
 
 val valid_pubrec_packet_test: u:unit -> St unit
 let valid_pubrec_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 4ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
         request.(0ul) <- 0x50uy;
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
@@ -223,7 +223,7 @@ let valid_pubrec_packet_test u =
 
 val valid_pubrel_packet_test: u:unit -> St unit
 let valid_pubrel_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 4ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
             request.(0ul) <- 0x62uy;
             request.(1ul) <- 0x02uy;
             request.(2ul) <- 0x00uy;
@@ -241,7 +241,7 @@ let valid_pubrel_packet_test u =
 
 val valid_pubcomp_packet_test: u:unit -> St unit
 let valid_pubcomp_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 4ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 4ul in
         request.(0ul) <- 0x70uy;
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
@@ -259,7 +259,7 @@ let valid_pubcomp_packet_test u =
 
 val valid_subscribe_packet_test: u:unit -> St unit
 let valid_subscribe_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 17ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 17ul in
         request.(0ul) <- 0x82uy;
         request.(1ul) <- 0x0Fuy;
         request.(2ul) <- 0x00uy;
@@ -290,7 +290,7 @@ let valid_subscribe_packet_test u =
 
 val valid_suback_packet_test: u:unit -> St unit
 let valid_suback_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 5ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 5ul in
         request.(0ul) <- 0x90uy;
         request.(1ul) <- 0x03uy;
         request.(2ul) <- 0x00uy;
@@ -340,7 +340,7 @@ B.free request
 
 val valid_pingreq_packet_test: u:unit -> St unit
 let valid_pingreq_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 2ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xC0uy;
         request.(1ul) <- 0x00uy;
     let s : struct_fixed_header = parse request 2ul in
@@ -375,7 +375,7 @@ B.free request
 
 val valid_pingresp_packet_test: u:unit -> St unit
 let valid_pingresp_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 2ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xD0uy;
         request.(1ul) <- 0x00uy;
     let s : struct_fixed_header = parse request 2ul in
@@ -391,7 +391,7 @@ let valid_pingresp_packet_test u =
 
 val valid_disconnect_packet_test: u:unit -> St unit
 let valid_disconnect_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 2ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xE0uy;
         request.(1ul) <- 0x00uy;
     let s : struct_fixed_header = parse request 2ul in
@@ -408,7 +408,7 @@ let valid_disconnect_packet_test u =
 // TODO: authパケットの通信の仕方が分かり実パケットを追加する｡
 val valid_auth_packet_test: u:unit -> St unit
 let valid_auth_packet_test u =
-    let request = B.malloc HyperStack.root 0uy 2ul in
+    let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xF0uy;
         request.(1ul) <- 0x00uy;
     let s : struct_fixed_header = parse request 2ul in
