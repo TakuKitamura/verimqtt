@@ -7,24 +7,23 @@
 
 ### exec
 ```sh
-$ make test_exec
-All files linked successfully 👍
+$ make test
 ...
-  [TestValidPackets]
-  ALL TESTS PASSED
-
-  [TestSliceByte]
   ALL TESTS PASSED
 $ make exec
 ...
 All files linked successfully 👍
-message_name=UNSUBACK
-message_type=0x0b
-flag=0x00
-dup_flag=0xff
-qos_flag=0xff
-retain_flag=0xff
-remaining_length=2
-error_message=""
+message_type=0x03
+message_name=PUBLISH
+flag=0xff
+dup_flag=0x00
+qos_flag=0x00
+retain_flag=0x00
+remaining_length=32
+topic_length=13
+topic_name=example/topic
+property_length=0
+payload=おはよう🌏
+error_message=
 ```
 
