@@ -283,40 +283,39 @@ let is_valid_decoding_packet_check ptr_for_decoding_packets bytes_length =
     let bytes_length_u32: U32.t = uint8_to_uint32(bytes_length) in
       if (U8.eq ptr_status_v 0uy) then
         (
-            if (U32.lt i bytes_length_u32) then
-                (
-                    let decoding_packet: U8.t = ptr_for_decoding_packets.(i) in
-                      // print_u8 decoding_packet;
-                      // print_string "<-decoding_packet\n";
-                      if (U8.eq bytes_length 1uy) then
+          if (U32.lt i bytes_length_u32) then
+            (
+              let decoding_packet: U8.t = ptr_for_decoding_packets.(i) in
+                // print_u8 decoding_packet;
+                // print_string "<-decoding_packet\n";
+                if (U8.eq bytes_length 1uy) then
+                  (
+                    if (U8.lt decoding_packet 0uy || U8.gt decoding_packet 127uy) then
+                      (
+                        // print_string "err1\n";
+                        ptr_status.(0ul) <- 1uy
+                      )
+                  )
+                else
+                  (
+                    let data_length_minus_one: U32.t = uint8_to_uint32 (U8.sub bytes_length 1uy) in
+                    if (U32.eq i data_length_minus_one) then
+                      (
+                        if (U8.lt decoding_packet 1uy || U8.gt decoding_packet 127uy) then
                           (
-                            if (U8.lt decoding_packet 0uy || U8.gt decoding_packet 127uy) then
-                              (
-                                // print_string "err1\n";
-                                ptr_status.(0ul) <- 1uy
-                              )
+                            // print_string "err2\n";
+                            ptr_status.(0ul) <- 2uy
                           )
-                      else
-                          (
-                            let data_length_minus_one: U32.t = uint8_to_uint32 (U8.sub bytes_length 1uy) in
-                            if (U32.eq i data_length_minus_one) then
-                              (
-                                if (U8.lt decoding_packet 1uy || U8.gt decoding_packet 127uy) then
-                                  (
-                                    // print_string "err2\n";
-                                    ptr_status.(0ul) <- 2uy
-                                  )
-                              ) else
-                                  (
-                                    if (U8.lt decoding_packet 128uy || U8.gt decoding_packet max_u8) then
-                                      (
-                                        // print_string "err3\n";
-                                        ptr_status.(0ul) <- 3uy
-                                      )
-                                  )
-                          )
-                )
-
+                      ) else
+                        (
+                          if (U8.lt decoding_packet 128uy || U8.gt decoding_packet max_u8) then
+                            (
+                              // print_string "err3\n";
+                              ptr_status.(0ul) <- 3uy
+                            )
+                        )
+                  )
+            )
         )
   in
   C.Loops.for 0ul 4ul inv body;
@@ -433,100 +432,22 @@ val get_remaining_length: bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes
   (requires fun h0 -> B.live h0 ptr_for_decoding_packets /\ B.length ptr_for_decoding_packets = 4)
   (ensures fun _ _ _ -> true)
 let get_remaining_length bytes_length ptr_for_decoding_packets packet_size =
-  push_frame ();
   let fixed_value: U32.t = U32.(packet_size -^ 1ul) in
-  let rr: (remaining_length:type_remaining_length) =
-  (
-    if (bytes_length = 1uy) then
-      (
-        let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
-        let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-        decoding_packets.(0ul) <- decoding_packet_first;
-        let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
-          (
-            if (r <> max_u32) then
-              (
-                if (U32.(1ul +^ r) = fixed_value) then
-                  r
-                else
-                  (
-                    // print_string("first bit is not remaining length");
-                    max_u32
-                  )
-              )
-            else
-              max_u32
-          )
-      )
-      else if (bytes_length = 2uy) then
+  let bytes_length_u32: U32.t = uint8_to_uint32(bytes_length) in
+  let r: type_remaining_length =
+    let untrust_r: type_remaining_length =
+      decodeing_variable_bytes ptr_for_decoding_packets bytes_length in
+    (
+      if (untrust_r <> max_u32) then
         (
-          let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
-          let decoding_packet_second: U8.t = ptr_for_decoding_packets.(1ul) in
-          let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-          decoding_packets.(0ul) <- decoding_packet_first;
-          decoding_packets.(1ul) <- decoding_packet_second;
-          let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
-          (
-            if (r <> max_u32) then
-              (
-                if (U32.(2ul +^ r) = fixed_value) then
-                  r
-                else
-                  (
-                    // print_string("first bit is not remaining length");
-                    max_u32
-                  )
-              )
-            else
-              max_u32
-          )
-        )
-      else if (bytes_length = 3uy) then
-        (
-          let decoding_packet_first: U8.t = ptr_for_decoding_packets.(0ul) in
-          let decoding_packet_second: U8.t = ptr_for_decoding_packets.(1ul) in
-          let decoding_packet_third: U8.t = ptr_for_decoding_packets.(2ul) in
-          let decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-          decoding_packets.(0ul) <- decoding_packet_first;
-          decoding_packets.(1ul) <- decoding_packet_second;
-          decoding_packets.(2ul) <- decoding_packet_third;
-          let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes decoding_packets bytes_length in
-          (
-            if (r <> max_u32) then
-              (
-                if (U32.(3ul +^ r) = fixed_value) then
-                  r
-                else
-                  (
-                    // print_string("first bit is not remaining length");
-                    max_u32
-                  )
-              )
-            else
-              max_u32
-          )
+          if (U32.(bytes_length_u32 +^ untrust_r) = fixed_value) then
+            untrust_r
+          else
+            max_u32
         )
       else
-        (
-          let r: (remaining_length:type_remaining_length) = decodeing_variable_bytes ptr_for_decoding_packets bytes_length in
-          (
-            if (r <> max_u32) then
-              (
-                if (U32.(4ul +^ r) = fixed_value) then
-                  r
-                else
-                  (
-                    // print_string("first bit is not remaining length");
-                    max_u32
-                  )
-              )
-            else
-              max_u32
-          )
-        )
-  ) in
-  pop_frame ();
-  rr
+        max_u32
+    ) in r
 
 val get_message_type: message_type_bits: U8.t -> type_mqtt_control_packets_restrict
 let get_message_type message_type_bits =
@@ -564,21 +485,6 @@ type struct_fixed_header = {
   publish: struct_variable_header_publish;
   error_message: type_error_message_restrict;
 }
-
-  //x let is_searching_remaining_length: bool = ptris_searching_remaining_length.(0ul) in
-  // x let fixed_header_first_one_byte: U8.t = ptr_fixed_header_first_one_byte.(0ul) in
-  // let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
-  // let remaining_length: type_remaining_length
-  //   = ptr_remaining_length.(0ul) in
-
-  // // PUBLISH
-  // let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
-  // let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
-  // let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
-  // x let is_searching_property_length: bool = ptris_searching_property_length.(0ul) in
-  // let property_length: type_property_length = ptr_property_length.(0ul) in
-  // let payload: type_payload_restrict = ptr_payload.(0ul) in
-  // let payload_error_status: U8.t = ptr_payload_error_status.(0ul) in
 
 type struct_fixed_header_parts = {
   _fixed_header_first_one_byte: U8.t;
