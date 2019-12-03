@@ -24,6 +24,7 @@ topic_length=13
 topic_name=example/topic
 property_length=0
 payload=おはよう🌏
+error_code=0
 error_message=
 ```
 
