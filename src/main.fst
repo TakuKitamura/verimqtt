@@ -192,6 +192,7 @@ let define_error_topic_name_invalid: type_error_message = !$"topic_name is inval
 let define_error_property_length_invalid: type_error_message = !$"property_length is invalid."
 let define_error_payload_invalid: type_error_message = !$"payload is invalid."
 let define_error_unexpected: type_error_message = !$"unexpected error."
+let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
   (v:
@@ -207,9 +208,10 @@ type type_error_message_restrict =
       v = define_error_topic_name_invalid ||
       v = define_error_property_length_invalid ||
       v = define_error_payload_invalid ||
-      v = !$"")
+      v = define_no_error)
     }
   )
+
 val new_line : unit -> StTrivial unit
 let new_line () = print_string "\n"
 
@@ -678,7 +680,9 @@ let get_struct_fixed_header_constant_except_publish message_type =
       };
     }
 
-val error_struct_fixed_header: (error_message: type_error_message_restrict) -> struct_fixed_header
+val error_struct_fixed_header:
+  (error_message: type_error_message_restrict)
+  -> struct_fixed_header
 let error_struct_fixed_header error_message = {
     message_type = max_u8;
     message_name = !$"";
@@ -755,122 +759,115 @@ let get_flag message_type fixed_header_first_one_byte =
             v
         )
 
-val get_fixed_header: s: struct_fixed_header_parts
+val get_fixed_publish_header: s: struct_fixed_header_parts
   -> Stack struct_fixed_header
-    (requires (fun h -> true))
+    (requires (fun h -> U8.eq s._message_type define_mqtt_control_packet_PUBLISH))
+    (ensures (fun h0 r h1 -> true))
+let get_fixed_publish_header s =
+  let dup_flag: type_dup_flags_restrict = get_dup_flag s._fixed_header_first_one_byte in
+  let qos_flag: type_qos_flags_restrict = get_qos_flag s._fixed_header_first_one_byte in
+  let retain_flag: type_retain_flags_restrict = get_retain_flag s._fixed_header_first_one_byte in
+  let have_error: bool =
+      (s.is_searching_remaining_length) ||
+      (U8.eq s._message_type max_u8) ||
+      (U8.eq dup_flag max_u8) ||
+      (U8.eq qos_flag max_u8) ||
+      (U8.eq retain_flag max_u8) ||
+      (U8.gt s._topic_name_error_status 0uy) ||
+      (U32.eq s._topic_length max_u32) ||
+      (s.is_searching_property_length) ||
+      (U8.gt s._payload_error_status 0uy) in
+  if (have_error) then
+    let error_message: type_error_message_restrict =
+      (
+        if (s.is_searching_remaining_length) then
+          define_error_remaining_length_invalid
+        else if (U8.eq s._message_type max_u8) then
+          define_error_message_type_invalid
+        else if (U8.eq dup_flag max_u8) then
+          define_error_dup_flag_invalid
+        else if (U8.eq qos_flag max_u8) then
+          define_error_qos_flag_invalid
+        else if (U8.eq retain_flag max_u8) then
+          define_error_retain_flag_invalid
+        else if (U32.eq s._topic_length max_u32) then
+          define_error_topic_length_invalid
+        else if (U8.gt s._topic_name_error_status 0uy) then
+          define_error_topic_name_invalid
+        else if (s.is_searching_property_length) then
+          define_error_property_length_invalid
+        else if (U8.gt s._payload_error_status 0uy) then
+          define_error_payload_invalid
+        else
+          define_error_unexpected
+      ) in
+    error_struct_fixed_header error_message
+  else
+    let data: struct_fixed_header_constant =
+      struct_fixed_publish dup_flag qos_flag retain_flag in
+      {
+        message_type = data.message_type_constant;
+        message_name = data.message_name_constant;
+        flags = {
+          flag = data.flags_constant.flag;
+          dup_flag = data.flags_constant.dup_flag;
+          qos_flag = data.flags_constant.qos_flag;
+          retain_flag = data.flags_constant.retain_flag;
+        };
+        remaining_length = s._remaining_length;
+        publish = {
+          topic_length = s._topic_length;
+          topic_name = s._topic_name;
+          property_length = 0ul;
+          payload = s._payload;
+        };
+        error_message = define_no_error;
+      }
+
+val get_fixed_except_publish_header: s: struct_fixed_header_parts
+  -> Stack struct_fixed_header
+    (requires (fun h -> s._message_type <> define_mqtt_control_packet_PUBLISH))
     (ensures (fun h0 _ h1 -> true))
-let get_fixed_header s =
-  if (U8.eq s._message_type define_mqtt_control_packet_PUBLISH) then
-    (
-      let dup_flag: type_dup_flags_restrict = get_dup_flag s._fixed_header_first_one_byte in
-      let qos_flag: type_qos_flags_restrict = get_qos_flag s._fixed_header_first_one_byte in
-      let retain_flag: type_retain_flags_restrict = get_retain_flag s._fixed_header_first_one_byte in
-      let have_error: bool =
-          (s.is_searching_remaining_length) ||
-          (U8.eq s._message_type max_u8) ||
-          (U8.eq dup_flag max_u8) ||
-          (U8.eq qos_flag max_u8) ||
-          (U8.eq retain_flag max_u8) ||
-          (U8.gt s._topic_name_error_status 0uy) ||
-          (U32.eq s._topic_length max_u32) ||
-          (s.is_searching_property_length) ||
-          (U8.gt s._payload_error_status 0uy) in
+let get_fixed_except_publish_header s =
+  let flag: type_flag_restrict = get_flag s._message_type s._fixed_header_first_one_byte in
+  let data: struct_fixed_header_constant =
+    get_struct_fixed_header_constant_except_publish s._message_type in
+  let have_error: bool =
+    (s.is_searching_remaining_length) ||
+    (U8.eq s._message_type max_u8) ||
+    (is_valid_flag data flag = false) in
+    if (have_error) then
       let error_message: type_error_message_restrict =
         (
-          if (have_error) then (
-            if (s.is_searching_remaining_length) then
-              define_error_remaining_length_invalid
-            else if (U8.eq s._message_type max_u8) then
-              define_error_message_type_invalid
-            else if (U8.eq dup_flag max_u8) then
-              define_error_dup_flag_invalid
-            else if (U8.eq qos_flag max_u8) then
-              define_error_qos_flag_invalid
-            else if (U8.eq retain_flag max_u8) then
-              define_error_retain_flag_invalid
-            else if (U32.eq s._topic_length max_u32) then
-              define_error_topic_length_invalid
-            else if (U8.gt s._topic_name_error_status 0uy) then
-              define_error_topic_name_invalid
-            else if (s.is_searching_property_length) then
-              define_error_property_length_invalid
-            else if (U8.gt s._payload_error_status 0uy) then
-              define_error_payload_invalid
-            else
-              define_error_unexpected
-          ) else
-            !$""
+          if (s.is_searching_remaining_length) then
+            define_error_remaining_length_invalid
+          else if (U8.eq s._message_type max_u8) then
+            define_error_message_type_invalid
+          else if (is_valid_flag data flag = false) then
+            define_error_flag_invalid
+          else
+            define_error_unexpected
         ) in
-      // pop_frame ();
-      if (have_error) then
-        error_struct_fixed_header error_message
-      else
-        let data: struct_fixed_header_constant =
-          struct_fixed_publish dup_flag qos_flag retain_flag in
-          {
-            message_type = data.message_type_constant;
-            message_name = data.message_name_constant;
-            flags = {
-              flag = data.flags_constant.flag;
-              dup_flag = data.flags_constant.dup_flag;
-              qos_flag = data.flags_constant.qos_flag;
-              retain_flag = data.flags_constant.retain_flag;
-            };
-            remaining_length = s._remaining_length;
-            publish = {
-              topic_length = s._topic_length;
-              topic_name = s._topic_name;
-              property_length = 0ul;
-              payload = s._payload;
-            };
-            error_message = !$"";
-          }
-    )
-  else
-    (
-      let flag: type_flag_restrict = get_flag s._message_type s._fixed_header_first_one_byte in
-      let data: struct_fixed_header_constant =
-        get_struct_fixed_header_constant_except_publish s._message_type in
-      let have_error: bool =
-        (s.is_searching_remaining_length) ||
-        (U8.eq s._message_type max_u8) ||
-        (is_valid_flag data flag = false) in
-        let error_message: type_error_message_restrict =
-          (
-            if (have_error) then (
-              if (s.is_searching_remaining_length) then
-                  define_error_remaining_length_invalid
-                else if (U8.eq s._message_type max_u8) then
-                  define_error_message_type_invalid
-                else if (is_valid_flag data flag = false) then
-                  define_error_flag_invalid
-                else
-                  define_error_unexpected
-            ) else
-              !$""
-          ) in
-        if (have_error) then
-          error_struct_fixed_header error_message
-        else
-          {
-            message_type = data.message_type_constant;
-            message_name = data.message_name_constant;
-            flags = {
-              flag = data.flags_constant.flag;
-              dup_flag = data.flags_constant.dup_flag;
-              qos_flag = data.flags_constant.qos_flag;
-              retain_flag = data.flags_constant.retain_flag;
-            };
-            remaining_length = s._remaining_length;
-            publish = {
-              topic_length = max_u32;
-              topic_name = !$"";
-              property_length = max_u32;
-              payload = !$"";
-            };
-            error_message = !$"";
-          }
-    )
+      error_struct_fixed_header error_message
+    else
+      {
+        message_type = data.message_type_constant;
+        message_name = data.message_name_constant;
+        flags = {
+          flag = data.flags_constant.flag;
+          dup_flag = data.flags_constant.dup_flag;
+          qos_flag = data.flags_constant.qos_flag;
+          retain_flag = data.flags_constant.retain_flag;
+        };
+        remaining_length = s._remaining_length;
+        publish = {
+          topic_length = max_u32;
+          topic_name = !$"";
+          property_length = max_u32;
+          payload = !$"";
+        };
+        error_message = define_no_error;
+      }
 
 val parse (request: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
@@ -1108,5 +1105,8 @@ let parse request packet_size =
       _payload = payload;
       _payload_error_status = payload_error_status
   } in
-  get_fixed_header ed_fixed_header_parts
+  if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+    get_fixed_publish_header ed_fixed_header_parts
+  else
+    get_fixed_except_publish_header ed_fixed_header_parts
 
