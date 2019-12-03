@@ -23,7 +23,7 @@ let message_type_error_check1 u =
         request.(3ul) <- 0x00uy;
 
     let s : struct_fixed_header = parse request 4ul in
-        T.eq_str !$"message type_error check1" define_error_message_type_invalid s.error_message;
+        T.eq_str !$"message type_error check1" define_error_message_type_invalid s.error.message;
 B.free request
 
 val message_type_error_check2: u:unit -> St unit
@@ -31,7 +31,7 @@ let message_type_error_check2 u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 1ul in
 
     let s : struct_fixed_header = parse request 1ul in
-        T.eq_str !$"message type_error check2" define_error_message_type_invalid s.error_message;
+        T.eq_str !$"message type_error check2" define_error_message_type_invalid s.error.message;
 B.free request
 
 
@@ -43,7 +43,7 @@ let invalid_pubrel_flag_check u =
             request.(2ul) <- 0x00uy;
             request.(3ul) <- 0x01uy;
     let s : struct_fixed_header = parse request 4ul in
-        T.eq_str !$"pubrel flag is invalid" define_error_flag_invalid s.error_message;
+        T.eq_str !$"pubrel flag is invalid" define_error_flag_invalid s.error.message;
     B.free request
 
 val invalid_subscribe_flag_check: u:unit -> St unit
@@ -68,7 +68,7 @@ let invalid_subscribe_flag_check u =
         request.(16ul) <- 0x00uy;
 
     let s : struct_fixed_header = parse request 17ul in
-        T.eq_str !$"subscribe flag is invalid" define_error_flag_invalid s.error_message;
+        T.eq_str !$"subscribe flag is invalid" define_error_flag_invalid s.error.message;
 B.free request
 
 val invalid_unsubscribe_flag_check: u:unit -> St unit
@@ -92,7 +92,7 @@ let invalid_unsubscribe_flag_check u =
         request.(15ul) <- 0x63uy;
 
     let s : struct_fixed_header = parse request 16ul in
-        T.eq_str !$"unsubscribe flag is invalid" define_error_flag_invalid s.error_message;
+        T.eq_str !$"unsubscribe flag is invalid" define_error_flag_invalid s.error.message;
 B.free request
 
 val invalid_unsuback_flag_check: u:unit -> St unit
@@ -104,7 +104,7 @@ let invalid_unsuback_flag_check u =
         request.(3ul) <- 0x02uy;
 
     let s : struct_fixed_header = parse request 4ul in
-        T.eq_str !$"unsuback flag is invalid" define_error_flag_invalid s.error_message;
+        T.eq_str !$"unsuback flag is invalid" define_error_flag_invalid s.error.message;
 B.free request
 
 val remaining_length_error_check: u:unit -> St unit
@@ -117,7 +117,7 @@ let remaining_length_error_check u =
         request.(4ul) <- 0x0Auy;
 
     let s : struct_fixed_header = parse request 5ul in
-        T.eq_str !$"remaining_length error check" define_error_remaining_length_invalid s.error_message;
+        T.eq_str !$"remaining_length error check" define_error_remaining_length_invalid s.error.message;
 B.free request
 
 val invalid_qos_flag_check: u:unit -> St unit
@@ -148,7 +148,7 @@ let invalid_qos_flag_check u =
         request.(22ul) <- 0x74uy;
         request.(23ul) <- 0x74uy;
     let s : struct_fixed_header = parse request 24ul in
-        T.eq_str !$"invalid qos flag check" define_error_qos_flag_invalid s.error_message;
+        T.eq_str !$"invalid qos flag check" define_error_qos_flag_invalid s.error.message;
     B.free request
 
 val main : u:unit -> St C.exit_code

@@ -29,7 +29,7 @@ let print_struct_fixed_header s =
     print !$"qos_flag: 0x"; UT.print_hex s.flags.qos_flag; new_line ();
     print !$"retain_flag: 0x"; UT.print_hex s.flags.retain_flag; new_line ();
     print !$"remaining_length: "; print_u32 s.remaining_length; new_line ();
-    print !$"error_message: "; print s.error_message; new_line ()
+    print !$"error_message: "; print s.error.message; new_line ()
 
 val valid_connect_packet_test: u:unit -> St unit
 let valid_connect_packet_test u =
@@ -79,7 +79,7 @@ let valid_connect_packet_test u =
         T.eq_u8 !$"Valid CONNECT Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid CONNECT Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid CONNECT Packet remaining_length check" 35ul s.remaining_length;
-        T.eq_str !$"Valid CONNECT Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid CONNECT Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_connack_packet_test: u:unit -> St unit
@@ -97,7 +97,7 @@ let valid_connack_packet_test u =
         T.eq_u8 !$"Valid CONNACK Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid CONNACK Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid CONNACK Packet remaining_length check" 2ul s.remaining_length;
-        T.eq_str !$"Valid CONNACK Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid CONNACK Packet error_message check" !$"" s.error.message;
     B.free request
 
 
@@ -142,7 +142,7 @@ let valid_publish_packet_test1 u =
         T.eq_u32 !$"Valid PUBLISH Packet topic_length check" 10ul s.publish.topic_length;
         T.eq_str !$"Valid PUBLISH Packet topic_name check" !$"test/topic" s.publish.topic_name;
         T.eq_u32 !$"Valid PUBLISH Packet property_length check" 0ul s.publish.property_length;
-        T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error.message;
 B.free request
 
 // val valid_publish_packet_test2: u:unit -> St unit
@@ -181,7 +181,7 @@ B.free request
 //         T.eq_u8 !$"Valid PUBLISH Packet retain_flag check" 1uy s.flags.retain_flag;
 //         T.eq_u32 !$"Valid PUBLISH Packet remaining_length check" 22ul s.remaining_length;
 //         T.eq_u32 !$"Valid PUBLISH Packet topic_length check" 10ul s.publish.topic_length;
-//         T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error_message;
+//         T.eq_str !$"Valid PUBLISH Packet error_message check" !$"" s.error.message;
 //     B.free request
 
 val valid_puback_packet_test: u:unit -> St unit
@@ -200,7 +200,7 @@ let valid_puback_packet_test u =
         T.eq_u8 !$"Valid PUBACK Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBACK Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBACK Packet remaining_length check" 2ul s.remaining_length;
-        T.eq_str !$"Valid PUBACK Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PUBACK Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_pubrec_packet_test: u:unit -> St unit
@@ -218,7 +218,7 @@ let valid_pubrec_packet_test u =
         T.eq_u8 !$"Valid PUBREC Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBREC Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBREC Packet remaining_length check" 2ul s.remaining_length;
-        T.eq_str !$"Valid PUBREC Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PUBREC Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_pubrel_packet_test: u:unit -> St unit
@@ -236,7 +236,7 @@ let valid_pubrel_packet_test u =
         T.eq_u8 !$"Valid PUBREL Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBREL Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBREL Packet remaining_length check" 2ul s.remaining_length;
-        T.eq_str !$"Valid PUBREL Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PUBREL Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_pubcomp_packet_test: u:unit -> St unit
@@ -254,7 +254,7 @@ let valid_pubcomp_packet_test u =
         T.eq_u8 !$"Valid PUBCOMP Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PUBCOMP Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PUBCOMP Packet remaining_length check" 2ul s.remaining_length;
-        T.eq_str !$"Valid PUBCOMP Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PUBCOMP Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_subscribe_packet_test: u:unit -> St unit
@@ -285,7 +285,7 @@ let valid_subscribe_packet_test u =
         T.eq_u8 !$"Valid SUBSCRIBE Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid SUBSCRIBE Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid SUBSCRIBE Packet remaining_length check" 15ul s.remaining_length;
-        T.eq_str !$"Valid SUBSCRIBE Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid SUBSCRIBE Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_suback_packet_test: u:unit -> St unit
@@ -304,7 +304,7 @@ let valid_suback_packet_test u =
         T.eq_u8 !$"Valid SUBACK Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid SUBACK Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid SUBACK Packet remaining_length check" 3ul s.remaining_length;
-        T.eq_str !$"Valid SUBACK Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid SUBACK Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_unsubscribe_packet_test: u:unit -> St unit
@@ -335,7 +335,7 @@ let valid_unsubscribe_packet_test u =
         T.eq_u8 !$"Valid UNSUBSCRIBE Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid UNSUBSCRIBE Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid UNSUBSCRIBE Packet remaining_length check" 14ul s.remaining_length;
-        T.eq_str !$"Valid UNSUBSCRIBE Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid UNSUBSCRIBE Packet error_message check" !$"" s.error.message;
 B.free request
 
 val valid_pingreq_packet_test: u:unit -> St unit
@@ -351,7 +351,7 @@ let valid_pingreq_packet_test u =
         T.eq_u8 !$"Valid PINGREQ Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PINGREQ Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PINGREQ Packet remaining_length check" 0ul s.remaining_length;
-        T.eq_str !$"Valid PINGREQ Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PINGREQ Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_unsuback_packet_test: u:unit -> St unit
@@ -370,7 +370,7 @@ let valid_unsuback_packet_test u =
         T.eq_u8 !$"Valid UNSUBACK Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid UNSUBACK Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid UNSUBACK Packet remaining_length check" 2ul s.remaining_length;
-        T.eq_str !$"Valid UNSUBACK Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid UNSUBACK Packet error_message check" !$"" s.error.message;
 B.free request
 
 val valid_pingresp_packet_test: u:unit -> St unit
@@ -386,7 +386,7 @@ let valid_pingresp_packet_test u =
         T.eq_u8 !$"Valid PINGRESP Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid PINGRESP Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid PINGRESP Packet remaining_length check" 0ul s.remaining_length;
-        T.eq_str !$"Valid PINGRESP Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid PINGRESP Packet error_message check" !$"" s.error.message;
     B.free request
 
 val valid_disconnect_packet_test: u:unit -> St unit
@@ -402,7 +402,7 @@ let valid_disconnect_packet_test u =
         T.eq_u8 !$"Valid DISCONNECT Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid DISCONNECT Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid DISCONNECT Packet remaining_length check" 0ul s.remaining_length;
-        T.eq_str !$"Valid DISCONNECT Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid DISCONNECT Packet error_message check" !$"" s.error.message;
     B.free request
 
 // TODO: authパケットの通信の仕方が分かり実パケットを追加する｡
@@ -419,7 +419,7 @@ let valid_auth_packet_test u =
         T.eq_u8 !$"Valid AUTH Packet qos_flag check" 255uy s.flags.qos_flag;
         T.eq_u8 !$"Valid AUTH Packet retain_flag check" 255uy s.flags.retain_flag;
         T.eq_u32 !$"Valid AUTH Packet remaining_length check" 0ul s.remaining_length;
-        T.eq_str !$"Valid AUTH Packet error_message check" !$"" s.error_message;
+        T.eq_str !$"Valid AUTH Packet error_message check" !$"" s.error.message;
     B.free request
 
 val main : u:unit -> St C.exit_code
