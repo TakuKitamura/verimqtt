@@ -1,5 +1,12 @@
 # Change Log
 
+## [v0.0.3](https://github.com/TakuKitamura/verimqtt/tree/v0.0.3) (2019-12-03)
+
+**Implemented enhancements:**
+- get error-code
+- add some requires, ensures conditions
+- refacta
+
 ## [v0.0.2](https://github.com/TakuKitamura/verimqtt/tree/v0.0.2) (2019-11-23)
 
 **Implemented enhancements:**
