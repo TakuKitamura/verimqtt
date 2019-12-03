@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
     printf("topic_name=%s\n", data.publish.topic_name);
     printf("property_length=%u\n", data.publish.property_length);
     printf("payload=%s\n", data.publish.payload);
-    printf("error_message=%s\n", data.error_message);
+    printf("error_code=%u\n", data.error.code);
+    printf("error_message=%s\n", data.error.message);
     exit(EXIT_SUCCESS);
 }
