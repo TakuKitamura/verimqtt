@@ -1006,16 +1006,17 @@ let get_fixed_header s =
             }
       )
 
-val parse (request: B.buffer U8.t) (packet_size: type_packet_size):
+val mqtt_packet_parse (request: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
     (requires (fun h ->
       B.live h request /\
       B.length request <= U32.v max_request_size /\
+      UT.zero_terminated_buffer_u8 h request /\
       // U32.v packet_size >= 2 /\
       // U32.v packet_size <= 268435460 /\
       (B.length request - 1) = U32.v packet_size))
     (ensures (fun h0 _ h1 -> B.live h0 request /\ B.live h1 request))
-let parse request packet_size =
+let mqtt_packet_parse request packet_size =
   push_frame ();
   let ptr_is_break: B.buffer bool = B.alloca false 1ul in
   let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
