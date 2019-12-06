@@ -191,7 +191,7 @@ let define_error_topic_length_invalid: type_error_message = !$"topic_length is i
 let define_error_topic_name_invalid: type_error_message = !$"topic_name is invalid."
 let define_error_property_length_invalid: type_error_message = !$"property_length is invalid."
 let define_error_payload_invalid: type_error_message = !$"payload is invalid."
-let define_error_unexpected: type_error_message = !$"unexpected error."
+// let define_error_unexpected: type_error_message = !$"unexpected error."
 let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
@@ -207,8 +207,8 @@ type type_error_message_restrict =
       v = define_error_topic_length_invalid ||
       v = define_error_topic_name_invalid ||
       v = define_error_property_length_invalid ||
-      v = define_error_payload_invalid ||
-      v = define_error_unexpected
+      v = define_error_payload_invalid
+      // v = define_error_unexpected
     }
   )
 
@@ -224,7 +224,7 @@ let define_error_topic_length_invalid_code: type_error_code = 7uy
 let define_error_topic_name_invalid_code: type_error_code = 8uy
 let define_error_property_length_invalid_code: type_error_code = 9uy
 let define_error_payload_invalid_code: type_error_code = 10uy
-let define_error_unexpected_code: type_error_code = 255uy
+// let define_error_unexpected_code: type_error_code = 255uy
 
 type type_error_code_restrict =
   (v:
@@ -239,8 +239,8 @@ type type_error_code_restrict =
       v = define_error_topic_length_invalid_code ||
       v = define_error_topic_name_invalid_code ||
       v = define_error_property_length_invalid_code ||
-      v = define_error_payload_invalid_code ||
-      v = define_error_unexpected_code
+      v = define_error_payload_invalid_code
+      // v = define_error_unexpected_code
     }
   )
 
@@ -828,12 +828,10 @@ val get_fixed_header: s: struct_fixed_header_parts
             else if (s.is_searching_property_length) then
               r.error.code = define_error_property_length_invalid_code &&
               r.error.message = define_error_property_length_invalid
-            else if (U8.gt s._payload_error_status 0uy) then
+            // else if (U8.gt s._payload_error_status 0uy) then
+            else
               r.error.code = define_error_payload_invalid_code &&
               r.error.message = define_error_payload_invalid
-            else
-              r.error.code = define_error_unexpected_code &&
-              r.error.message = define_error_unexpected
         else
           r.error.code = define_no_error_code &&
           r.error.message = define_no_error
@@ -855,12 +853,10 @@ val get_fixed_header: s: struct_fixed_header_parts
           else if (U8.eq s._message_type max_u8) then
             r.error.code = define_error_message_type_invalid_code &&
             r.error.message = define_error_message_type_invalid
-          else if (is_valid_flag data flag = false) then
+          // else if (is_valid_flag data flag = false) then
+          else
             r.error.code = define_error_flag_invalid_code &&
             r.error.message = define_error_flag_invalid
-          else
-            r.error.code = define_error_unexpected_code &&
-            r.error.message = define_error_unexpected
         else
           r.error.code = define_no_error_code &&
           r.error.message = define_no_error
@@ -925,15 +921,11 @@ let get_fixed_header s =
                 code = define_error_property_length_invalid_code;
                 message = define_error_property_length_invalid;
               }
-            else if (U8.gt s._payload_error_status 0uy) then
+            // else if (U8.gt s._payload_error_status 0uy) then
+            else
               {
                 code = define_error_payload_invalid_code;
                 message = define_error_payload_invalid;
-              }
-            else
-              {
-                code = define_error_unexpected_code;
-                message = define_error_unexpected;
               }
           ) in error_struct_fixed_header error_struct
       else
@@ -983,15 +975,11 @@ let get_fixed_header s =
                       code = define_error_message_type_invalid_code;
                       message = define_error_message_type_invalid;
                   }
-                else if (is_valid_flag data flag = false) then
+                // else if (is_valid_flag data flag = false) then
+                else
                   {
                       code = define_error_flag_invalid_code;
                       message = define_error_flag_invalid;
-                  }
-                else
-                  {
-                      code = define_error_unexpected_code;
-                      message = define_error_unexpected;
                   }
               ) in error_struct_fixed_header error_struct
           else
