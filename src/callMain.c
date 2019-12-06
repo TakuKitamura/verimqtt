@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     }
 
     // parse関数が定理証明済み
-    struct_fixed_header data = parse(request, packet_size);
+    struct_fixed_header data = mqtt_packet_parse(request, packet_size);
     free(request);
 
     printf("message_type=0x%02x\n", data.message_type);
