@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "Main.h"
 
@@ -44,7 +45,11 @@ int main(int argc, char *argv[]) {
     }
 
     // parse関数が定理証明済み
+    clock_t start,end;
+    start = clock();
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
+    end = clock();
+    printf("packet_size=%u, time=%.8fs\n",packet_size, (double)(end-start)/CLOCKS_PER_SEC);
     free(request);
 
     printf("message_type=0x%02x\n", data.message_type);

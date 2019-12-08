@@ -44,3 +44,6 @@ out
 
 # Wireshark
 *.pcapng
+
+# Pyenv
+.python-version
