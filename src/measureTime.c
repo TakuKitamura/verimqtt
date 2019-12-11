@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "Main.h"
 
@@ -44,21 +45,12 @@ int main(int argc, char *argv[]) {
     }
 
     // parse関数が定理証明済み
+    clock_t start,end;
+    start = clock();
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
+    end = clock();
+    double time = (double)(end-start)/CLOCKS_PER_SEC;
+    printf("packet_size=%u, time=%.8fs\n",packet_size, time);
     free(request);
-
-    printf("message_type=0x%02x\n", data.message_type);
-    printf("message_name=%s\n", data.message_name);
-    printf("flag=0x%02x\n", data.flags.flag);
-    printf("dup_flag=0x%02x\n", data.flags.dup_flag);
-    printf("qos_flag=0x%02x\n", data.flags.qos_flag);
-    printf("retain_flag=0x%02x\n", data.flags.retain_flag);
-    printf("remaining_length=%u\n", data.remaining_length);
-    printf("topic_length=%u\n", data.publish.topic_length);
-    // printf("topic_name=%s\n", data.publish.topic_name);
-    printf("property_length=%u\n", data.publish.property_length);
-    // printf("payload=%s\n", data.publish.payload);
-    printf("error_code=%u\n", data.error.code);
-    printf("error_message=%s\n", data.error.message);
     exit(EXIT_SUCCESS);
 }

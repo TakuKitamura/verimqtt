@@ -71,7 +71,7 @@ let valid_connect_packet_test u =
         request.(34ul) <- 0x4Duy;
         request.(35ul) <- 0x58uy;
         request.(36ul) <- 0x62uy;
-    let s : struct_fixed_header = parse request 37ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 37ul in
         T.eq_str !$"Valid CONNECT Packet message_name check" !$"CONNECT" s.message_name;
         T.eq_u8 !$"Valid CONNECT Packet message_type check" 1uy s.message_type;
         T.eq_u8 !$"Valid CONNECT Packet flag check" 0uy s.flags.flag;
@@ -89,7 +89,7 @@ let valid_connack_packet_test u =
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 4ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 4ul in
         T.eq_str !$"Valid CONNACK Packet message_name check" !$"CONNACK" s.message_name ;
         T.eq_u8 !$"Valid CONNACK Packet message_type check" 2uy s.message_type;
         T.eq_u8 !$"Valid CONNACK Packet flag check" 0uy s.flags.flag;
@@ -131,7 +131,7 @@ let valid_publish_packet_test1 u =
         request.(24ul) <- 0x6Cuy;
         request.(25ul) <- 0x64uy;
 
-    let s : struct_fixed_header = parse request 26ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 26ul in
         T.eq_str !$"Valid PUBLISH Packet message_name check" !$"PUBLISH" s.message_name;
         T.eq_u8 !$"Valid PUBLISH Packet message_type check" 3uy s.message_type;
         T.eq_u8 !$"Valid PUBLISH Packet flag check" 255uy s.flags.flag;
@@ -172,7 +172,7 @@ B.free request
 //         request.(21ul) <- 0x71uy;
 //         request.(22ul) <- 0x74uy;
 //         request.(23ul) <- 0x74uy;
-//     let s : struct_fixed_header = parse request 24ul in
+//     let s : struct_fixed_header = mqtt_packet_parse request 24ul in
 //         T.eq_str !$"Valid PUBLISH Packet message_name check" !$"PUBLISH" s.message_name;
 //         T.eq_u8 !$"Valid PUBLISH Packet message_type check" 3uy s.message_type;
 //         T.eq_u8 !$"Valid PUBLISH Packet flag check" 255uy s.flags.flag;
@@ -192,7 +192,7 @@ let valid_puback_packet_test u =
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x01uy;
 
-    let s : struct_fixed_header = parse request 4ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 4ul in
         T.eq_str !$"Valid PUBACK Packet message_name check" !$"PUBACK" s.message_name;
         T.eq_u8 !$"Valid PUBACK Packet message_type check" 4uy s.message_type;
         T.eq_u8 !$"Valid PUBACK Packet flag check" 0uy s.flags.flag;
@@ -210,7 +210,7 @@ let valid_pubrec_packet_test u =
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x01uy;
-    let s : struct_fixed_header = parse request 4ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 4ul in
         T.eq_str !$"Valid PUBREC Packet message_name check" !$"PUBREC" s.message_name;
         T.eq_u8 !$"Valid PUBREC Packet message_type check" 5uy s.message_type;
         T.eq_u8 !$"Valid PUBREC Packet flag check" 0uy s.flags.flag;
@@ -228,7 +228,7 @@ let valid_pubrel_packet_test u =
             request.(1ul) <- 0x02uy;
             request.(2ul) <- 0x00uy;
             request.(3ul) <- 0x01uy;
-    let s : struct_fixed_header = parse request 4ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 4ul in
         T.eq_str !$"Valid PUBREL Packet message_name check" !$"PUBREL" s.message_name;
         T.eq_u8 !$"Valid PUBREL Packet message_type check" 6uy s.message_type;
         T.eq_u8 !$"Valid PUBREL Packet flag check" 2uy s.flags.flag;
@@ -246,7 +246,7 @@ let valid_pubcomp_packet_test u =
         request.(1ul) <- 0x02uy;
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x01uy;
-    let s : struct_fixed_header = parse request 4ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 4ul in
         T.eq_str !$"Valid PUBCOMP Packet message_name check" !$"PUBCOMP" s.message_name;
         T.eq_u8 !$"Valid PUBCOMP Packet message_type check" 7uy s.message_type;
         T.eq_u8 !$"Valid PUBCOMP Packet flag check" 0uy s.flags.flag;
@@ -277,7 +277,7 @@ let valid_subscribe_packet_test u =
         request.(14ul) <- 0x69uy;
         request.(15ul) <- 0x63uy;
         request.(16ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 17ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 17ul in
         T.eq_str !$"Valid SUBSCRIBE Packet message_name check" !$"SUBSCRIBE" s.message_name;
         T.eq_u8 !$"Valid SUBSCRIBE Packet message_type check" 8uy s.message_type;
         T.eq_u8 !$"Valid SUBSCRIBE Packet flag check" 2uy s.flags.flag;
@@ -296,7 +296,7 @@ let valid_suback_packet_test u =
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x01uy;
         request.(4ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 5ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 5ul in
         T.eq_str !$"Valid SUBACK Packet message_name check" !$"SUBACK" s.message_name;
         T.eq_u8 !$"Valid SUBACK Packet message_type check" 9uy s.message_type;
         T.eq_u8 !$"Valid SUBACK Packet flag check" 0uy s.flags.flag;
@@ -327,7 +327,7 @@ let valid_unsubscribe_packet_test u =
         request.(14ul) <- 0x69uy;
         request.(15ul) <- 0x63uy;
 
-    let s : struct_fixed_header = parse request 16ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 16ul in
         T.eq_str !$"Valid UNSUBSCRIBE Packet message_name check" !$"UNSUBSCRIBE" s.message_name;
         T.eq_u8 !$"Valid UNSUBSCRIBE Packet message_type check" 10uy s.message_type;
         T.eq_u8 !$"Valid UNSUBSCRIBE Packet flag check" 2uy s.flags.flag;
@@ -343,7 +343,7 @@ let valid_pingreq_packet_test u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xC0uy;
         request.(1ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 2ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 2ul in
         T.eq_str !$"Valid PINGREQ Packet message_name check" !$"PINGREQ" s.message_name;
         T.eq_u8 !$"Valid PINGREQ Packet message_type check" 12uy s.message_type;
         T.eq_u8 !$"Valid PINGREQ Packet flag check" 0uy s.flags.flag;
@@ -362,7 +362,7 @@ let valid_unsuback_packet_test u =
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x02uy;
 
-    let s : struct_fixed_header = parse request 4ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 4ul in
         T.eq_str !$"Valid UNSUBACK Packet message_name check" !$"UNSUBACK" s.message_name;
         T.eq_u8 !$"Valid UNSUBACK Packet message_type check" 11uy s.message_type;
         T.eq_u8 !$"Valid UNSUBACK Packet flag check" 0uy s.flags.flag;
@@ -378,7 +378,7 @@ let valid_pingresp_packet_test u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xD0uy;
         request.(1ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 2ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 2ul in
         T.eq_str !$"Valid PINGRESP Packet message_name check" !$"PINGRESP" s.message_name;
         T.eq_u8 !$"Valid PINGRESP Packet message_type check" 13uy s.message_type;
         T.eq_u8 !$"Valid PINGRESP Packet flag check" 0uy s.flags.flag;
@@ -394,7 +394,7 @@ let valid_disconnect_packet_test u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xE0uy;
         request.(1ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 2ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 2ul in
         T.eq_str !$"Valid DISCONNECT Packet message_name check" !$"DISCONNECT" s.message_name;
         T.eq_u8 !$"Valid DISCONNECT Packet message_type check" 14uy s.message_type;
         T.eq_u8 !$"Valid DISCONNECT Packet flag check" 0uy s.flags.flag;
@@ -411,7 +411,7 @@ let valid_auth_packet_test u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 2ul in
         request.(0ul) <- 0xF0uy;
         request.(1ul) <- 0x00uy;
-    let s : struct_fixed_header = parse request 2ul in
+    let s : struct_fixed_header = mqtt_packet_parse request 2ul in
         T.eq_str !$"Valid AUTH Packet message_name check" !$"AUTH" s.message_name;
         T.eq_u8 !$"Valid AUTH Packet message_type check" 15uy s.message_type;
         T.eq_u8 !$"Valid AUTH Packet flag check" 0uy s.flags.flag;
