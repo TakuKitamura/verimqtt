@@ -11,14 +11,11 @@ open LowStar.Printf
 open FStar.Int.Cast
 open C.String
 
-<<<<<<< HEAD
 // TODO: 違反文字列の含有チェック
 // TODO: PUBLISHのフラグとQOSの関係
 // TODO: パケットタイプとパケット構成が異なる場合
 // TODO: topic_name と payload 長の定義
 
-=======
->>>>>>> origin/master
 #reset-options "--z3rlimit 250 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
 val max_u32: U32.t
@@ -36,13 +33,10 @@ let min_request_size = 0ul
 val max_packet_size: U32.t
 let max_packet_size = 268435460ul
 
-<<<<<<< HEAD
 // TODO: 置き換え
 val max_payload_size: U32.t
 let max_payload_size = 268435455ul
 
-=======
->>>>>>> origin/master
 val min_packet_size: U32.t
 let min_packet_size = 2ul
 
