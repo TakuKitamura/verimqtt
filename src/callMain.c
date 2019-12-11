@@ -1,9 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-<<<<<<< HEAD
-=======
-#include <time.h>
->>>>>>> origin/master
 
 #include "Main.h"
 
@@ -48,15 +44,7 @@ int main(int argc, char *argv[]) {
     }
 
     // parse関数が定理証明済み
-<<<<<<< HEAD
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
-=======
-    clock_t start,end;
-    start = clock();
-    struct_fixed_header data = mqtt_packet_parse(request, packet_size);
-    end = clock();
-    printf("packet_size=%u, time=%.8fs\n",packet_size, (double)(end-start)/CLOCKS_PER_SEC);
->>>>>>> origin/master
     free(request);
 
     printf("message_type=0x%02x\n", data.message_type);
@@ -67,15 +55,9 @@ int main(int argc, char *argv[]) {
     printf("retain_flag=0x%02x\n", data.flags.retain_flag);
     printf("remaining_length=%u\n", data.remaining_length);
     printf("topic_length=%u\n", data.publish.topic_length);
-<<<<<<< HEAD
     // printf("topic_name=%s\n", data.publish.topic_name);
     printf("property_length=%u\n", data.publish.property_length);
     // printf("payload=%s\n", data.publish.payload);
-=======
-    printf("topic_name=%s\n", data.publish.topic_name);
-    printf("property_length=%u\n", data.publish.property_length);
-    printf("payload=%s\n", data.publish.payload);
->>>>>>> origin/master
     printf("error_code=%u\n", data.error.code);
     printf("error_message=%s\n", data.error.message);
     exit(EXIT_SUCCESS);
