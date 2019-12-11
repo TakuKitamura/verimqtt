@@ -22,7 +22,11 @@ let message_type_error_check1 u =
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x00uy;
 
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 4ul in
+=======
+    let s : struct_fixed_header = parse request 4ul in
+>>>>>>> origin/master
         T.eq_str !$"message type_error check1" define_error_message_type_invalid s.error.message;
 B.free request
 
@@ -30,7 +34,11 @@ val message_type_error_check2: u:unit -> St unit
 let message_type_error_check2 u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy 1ul in
 
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 1ul in
+=======
+    let s : struct_fixed_header = parse request 1ul in
+>>>>>>> origin/master
         T.eq_str !$"message type_error check2" define_error_message_type_invalid s.error.message;
 B.free request
 
@@ -42,7 +50,11 @@ let invalid_pubrel_flag_check u =
             request.(1ul) <- 0x02uy;
             request.(2ul) <- 0x00uy;
             request.(3ul) <- 0x01uy;
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 4ul in
+=======
+    let s : struct_fixed_header = parse request 4ul in
+>>>>>>> origin/master
         T.eq_str !$"pubrel flag is invalid" define_error_flag_invalid s.error.message;
     B.free request
 
@@ -67,7 +79,11 @@ let invalid_subscribe_flag_check u =
         request.(15ul) <- 0x63uy;
         request.(16ul) <- 0x00uy;
 
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 17ul in
+=======
+    let s : struct_fixed_header = parse request 17ul in
+>>>>>>> origin/master
         T.eq_str !$"subscribe flag is invalid" define_error_flag_invalid s.error.message;
 B.free request
 
@@ -91,7 +107,11 @@ let invalid_unsubscribe_flag_check u =
         request.(14ul) <- 0x69uy;
         request.(15ul) <- 0x63uy;
 
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 16ul in
+=======
+    let s : struct_fixed_header = parse request 16ul in
+>>>>>>> origin/master
         T.eq_str !$"unsubscribe flag is invalid" define_error_flag_invalid s.error.message;
 B.free request
 
@@ -103,7 +123,11 @@ let invalid_unsuback_flag_check u =
         request.(2ul) <- 0x00uy;
         request.(3ul) <- 0x02uy;
 
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 4ul in
+=======
+    let s : struct_fixed_header = parse request 4ul in
+>>>>>>> origin/master
         T.eq_str !$"unsuback flag is invalid" define_error_flag_invalid s.error.message;
 B.free request
 
@@ -116,7 +140,11 @@ let remaining_length_error_check u =
         request.(3ul) <- 0x00uy;
         request.(4ul) <- 0x0Auy;
 
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 5ul in
+=======
+    let s : struct_fixed_header = parse request 5ul in
+>>>>>>> origin/master
         T.eq_str !$"remaining_length error check" define_error_remaining_length_invalid s.error.message;
 B.free request
 
@@ -147,7 +175,11 @@ let invalid_qos_flag_check u =
         request.(21ul) <- 0x71uy;
         request.(22ul) <- 0x74uy;
         request.(23ul) <- 0x74uy;
+<<<<<<< HEAD
     let s : struct_fixed_header = mqtt_packet_parse request 24ul in
+=======
+    let s : struct_fixed_header = parse request 24ul in
+>>>>>>> origin/master
         T.eq_str !$"invalid qos flag check" define_error_qos_flag_invalid s.error.message;
     B.free request
 
