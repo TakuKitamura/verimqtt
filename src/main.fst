@@ -175,6 +175,8 @@ type type_remaining_length =
 type type_topic_length_restrict =
   (topic_length_restrict: U32.t{U32.v topic_length_restrict <= 65535 || U32.eq topic_length_restrict max_u32})
 
+// [/], [+],[null]を含むとエラー
+// [0xEF, 0xBB, 0xBF] を含む場合､無視
 type type_topic_name_restrict =
   (
     topic_name: C.String.t{U32.v (strlen topic_name) <= 65535}
@@ -197,7 +199,8 @@ let define_error_dup_flag_invalid: type_error_message = !$"dup_flag is invalid."
 let define_error_qos_flag_invalid: type_error_message = !$"qos_flag is invalid."
 let define_error_retain_flag_invalid: type_error_message = !$"retain_flag is invalid."
 let define_error_topic_length_invalid: type_error_message = !$"topic_length is invalid."
-let define_error_topic_name_invalid: type_error_message = !$"topic_name is invalid."
+let define_error_topic_name_dont_zero_terminated: type_error_message = !$"topic_name is not zero-terminated."
+let define_error_topic_name_have_inavlid_character: type_error_message = !$"topic_name have invalid character."
 let define_error_property_length_invalid: type_error_message = !$"property_length is invalid."
 let define_error_payload_invalid: type_error_message = !$"payload is invalid."
 // let define_error_unexpected: type_error_message = !$"unexpected error."
@@ -214,7 +217,8 @@ type type_error_message_restrict =
       v = define_error_qos_flag_invalid ||
       v = define_error_retain_flag_invalid ||
       v = define_error_topic_length_invalid ||
-      v = define_error_topic_name_invalid ||
+      v = define_error_topic_name_dont_zero_terminated ||
+      v = define_error_topic_name_have_inavlid_character ||
       v = define_error_property_length_invalid ||
       v = define_error_payload_invalid
       // v = define_error_unexpected
@@ -230,9 +234,10 @@ let define_error_dup_flag_invalid_code: type_error_code = 4uy
 let define_error_qos_flag_invalid_code: type_error_code = 5uy
 let define_error_retain_flag_invalid_code: type_error_code = 6uy
 let define_error_topic_length_invalid_code: type_error_code = 7uy
-let define_error_topic_name_invalid_code: type_error_code = 8uy
+let define_error_topic_name_dont_zero_terminated_code: type_error_code = 8uy
 let define_error_property_length_invalid_code: type_error_code = 9uy
 let define_error_payload_invalid_code: type_error_code = 10uy
+let define_error_topic_name_have_inavlid_character_code: type_error_code = 11uy
 // let define_error_unexpected_code: type_error_code = 255uy
 
 type type_error_code_restrict =
@@ -246,7 +251,8 @@ type type_error_code_restrict =
       v = define_error_qos_flag_invalid_code ||
       v = define_error_retain_flag_invalid_code ||
       v = define_error_topic_length_invalid_code ||
-      v = define_error_topic_name_invalid_code ||
+      v = define_error_topic_name_dont_zero_terminated_code ||
+      v = define_error_topic_name_have_inavlid_character_code ||
       v = define_error_property_length_invalid_code ||
       v = define_error_payload_invalid_code
       // v = define_error_unexpected_code
@@ -808,7 +814,8 @@ val get_fixed_header: s: struct_fixed_header_parts
             (U8.eq dup_flag max_u8) ||
             (U8.eq qos_flag max_u8) ||
             (U8.eq retain_flag max_u8) ||
-            (U8.gt s._topic_name_error_status 0uy) ||
+            (U8.eq s._topic_name_error_status 1uy) ||
+            (U8.eq s._topic_name_error_status 2uy) ||
             (U32.eq s._topic_length max_u32) ||
             (s.is_searching_property_length) ||
             (U8.gt s._payload_error_status 0uy) in
@@ -831,9 +838,12 @@ val get_fixed_header: s: struct_fixed_header_parts
             else if (U32.eq s._topic_length max_u32) then
               r.error.code = define_error_topic_length_invalid_code &&
               r.error.message = define_error_topic_length_invalid
-            else if (U8.gt s._topic_name_error_status 0uy) then
-              r.error.code = define_error_topic_name_invalid_code &&
-              r.error.message = define_error_topic_name_invalid
+            else if (U8.eq s._topic_name_error_status 1uy) then
+              r.error.code = define_error_topic_name_dont_zero_terminated_code &&
+              r.error.message = define_error_topic_name_dont_zero_terminated
+            else if (U8.eq s._topic_name_error_status 2uy) then
+              r.error.code = define_error_topic_name_have_inavlid_character_code &&
+              r.error.message = define_error_topic_name_have_inavlid_character
             else if (s.is_searching_property_length) then
               r.error.code = define_error_property_length_invalid_code &&
               r.error.message = define_error_property_length_invalid
@@ -883,7 +893,8 @@ let get_fixed_header s =
           (U8.eq dup_flag max_u8) ||
           (U8.eq qos_flag max_u8) ||
           (U8.eq retain_flag max_u8) ||
-          (U8.gt s._topic_name_error_status 0uy) ||
+          (U8.eq s._topic_name_error_status 1uy) ||
+          (U8.eq s._topic_name_error_status 2uy) ||
           (U32.eq s._topic_length max_u32) ||
           (s.is_searching_property_length) ||
           (U8.gt s._payload_error_status 0uy) in
@@ -920,10 +931,15 @@ let get_fixed_header s =
                 code = define_error_topic_length_invalid_code;
                 message = define_error_topic_length_invalid;
               }
-            else if (U8.gt s._topic_name_error_status 0uy) then
+            else if (U8.eq s._topic_name_error_status 1uy) then
               {
-                code = define_error_topic_name_invalid_code;
-                message = define_error_topic_name_invalid;
+                code = define_error_topic_name_dont_zero_terminated_code;
+                message = define_error_topic_name_dont_zero_terminated;
+              }
+            else if (U8.eq s._topic_name_error_status 2uy) then
+              {
+                code = define_error_topic_name_have_inavlid_character_code;
+                message = define_error_topic_name_have_inavlid_character;
               }
             else if (s.is_searching_property_length) then
               {
@@ -1142,21 +1158,32 @@ let mqtt_packet_parse request packet_size =
                       // print_string "index "; print_u32 variable_header_index; print_string ", ";
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
-                          // print_string "topic_name: "; UT.print_hex one_byte; new_line ();
-                          ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
-                          if (variable_header_index = (U32.(topic_length +^ 1ul))) then
+                          if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x2buy || U8.eq one_byte 0x2fuy) then
                             (
-                              let topic_name: type_topic_name_restrict =
-                                (
-                                  if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                                    UT.topic_name_uint8_to_c_string ptr_topic_name_u8
-                                  else
-                                  (
-                                    ptr_topic_name_error_status.(0ul) <- 1uy;
-                                    !$""
-                                  )
-                                ) in ptr_topic_name.(0ul) <- topic_name
+                              ptr_topic_name_error_status.(0ul) <- 2uy;
+                              ptr_is_break.(0ul) <- true
                             )
+                          else
+                            (
+                              // print_string "topic_name: "; UT.print_hex one_byte; new_line ();
+                              ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
+                              if (variable_header_index = (U32.(topic_length +^ 1ul))) then
+                                (
+                                  // [/:2f], [+:2b], [null:00]を含むとエラー
+                                  // [0xEF, 0xBB, 0xBF] を含む場合､無視
+                                  let topic_name: type_topic_name_restrict =
+                                    (
+                                      if (ptr_topic_name_u8.(65535ul) = 0uy) then
+                                        UT.topic_name_uint8_to_c_string ptr_topic_name_u8
+                                      else
+                                        (
+                                          ptr_topic_name_error_status.(0ul) <- 1uy;
+                                          !$""
+                                        )
+                                    ) in ptr_topic_name.(0ul) <- topic_name
+                                )
+                             )
+
                         )
                       // variable_header_index > 1
                       // variable_header_index <= 5
