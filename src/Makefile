@@ -1,7 +1,7 @@
 all:
 	time (make test && sleep 3 && krml -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
 
-verify_time:
+mesure_verify_time:
 	time (krml -verify -skip-extraction -skip-translation -skip-compilation -skip-linking -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
 
 measure_time:

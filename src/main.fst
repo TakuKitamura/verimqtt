@@ -11,12 +11,12 @@ open LowStar.Printf
 open FStar.Int.Cast
 open C.String
 
-// TODO: 違反文字列の含有チェック
+// TODO: 違反文字列の含有チェックに関するテストの追加
 // TODO: PUBLISHのフラグとQOSの関係
 // TODO: パケットタイプとパケット構成が異なる場合
 // TODO: topic_name と payload 長の定義
 
-#reset-options "--z3rlimit 250 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
+#reset-options "--z3rlimit 500 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
 val max_u32: U32.t
 let max_u32 = 4294967295ul
@@ -1057,6 +1057,7 @@ let mqtt_packet_parse request packet_size =
   let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
   let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
   let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_topic_name_order_mark_check: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_property_length: B.buffer type_property_length = B.alloca 0ul 1ul in
   let ptris_searching_property_length: B.buffer bool = B.alloca true 1ul in
   let ptr_payload: B.buffer type_payload_restrict = B.alloca !$"" 1ul in
@@ -1075,6 +1076,7 @@ let mqtt_packet_parse request packet_size =
     B.live h ptr_topic_name_u8 /\
     B.live h ptr_topic_name /\
     B.live h ptr_topic_name_error_status /\
+    B.live h ptr_topic_name_order_mark_check /\
     B.live h ptr_property_length /\
     B.live h ptris_searching_property_length /\
     B.live h ptr_payload /\
@@ -1156,9 +1158,11 @@ let mqtt_packet_parse request packet_size =
                     else
                       (
                       // print_string "index "; print_u32 variable_header_index; print_string ", ";
+                      // ptr_topic_name_u8 65535
+                      // variable_header_index <= 65535 + 1
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
-                          if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x2buy || U8.eq one_byte 0x2fuy) then
+                          if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x23uy || U8.eq one_byte 0x2buy) then
                             (
                               ptr_topic_name_error_status.(0ul) <- 2uy;
                               ptr_is_break.(0ul) <- true
@@ -1167,20 +1171,43 @@ let mqtt_packet_parse request packet_size =
                             (
                               // print_string "topic_name: "; UT.print_hex one_byte; new_line ();
                               ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
-                              if (variable_header_index = (U32.(topic_length +^ 1ul))) then
+                              let topic_name_order_mark_check: U8.t = ptr_topic_name_order_mark_check.(0ul) in
+                              if (U8.eq topic_name_order_mark_check 0uy && U8.eq one_byte 0xefuy) then
                                 (
-                                  // [/:2f], [+:2b], [null:00]を含むとエラー
-                                  // [0xEF, 0xBB, 0xBF] を含む場合､無視
-                                  let topic_name: type_topic_name_restrict =
+                                  ptr_topic_name_order_mark_check.(0ul) <- 1uy
+                                )
+                              else if (U8.eq topic_name_order_mark_check 1uy && U8.eq one_byte 0xbbuy) then
+                                (
+                                  ptr_topic_name_order_mark_check.(0ul) <- 2uy
+                                )
+                              else if (U8.eq topic_name_order_mark_check 2uy && U8.eq one_byte 0xbfuy && U32.gte variable_header_index 4ul) then
+                                (
+                                  ptr_topic_name_order_mark_check.(0ul) <- 3uy;
+                                  // main.fst(1186,57-1186,60): (Error 19) assertion failed; The solver found a (partial) counterexample, try to spell your proof in more detail or increase fuel/ifuel (see also FStar.UInt32.fst(81,12-81,32))
+                                  ptr_topic_name_u8.(U32.sub variable_header_index 4ul) <- 0xfeuy;
+                                  ptr_topic_name_u8.(U32.sub variable_header_index 3ul) <- 0xffuy;
+                                  ptr_variable_header_index.(0ul) <- U32.sub variable_header_index 1ul
+                                  // ptr_is_break.(0ul) <- true
+                                )
+                              else
+                                (
+                                  ptr_topic_name_order_mark_check.(0ul) <- 0uy;
+                                  // ? = 65536
+                                  if (variable_header_index = (U32.(topic_length +^ 1ul))) then
                                     (
-                                      if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                                        UT.topic_name_uint8_to_c_string ptr_topic_name_u8
-                                      else
+                                      // [0xEF, 0xBB, 0xBF] を含む場合それをfeffに置き換え
+                                      let topic_name: type_topic_name_restrict =
                                         (
-                                          ptr_topic_name_error_status.(0ul) <- 1uy;
-                                          !$""
-                                        )
-                                    ) in ptr_topic_name.(0ul) <- topic_name
+                                          if (ptr_topic_name_u8.(65535ul) = 0uy) then
+                                            UT.topic_name_uint8_to_c_string ptr_topic_name_u8
+                                          else
+                                            (
+                                              ptr_topic_name_error_status.(0ul) <- 1uy;
+                                              !$""
+                                            )
+                                          // UT.topic_name_uint8_to_c_string ptr_topic_name_u8
+                                        ) in ptr_topic_name.(0ul) <- topic_name
+                                    )
                                 )
                              )
 
