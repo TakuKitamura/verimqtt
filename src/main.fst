@@ -11,11 +11,6 @@ open LowStar.Printf
 open FStar.Int.Cast
 open C.String
 
-// TODO: 違反文字列の含有チェックに関するテストの追加
-// TODO: PUBLISHのフラグとQOSの関係
-// TODO: パケットタイプとパケット構成が異なる場合
-// TODO: topic_name と payload 長の定義
-
 #reset-options "--z3rlimit 500 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
 val max_u32: U32.t
