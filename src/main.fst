@@ -28,7 +28,6 @@ let min_request_size = 0ul
 val max_packet_size: U32.t
 let max_packet_size = 268435460ul
 
-// TODO: 置き換え
 val max_payload_size: U32.t
 let max_payload_size = 268435455ul
 
@@ -513,7 +512,6 @@ type struct_fixed_header_constant = {
   flags_constant: struct_flags;
 }
 
-// TODO: 値域が正しいかを最終的に確かめる｡
 type struct_variable_header_publish = {
   topic_length: type_topic_length_restrict;
   topic_name: type_topic_name_restrict;
