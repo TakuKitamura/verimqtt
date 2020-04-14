@@ -43,7 +43,6 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // parse関数が定理証明済み
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
     free(request);
 

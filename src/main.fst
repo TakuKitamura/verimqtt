@@ -37,14 +37,7 @@ let min_packet_size = 2ul
 type type_packet_size =
   packet_size:
     U32.t{U32.v packet_size >= U32.v min_packet_size && U32.v packet_size <= U32.v max_packet_size}
-// let tymax_packet_size = 268435460ul
-
-// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
-// 2.1.2 MQTT Control Packet type
-// Table 2‑1 MQTT Control Packet types
-type type_mqtt_control_packets = U8.t // Base 10
-
-// let define_mqtt_control_packet_RESERVED : type_mqtt_control_packets = 0uy
+type type_mqtt_control_packets = U8.t
 let define_mqtt_control_packet_CONNECT : type_mqtt_control_packets = 1uy
 let define_mqtt_control_packet_CONNACK : type_mqtt_control_packets = 2uy
 let define_mqtt_control_packet_PUBLISH : type_mqtt_control_packets = 3uy
@@ -62,7 +55,6 @@ let define_mqtt_control_packet_DISCONNECT : type_mqtt_control_packets = 14uy
 let define_mqtt_control_packet_AUTH : type_mqtt_control_packets = 15uy
 
 type type_mqtt_control_packet_label = C.String.t
-// let define_mqtt_control_packet_RESERVED_label : type_mqtt_control_packet_label = !$"RESERVED"
 let define_mqtt_control_packet_CONNECT_label : type_mqtt_control_packet_label = !$"CONNECT"
 let define_mqtt_control_packet_CONNACK_label : type_mqtt_control_packet_label = !$"CONNACK"
 let define_mqtt_control_packet_PUBLISH_label : type_mqtt_control_packet_label = !$"PUBLISH"
@@ -100,16 +92,11 @@ type type_message_name_restrict =
 
 type type_mqtt_control_packets_restrict =
   v:type_mqtt_control_packets{U8.v v >= 1 && U8.v v <= 15 || U8.eq v max_u8}
-
-
-// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901022
-// 2.1.3 Flags
-// Table 2‑2 Flag Bits
-type type_flags = U8.t // Base 2
+type type_flags = U8.t
 
 let define_flag_CONNECT : type_flags = 0b0000uy
 let define_flag_CONNACK : type_flags = 0b0000uy
-// PUBLISH のフラグは下記に記述
+
 let define_flag_PUBACK : type_flags = 0b0000uy
 let define_flag_PUBREC : type_flags = 0b0000uy
 let define_flag_PUBREL : type_flags = 0b0010uy
@@ -122,33 +109,22 @@ let define_flag_PINGREQ : type_flags = 0b0000uy
 let define_flag_PINGRESP : type_flags = 0b0000uy
 let define_flag_DISCONNECT : type_flags = 0b0000uy
 let define_flag_AUTH : type_flags = 0b0000uy
-
-// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
-// 3.3.1.1 DUP
-type type_dup_flags = U8.t // Base 10
+type type_dup_flags = U8.t
 
 let define_dup_flag_first_delivery : type_dup_flags = 0uy
 let define_dup_flag_re_delivery : type_dup_flags = 1uy
 
 type type_dup_flags_restrict =
   dup_flag: type_dup_flags{U8.v dup_flag <= 1 || U8.eq dup_flag max_u8}
-
-// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
-// 3.3.1.2 QoS
-// Table 3‑2 - QoS definitions
-type type_qos_flags = U8.t // Base 2
+type type_qos_flags = U8.t
 
 let define_qos_flag_at_most_once_delivery : type_qos_flags = 0b00uy
 let define_qos_flag_at_least_once_delivery : type_qos_flags = 0b01uy
 let define_qos_flag_exactly_once_delivery : type_qos_flags = 0b10uy
-// let define_qos_flag_reserved : type_qos_flags = 0b11uy
 
 type type_qos_flags_restrict =
   qos_flag: type_qos_flags{U8.v qos_flag <= 2 || U8.eq qos_flag max_u8}
-
-// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
-// 3.3.1.3 RETAIN
-type type_retain_flags = U8.t // Base 10
+type type_retain_flags = U8.t
 
 let define_retain_flag_must_not_store_application_message : type_retain_flags = 0uy
 let define_retain_flag_must_store_application_message : type_retain_flags = 1uy
@@ -169,8 +145,6 @@ type type_remaining_length =
 type type_topic_length_restrict =
   (topic_length_restrict: U32.t{U32.v topic_length_restrict <= 65535 || U32.eq topic_length_restrict max_u32})
 
-// [/], [+],[null]を含むとエラー
-// [0xEF, 0xBB, 0xBF] を含む場合､無視
 type type_topic_name_restrict =
   (
     topic_name: C.String.t{U32.v (strlen topic_name) <= 65535}
@@ -197,7 +171,6 @@ let define_error_topic_name_dont_zero_terminated: type_error_message = !$"topic_
 let define_error_topic_name_have_inavlid_character: type_error_message = !$"topic_name have invalid character."
 let define_error_property_length_invalid: type_error_message = !$"property_length is invalid."
 let define_error_payload_invalid: type_error_message = !$"payload is invalid."
-// let define_error_unexpected: type_error_message = !$"unexpected error."
 let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
@@ -215,7 +188,6 @@ type type_error_message_restrict =
       v = define_error_topic_name_have_inavlid_character ||
       v = define_error_property_length_invalid ||
       v = define_error_payload_invalid
-      // v = define_error_unexpected
     }
   )
 
@@ -232,7 +204,6 @@ let define_error_topic_name_dont_zero_terminated_code: type_error_code = 8uy
 let define_error_property_length_invalid_code: type_error_code = 9uy
 let define_error_payload_invalid_code: type_error_code = 10uy
 let define_error_topic_name_have_inavlid_character_code: type_error_code = 11uy
-// let define_error_unexpected_code: type_error_code = 255uy
 
 type type_error_code_restrict =
   (v:
@@ -249,7 +220,6 @@ type type_error_code_restrict =
       v = define_error_topic_name_have_inavlid_character_code ||
       v = define_error_property_length_invalid_code ||
       v = define_error_payload_invalid_code
-      // v = define_error_unexpected_code
     }
   )
 
@@ -260,9 +230,6 @@ val slice_byte:
   byte:U8.t
   -> a:U8.t{U8.v a <= 7}
   -> b:U8.t {U8.v b <= 8 && U8.v a < U8.v b} -> U8.t
-  // -> Stack U8.t
-  //   (requires fun h0 -> true)
-  //   (ensures fun h0 r h1 -> true)
 let slice_byte byte a b =
   let for_mask_temp1: U8.t =
     (
@@ -329,13 +296,10 @@ let is_valid_decoding_packet_check ptr_for_decoding_packets bytes_length =
           if (U32.lt i bytes_length_u32) then
             (
               let decoding_packet: U8.t = ptr_for_decoding_packets.(i) in
-                // print_u8 decoding_packet;
-                // print_string "<-decoding_packet\n";
                 if (U8.eq bytes_length 1uy) then
                   (
                     if (U8.lt decoding_packet 0uy || U8.gt decoding_packet 127uy) then
                       (
-                        // print_string "err1\n";
                         ptr_status.(0ul) <- 1uy
                       )
                   )
@@ -346,14 +310,12 @@ let is_valid_decoding_packet_check ptr_for_decoding_packets bytes_length =
                       (
                         if (U8.lt decoding_packet 1uy || U8.gt decoding_packet 127uy) then
                           (
-                            // print_string "err2\n";
                             ptr_status.(0ul) <- 2uy
                           )
                       ) else
                         (
                           if (U8.lt decoding_packet 128uy || U8.gt decoding_packet max_u8) then
                             (
-                              // print_string "err3\n";
                               ptr_status.(0ul) <- 3uy
                             )
                         )
@@ -418,7 +380,6 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
         let ptr_status_v: (status:U8.t{U8.v status <= 1}) = ptr_status.(0ul) in
           if (ptr_status_v = 1uy) then
             (
-              // let _ = ptr_for_decoding_packet.(0ul) <- ptr_for_decoding_packets.(i) in
               let decoding_packet: U8.t = ptr_for_decoding_packets.(i) in
 
               let b_u8: (x:U8.t{U8.v x >= 0 && U8.v x <= 127}) =
@@ -459,16 +420,6 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
       pop_frame ();
       remaining_length
   )
-
-// (1byte) + (msg len byte 1 or 2 or 3 or 4) + (msg byte) = 25
-// (1byte) + (msg len byte 1 or 2 or 3 or 4) + (23byte) = 25
-// (1byte) + (1byte) + (23byte) = 25
-
-// (1byte) + (msg len byte 1 or 2 or 3 or 4) + (msg byte) = 100016
-// x (1byte) + (msg len byte 1 or 2 or 3 or 4) + (172byte) = 100016
-// x (1byte) + (msg len byte 2 or 3 or 4) + (34476byte) = 100016
-// x (1byte) + (msg len byte 3 or 4) + (100012byte) = 100016
-// (1byte) + (3byte) + (100012byte) = 100016
 
 val get_remaining_length: bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4} -> ptr_for_decoding_packets: B.buffer U8.t -> packet_size: type_packet_size
   -> Stack (remaining_length:type_remaining_length)
@@ -840,7 +791,6 @@ val get_fixed_header: s: struct_fixed_header_parts
             else if (s.is_searching_property_length) then
               r.error.code = define_error_property_length_invalid_code &&
               r.error.message = define_error_property_length_invalid
-            // else if (U8.gt s._payload_error_status 0uy) then
             else
               r.error.code = define_error_payload_invalid_code &&
               r.error.message = define_error_payload_invalid
@@ -865,7 +815,6 @@ val get_fixed_header: s: struct_fixed_header_parts
           else if (U8.eq s._message_type max_u8) then
             r.error.code = define_error_message_type_invalid_code &&
             r.error.message = define_error_message_type_invalid
-          // else if (is_valid_flag data flag = false) then
           else
             r.error.code = define_error_flag_invalid_code &&
             r.error.message = define_error_flag_invalid
@@ -939,7 +888,6 @@ let get_fixed_header s =
                 code = define_error_property_length_invalid_code;
                 message = define_error_property_length_invalid;
               }
-            // else if (U8.gt s._payload_error_status 0uy) then
             else
               {
                 code = define_error_payload_invalid_code;
@@ -993,7 +941,6 @@ let get_fixed_header s =
                       code = define_error_message_type_invalid_code;
                       message = define_error_message_type_invalid;
                   }
-                // else if (is_valid_flag data flag = false) then
                 else
                   {
                       code = define_error_flag_invalid_code;
@@ -1030,8 +977,6 @@ val mqtt_packet_parse (request: B.buffer U8.t) (packet_size: type_packet_size):
       B.live h request /\
       B.length request <= U32.v max_request_size /\
       UT.zero_terminated_buffer_u8 h request /\
-      // U32.v packet_size >= 2 /\
-      // U32.v packet_size <= 268435460 /\
       (B.length request - 1) = U32.v packet_size))
     (ensures (fun h0 _ h1 -> B.live h0 request /\ B.live h1 request))
 let mqtt_packet_parse request packet_size =
@@ -1150,9 +1095,6 @@ let mqtt_packet_parse request packet_size =
                       )
                     else
                       (
-                      // print_string "index "; print_u32 variable_header_index; print_string ", ";
-                      // ptr_topic_name_u8 65535
-                      // variable_header_index <= 65535 + 1
                       if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
                         (
                           if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x23uy || U8.eq one_byte 0x2buy) then
@@ -1162,7 +1104,6 @@ let mqtt_packet_parse request packet_size =
                             )
                           else
                             (
-                              // print_string "topic_name: "; UT.print_hex one_byte; new_line ();
                               ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
                               let topic_name_order_mark_check: U8.t = ptr_topic_name_order_mark_check.(0ul) in
                               if (U8.eq topic_name_order_mark_check 0uy && U8.eq one_byte 0xefuy) then
@@ -1176,19 +1117,15 @@ let mqtt_packet_parse request packet_size =
                               else if (U8.eq topic_name_order_mark_check 2uy && U8.eq one_byte 0xbfuy && U32.gte variable_header_index 4ul) then
                                 (
                                   ptr_topic_name_order_mark_check.(0ul) <- 3uy;
-                                  // main.fst(1186,57-1186,60): (Error 19) assertion failed; The solver found a (partial) counterexample, try to spell your proof in more detail or increase fuel/ifuel (see also FStar.UInt32.fst(81,12-81,32))
                                   ptr_topic_name_u8.(U32.sub variable_header_index 4ul) <- 0xfeuy;
                                   ptr_topic_name_u8.(U32.sub variable_header_index 3ul) <- 0xffuy;
                                   ptr_variable_header_index.(0ul) <- U32.sub variable_header_index 1ul
-                                  // ptr_is_break.(0ul) <- true
                                 )
                               else
                                 (
                                   ptr_topic_name_order_mark_check.(0ul) <- 0uy;
-                                  // ? = 65536
                                   if (variable_header_index = (U32.(topic_length +^ 1ul))) then
                                     (
-                                      // [0xEF, 0xBB, 0xBF] を含む場合それをfeffに置き換え
                                       let topic_name: type_topic_name_restrict =
                                         (
                                           if (ptr_topic_name_u8.(65535ul) = 0uy) then
@@ -1198,15 +1135,12 @@ let mqtt_packet_parse request packet_size =
                                               ptr_topic_name_error_status.(0ul) <- 1uy;
                                               !$""
                                             )
-                                          // UT.topic_name_uint8_to_c_string ptr_topic_name_u8
                                         ) in ptr_topic_name.(0ul) <- topic_name
                                     )
                                 )
                              )
 
                         )
-                      // variable_header_index > 1
-                      // variable_header_index <= 5
                       else if (U32.gt variable_header_index (U32.(topic_length +^ 1ul))
                         && U32.lte variable_header_index (U32.(topic_length +^ 5ul))
                         && is_searching_property_length
@@ -1214,7 +1148,6 @@ let mqtt_packet_parse request packet_size =
                         (
                           if (one_byte = 0uy) then
                             (
-                              // print_string "topic_length: "; UT.print_hex one_byte; new_line ();
                               ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
                               ptris_searching_property_length.(0ul) <- false
                             )
@@ -1241,16 +1174,12 @@ let mqtt_packet_parse request packet_size =
                         )
                       else
                         (
-                          // unreach
-                          // print_string "unexpected error"; new_line ()
                           ()
                         )
                       )
                   )
                 else
                   (
-                    // unreach
-                    // print_string "unexpected error"; new_line ()
                     ()
                   )
               );
@@ -1261,21 +1190,17 @@ let mqtt_packet_parse request packet_size =
         )
       else
         (
-          // unreach
-          // print_string "unexpected error\n"
           ()
         )
   in
   C.Loops.for 0ul packet_size inv body;
 
-  // 共通
   let is_searching_remaining_length: bool = ptris_searching_remaining_length.(0ul) in
   let fixed_header_first_one_byte: U8.t = ptr_fixed_header_first_one_byte.(0ul) in
   let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
   let remaining_length: type_remaining_length
     = ptr_remaining_length.(0ul) in
 
-  // PUBLISH
   let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
   let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
   let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in

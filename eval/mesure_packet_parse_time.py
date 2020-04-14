@@ -21,8 +21,8 @@ def encode_remaining_length(remaining_length):
     return remaining_length_hex_str
 
 # make_file_path = '../src/out/mqttPacketParser.out'
-command = ['make', '-C', '../src', 'measure_time']
-# command = ['make', '-C', '../src', 'measure_time_optimize']
+# command = ['make', '-C', '../src', 'measure_time']
+command = ['make', '-C', '../src', 'measure_time_optimize']
 subprocess.check_output(command, stderr=subprocess.STDOUT)
 
 i = 0
@@ -90,7 +90,7 @@ fig = plt.figure()
 ax = fig.add_subplot()
 ax.plot(x, y, marker='o', label='計測パケット(合計個数: {}個)'.format(totol_packet_count))
 
-plt.title('パケットサイズとパケットパース時間の関係')
+plt.title('パケットサイズとパケットパース時間の関係 (最適化レベルは高め)')
 plt.xlabel('パケットサイズ [mb]')
 plt.ylabel('1パケットあたりのパース時間 [ms]')
 

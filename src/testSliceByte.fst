@@ -28,5 +28,7 @@ let main () =
         T.eq_u8 !$"v[2:6]" 0b00000101uy v;
     let v:U8.t = slice_byte ex1 3uy 5uy in
         T.eq_u8 !$"v[3:5]" 0b00000010uy v;
+    let v:U8.t = slice_byte ex1 3uy 5uy in
+        T.eq_u8 !$"v[3:5]" 0b11111111uy v;
     T.test_end ();
     C.EXIT_SUCCESS
