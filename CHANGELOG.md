@@ -1,5 +1,8 @@
 # Change Log
 
+## [v.0.1.0](https://github.com/TakuKitamura/verimqtt/tree/v0.1.0) (2020-05-12)
+- can call fstar-mqtt-packet-parser from rust-mqtt-impl
+
 ## [v0.0.3](https://github.com/TakuKitamura/verimqtt/tree/v0.0.3) (2019-12-03)
 
 **Implemented enhancements:**
