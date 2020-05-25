@@ -10,6 +10,7 @@ open LowStar.BufferOps
 open LowStar.Printf
 open FStar.Int.Cast
 open C.String
+open C
 
 #reset-options "--z3rlimit 500 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
@@ -225,6 +226,10 @@ type type_error_code_restrict =
 
 val new_line : unit -> StTrivial unit
 let new_line () = print_string "\n"
+
+let print_not_implemented str = print_string "Not Implemented: "; 
+                          print_string str;
+                          new_line ()
 
 val slice_byte:
   byte:U8.t
@@ -910,7 +915,7 @@ let get_fixed_header s =
             publish = {
               topic_length = s._topic_length;
               topic_name = s._topic_name;
-              property_length = 0ul;
+              property_length = s._property_length;
               payload = s._payload;
             };
             error = {
@@ -1041,6 +1046,11 @@ let mqtt_packet_parse request packet_size =
                 ptr_is_break.(0ul) <- true;
                 ptris_searching_remaining_length.(0ul) <- false
               )
+            else if ( not (U8.eq message_type define_mqtt_control_packet_PUBLISH) ) then
+              (
+                // TODO: add implement
+                print_not_implemented "Except PUBLISH Packet Parsing"
+              )
         )
       else if (U32.gte i 1ul && U32.lte i 4ul && is_searching_remaining_length) then
         (
@@ -1146,10 +1156,15 @@ let mqtt_packet_parse request packet_size =
                         && is_searching_property_length
                         ) then
                         (
+
                           if (one_byte = 0uy) then
                             (
                               ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
                               ptris_searching_property_length.(0ul) <- false
+                            ) else (
+                              // TODO: 3.3.2.3 PUBLISH Properties 
+                              // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901109
+                              print_not_implemented "PUBLISH Properties Parsing"
                             )
                         )
                       else if (not is_searching_property_length) then
