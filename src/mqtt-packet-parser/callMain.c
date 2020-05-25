@@ -43,21 +43,24 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    kremlinit_globals();
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
     free(request);
 
-    printf("message_type=0x%02x\n", data.message_type);
-    printf("message_name=%s\n", data.message_name);
-    printf("flag=0x%02x\n", data.flags.flag);
-    printf("dup_flag=0x%02x\n", data.flags.dup_flag);
-    printf("qos_flag=0x%02x\n", data.flags.qos_flag);
-    printf("retain_flag=0x%02x\n", data.flags.retain_flag);
-    printf("remaining_length=%u\n", data.remaining_length);
-    printf("topic_length=%u\n", data.publish.topic_length);
-    printf("topic_name=%s\n", data.publish.topic_name);
-    printf("property_length=%u\n", data.publish.property_length);
-    printf("payload=%s\n", data.publish.payload);
-    printf("error_code=%u\n", data.error.code);
-    printf("error_message=%s\n", data.error.message);
+    printf("data.message_type=0x%02x\n", data.message_type);
+    printf("data.message_name=%s\n", data.message_name);
+    printf("data.flags.flag=0x%02x\n", data.flags.flag);
+    printf("data.flags.dup_flag=0x%02x\n", data.flags.dup_flag);
+    printf("data.flags.qos_flag=0x%02x\n", data.flags.qos_flag);
+    printf("data.flags.retain_flag=0x%02x\n", data.flags.retain_flag);
+    printf("data.remaining_length=%u\n", data.remaining_length);
+    printf("data.publish.topic_length=%u\n", data.publish.topic_length);
+    printf("data.publish.topic_name=%s\n", data.publish.topic_name);
+    printf("data.publish.property_length=%u\n", data.publish.property_length);
+    printf("data.publish.payload=%s\n", data.publish.payload);
+    printf("data.disconnect.disconnect_reason_code=0x%02x\n", data.disconnect.disconnect_reason_code);
+    printf("data.disconnect.disconnect_reason_code_name=%s\n", data.disconnect.disconnect_reason_code_name);
+    printf("data.error.code=%u\n", data.error.code);
+    printf("data.error.message=%s\n", data.error.message);
     exit(EXIT_SUCCESS);
 }

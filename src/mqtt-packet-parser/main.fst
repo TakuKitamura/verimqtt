@@ -160,6 +160,249 @@ type type_payload_restrict =
     payload: C.String.t{U32.v (strlen payload) <= U32.v max_packet_size}
   )
 
+type type_disconnect_reason_code = U8.t
+let define_disconnect_reason_code_normal_disconnection: type_disconnect_reason_code = 0uy
+let define_disconnect_reason_code_disconnect_with_will_message: type_disconnect_reason_code = 4uy
+let define_disconnect_reason_code_unspecified_error: type_disconnect_reason_code = 128uy
+let define_disconnect_reason_code_malformed_packet: type_disconnect_reason_code = 129uy
+let define_disconnect_reason_code_protocol_error: type_disconnect_reason_code = 130uy
+let define_disconnect_reason_code_implementation_specific_error: type_disconnect_reason_code = 131uy
+let define_disconnect_reason_code_not_authorized: type_disconnect_reason_code = 135uy
+let define_disconnect_reason_code_server_busy: type_disconnect_reason_code = 137uy
+let define_disconnect_reason_code_server_shutting_down: type_disconnect_reason_code = 139uy
+let define_disconnect_reason_code_keep_alive_timeout: type_disconnect_reason_code = 141uy
+let define_disconnect_reason_code_session_taken_over: type_disconnect_reason_code = 142uy
+let define_disconnect_reason_code_topic_filter_invalid: type_disconnect_reason_code = 143uy
+let define_disconnect_reason_code_topic_name_invalid: type_disconnect_reason_code = 144uy
+let define_disconnect_reason_receive_maximum_exceeded: type_disconnect_reason_code = 147uy
+let define_disconnect_reason_topic_alias_invalid: type_disconnect_reason_code = 148uy
+let define_disconnect_reason_packet_too_large: type_disconnect_reason_code = 149uy
+let define_disconnect_reason_message_rate_too_high: type_disconnect_reason_code = 150uy
+let define_disconnect_reason_quota_exceeded: type_disconnect_reason_code = 151uy
+let define_disconnect_reason_administrative_action: type_disconnect_reason_code = 152uy
+let define_disconnect_reason_payload_format_invalid: type_disconnect_reason_code = 153uy
+let define_disconnect_reason_retain_not_supported: type_disconnect_reason_code = 154uy
+let define_disconnect_reason_qos_not_supported: type_disconnect_reason_code = 155uy
+let define_disconnect_reason_use_another_server: type_disconnect_reason_code = 156uy
+let define_disconnect_reason_server_moved: type_disconnect_reason_code = 157uy
+let define_disconnect_reason_shared_subscriptions_not_supported: type_disconnect_reason_code = 158uy
+let define_disconnect_reason_connection_rate_exceeded: type_disconnect_reason_code = 159uy
+let define_disconnect_reason_maximum_connect_time: type_disconnect_reason_code = 160uy
+let define_disconnect_reason_subscription_identifiers_not_supported: type_disconnect_reason_code = 161uy
+let define_disconnect_reason_wildcard_subscriptions_not_supported: type_disconnect_reason_code = 162uy
+
+
+
+type type_disconnect_reason_code_name = C.String.t
+let define_disconnect_reason_code_normal_disconnection_name: type_disconnect_reason_code_name = !$"Normal disconnection" 
+let define_disconnect_reason_code_disconnect_with_will_message_name: type_disconnect_reason_code_name = !$"Disconnect with Will Message"
+let define_disconnect_reason_code_unspecified_error_name: type_disconnect_reason_code_name = !$"Unspecified error"
+let define_disconnect_reason_code_malformed_packet_name: type_disconnect_reason_code_name = !$"Malformed Packet"
+let define_disconnect_reason_code_protocol_error_name: type_disconnect_reason_code_name = !$"Protocol Error"
+let define_disconnect_reason_code_implementation_specific_error_name: type_disconnect_reason_code_name = !$"Implementation specific error"
+let define_disconnect_reason_code_not_authorized_name: type_disconnect_reason_code_name = !$"Not authorized"
+let define_disconnect_reason_code_server_busy_name: type_disconnect_reason_code_name = !$"Server busy"
+let define_disconnect_reason_code_server_shutting_down_name: type_disconnect_reason_code_name = !$"Server shutting down"
+let define_disconnect_reason_code_keep_alive_timeout_name: type_disconnect_reason_code_name = !$"Keep Alive timeout"
+let define_disconnect_reason_code_session_taken_over_name: type_disconnect_reason_code_name = !$"Session taken over"
+let define_disconnect_reason_code_topic_filter_invalid_name: type_disconnect_reason_code_name = !$"Topic Filter invalid"
+let define_disconnect_reason_code_topic_name_invalid_name: type_disconnect_reason_code_name = !$"Topic Name invalid"
+let define_disconnect_reason_receive_maximum_exceeded_name: type_disconnect_reason_code_name = !$"Receive Maximum exceeded"
+let define_disconnect_reason_topic_alias_invalid_name: type_disconnect_reason_code_name = !$"Topic Alias invalid"
+let define_disconnect_reason_packet_too_large_name: type_disconnect_reason_code_name = !$"Packet too large"
+let define_disconnect_reason_message_rate_too_high_name: type_disconnect_reason_code_name = !$"Message rate too high"
+let define_disconnect_reason_quota_exceeded_name: type_disconnect_reason_code_name = !$"Quota exceeded"
+let define_disconnect_reason_administrative_action_name: type_disconnect_reason_code_name = !$"Administrative action"
+let define_disconnect_reason_payload_format_invalid_name: type_disconnect_reason_code_name = !$"Payload format invalid"
+let define_disconnect_reason_retain_not_supported_name: type_disconnect_reason_code_name = !$"Retain not supported"
+let define_disconnect_reason_qos_not_supported_name: type_disconnect_reason_code_name = !$"QoS not supported"
+let define_disconnect_reason_use_another_server_name: type_disconnect_reason_code_name = !$"Use another server"
+let define_disconnect_reason_server_moved_name: type_disconnect_reason_code_name = !$"Server moved"
+let define_disconnect_reason_shared_subscriptions_not_supported_name: type_disconnect_reason_code_name = !$"Shared Subscriptions not supported"
+let define_disconnect_reason_connection_rate_exceeded_name: type_disconnect_reason_code_name = !$"Connection rate exceeded"
+let define_disconnect_reason_maximum_connect_time_name: type_disconnect_reason_code_name = !$"Maximum connect time"
+let define_disconnect_reason_subscription_identifiers_not_supported_name: type_disconnect_reason_code_name = !$"Subscription Identifiers not supported"
+let define_disconnect_reason_wildcard_subscriptions_not_supported_name: type_disconnect_reason_code_name = !$"Wildcard Subscriptions not supported"
+
+type struct_disconnect_reason = {
+  disconnect_reason_code: type_disconnect_reason_code;
+  disconnect_reason_code_name: type_disconnect_reason_code_name;
+}
+
+let define_struct_disconnect_normal_disconnection: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_normal_disconnection;
+    disconnect_reason_code_name = define_disconnect_reason_code_normal_disconnection_name;
+  }
+
+let define_struct_disconnect_disconnect_with_will_message: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_disconnect_with_will_message;
+    disconnect_reason_code_name = define_disconnect_reason_code_disconnect_with_will_message_name;
+  }
+
+let define_struct_disconnect_unspecified_error: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_unspecified_error;
+    disconnect_reason_code_name = define_disconnect_reason_code_unspecified_error_name;
+  }
+
+let define_struct_disconnect_malformed_packet: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_malformed_packet;
+    disconnect_reason_code_name = define_disconnect_reason_code_malformed_packet_name;
+  }
+
+let define_struct_disconnect_protocol_error: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_protocol_error;
+    disconnect_reason_code_name = define_disconnect_reason_code_protocol_error_name;
+  }
+
+let define_struct_disconnect_implementation_specific_error: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_implementation_specific_error;
+    disconnect_reason_code_name = define_disconnect_reason_code_implementation_specific_error_name;
+  }
+
+let define_struct_disconnect_not_authorized: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_not_authorized;
+    disconnect_reason_code_name = define_disconnect_reason_code_not_authorized_name;
+  }
+
+let define_struct_disconnect_server_busy: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_server_busy;
+    disconnect_reason_code_name = define_disconnect_reason_code_server_busy_name;
+  }
+
+let define_struct_disconnect_server_shutting_down: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_server_shutting_down;
+    disconnect_reason_code_name = define_disconnect_reason_code_server_shutting_down_name;
+  }
+
+let define_struct_disconnect_keep_alive_timeout: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_keep_alive_timeout;
+    disconnect_reason_code_name = define_disconnect_reason_code_keep_alive_timeout_name;
+  }  
+
+let define_struct_disconnect_session_taken_over: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_session_taken_over;
+    disconnect_reason_code_name = define_disconnect_reason_code_session_taken_over_name;
+  } 
+
+let define_struct_disconnect_topic_filter_invalid: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_topic_filter_invalid;
+    disconnect_reason_code_name = define_disconnect_reason_code_topic_filter_invalid_name;
+  } 
+
+let define_struct_disconnect_topic_name_invalid: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_code_topic_name_invalid;
+    disconnect_reason_code_name = define_disconnect_reason_code_topic_name_invalid_name;
+  } 
+
+let define_struct_disconnect_receive_maximum_exceeded: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_receive_maximum_exceeded;
+    disconnect_reason_code_name = define_disconnect_reason_receive_maximum_exceeded_name;
+  } 
+
+let define_struct_disconnect_topic_alias_invalid: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_topic_alias_invalid;
+    disconnect_reason_code_name = define_disconnect_reason_topic_alias_invalid_name;
+  } 
+
+let define_struct_disconnect_packet_too_large: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_packet_too_large;
+    disconnect_reason_code_name = define_disconnect_reason_packet_too_large_name;
+  }   
+
+let define_struct_disconnect_message_rate_too_high: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_message_rate_too_high;
+    disconnect_reason_code_name = define_disconnect_reason_message_rate_too_high_name;
+  }   
+
+let define_struct_disconnect_quota_exceeded: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_quota_exceeded;
+    disconnect_reason_code_name = define_disconnect_reason_quota_exceeded_name;
+  }   
+
+let define_struct_disconnect_administrative_action: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_administrative_action;
+    disconnect_reason_code_name = define_disconnect_reason_administrative_action_name;
+  }   
+
+let define_struct_disconnect_payload_format_invalid: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_payload_format_invalid;
+    disconnect_reason_code_name = define_disconnect_reason_payload_format_invalid_name;
+  }   
+
+let define_struct_disconnect_retain_not_supported: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_retain_not_supported;
+    disconnect_reason_code_name = define_disconnect_reason_retain_not_supported_name;
+  }   
+
+let define_struct_disconnect_qos_not_supported: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_qos_not_supported;
+    disconnect_reason_code_name = define_disconnect_reason_qos_not_supported_name;
+  }   
+
+let define_struct_disconnect_use_another_server: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_use_another_server;
+    disconnect_reason_code_name = define_disconnect_reason_use_another_server_name;
+  }   
+
+let define_struct_disconnect_server_moved: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_server_moved;
+    disconnect_reason_code_name = define_disconnect_reason_server_moved_name;
+  }   
+
+let define_struct_disconnect_shared_subscriptions_not_supported: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_shared_subscriptions_not_supported;
+    disconnect_reason_code_name = define_disconnect_reason_shared_subscriptions_not_supported_name;
+  }   
+
+let define_struct_disconnect_connection_rate_exceeded: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_connection_rate_exceeded;
+    disconnect_reason_code_name = define_disconnect_reason_connection_rate_exceeded_name;
+  } 
+
+let define_struct_disconnect_maximum_connect_time: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_maximum_connect_time;
+    disconnect_reason_code_name = define_disconnect_reason_maximum_connect_time_name;
+  } 
+
+let define_struct_disconnect_subscription_identifiers_not_supported: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_subscription_identifiers_not_supported;
+    disconnect_reason_code_name = define_disconnect_reason_subscription_identifiers_not_supported_name;
+  } 
+
+let define_struct_disconnect_wildcard_subscriptions_not_supported: struct_disconnect_reason =
+  {
+    disconnect_reason_code = define_disconnect_reason_wildcard_subscriptions_not_supported;
+    disconnect_reason_code_name = define_disconnect_reason_wildcard_subscriptions_not_supported_name;
+  } 
+
 type type_error_message = C.String.t
 let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
 let define_error_message_type_invalid: type_error_message = !$"message_type is invalid."
@@ -486,6 +729,7 @@ type struct_fixed_header = {
   flags: struct_flags;
   remaining_length: type_remaining_length;
   publish: struct_variable_header_publish;
+  disconnect: struct_disconnect_reason;
   error: struct_error_struct;
 }
 
@@ -700,6 +944,10 @@ let error_struct_fixed_header error_struct = {
       property_length = max_u32;
       payload = !$"";
     };
+    disconnect = {
+      disconnect_reason_code = max_u8;
+      disconnect_reason_code_name = !$"";
+    };
     error = error_struct;
   }
 
@@ -824,8 +1072,103 @@ val get_fixed_header: s: struct_fixed_header_parts
             r.error.code = define_error_flag_invalid_code &&
             r.error.message = define_error_flag_invalid
         else
-          r.error.code = define_no_error_code &&
-          r.error.message = define_no_error
+          if (U8.eq s._message_type define_mqtt_control_packet_DISCONNECT) then
+            (
+              r.error.code = define_no_error_code &&
+              r.error.message = define_no_error &&
+                (
+                  if (U8.eq data.flags_constant.flag define_disconnect_reason_code_normal_disconnection) then
+                    r.disconnect = define_struct_disconnect_normal_disconnection
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_disconnect_with_will_message) then
+                  r.disconnect = define_struct_disconnect_disconnect_with_will_message
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_unspecified_error) then
+                  r.disconnect = define_struct_disconnect_unspecified_error
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_malformed_packet) then
+                  r.disconnect = define_struct_disconnect_malformed_packet
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_protocol_error) then
+                  r.disconnect = define_struct_disconnect_protocol_error
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_implementation_specific_error) then
+                  r.disconnect = define_struct_disconnect_implementation_specific_error
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_not_authorized) then
+                  r.disconnect = define_struct_disconnect_not_authorized
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_busy) then
+                  r.disconnect = define_struct_disconnect_server_busy
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_shutting_down) then
+                  r.disconnect = define_struct_disconnect_server_shutting_down
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_keep_alive_timeout) then
+                    r.disconnect = define_struct_disconnect_keep_alive_timeout
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_session_taken_over) then
+                    r.disconnect = define_struct_disconnect_session_taken_over
+                      
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_filter_invalid) then
+                    r.disconnect = define_struct_disconnect_topic_filter_invalid
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_name_invalid) then
+                    r.disconnect = define_struct_disconnect_topic_name_invalid
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_receive_maximum_exceeded) then
+                    r.disconnect = define_struct_disconnect_receive_maximum_exceeded
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_topic_alias_invalid) then
+                    r.disconnect = define_struct_disconnect_topic_alias_invalid
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_packet_too_large) then
+                    r.disconnect = define_struct_disconnect_packet_too_large
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_message_rate_too_high) then
+                    r.disconnect = define_struct_disconnect_message_rate_too_high
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_quota_exceeded) then
+                    r.disconnect = define_struct_disconnect_quota_exceeded
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_administrative_action) then
+                    r.disconnect = define_struct_disconnect_administrative_action
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_payload_format_invalid) then
+                    r.disconnect = define_struct_disconnect_payload_format_invalid
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_retain_not_supported) then
+                    r.disconnect = define_struct_disconnect_retain_not_supported
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_qos_not_supported) then
+                    r.disconnect = define_struct_disconnect_qos_not_supported
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_use_another_server) then
+                    r.disconnect = define_struct_disconnect_use_another_server
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_server_moved) then
+                    r.disconnect = define_struct_disconnect_server_moved
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_shared_subscriptions_not_supported) then
+                    r.disconnect = define_struct_disconnect_shared_subscriptions_not_supported
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_connection_rate_exceeded) then
+                    r.disconnect = define_struct_disconnect_connection_rate_exceeded
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_maximum_connect_time) then
+                    r.disconnect = define_struct_disconnect_maximum_connect_time
+
+                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_subscription_identifiers_not_supported) then
+                    r.disconnect = define_struct_disconnect_subscription_identifiers_not_supported
+
+                  else // if (U8.eq data.flags_constant.flag define_disconnect_reason_wildcard_subscriptions_not_supported) then
+                    r.disconnect = define_struct_disconnect_wildcard_subscriptions_not_supported
+                )
+            )
+          else
+            (
+              r.error.code = define_error_message_type_invalid_code &&
+              r.error.message = define_error_message_type_invalid
+            )
       )
     ))
 let get_fixed_header s =
@@ -918,6 +1261,10 @@ let get_fixed_header s =
               property_length = s._property_length;
               payload = s._payload;
             };
+            disconnect = {
+              disconnect_reason_code = max_u8;
+              disconnect_reason_code_name = !$"";
+            };
             error = {
               code = define_no_error_code;
               message = define_no_error;
@@ -953,27 +1300,129 @@ let get_fixed_header s =
                   }
               ) in error_struct_fixed_header error_struct
           else
-            {
-              message_type = data.message_type_constant;
-              message_name = data.message_name_constant;
-              flags = {
-                flag = data.flags_constant.flag;
-                dup_flag = data.flags_constant.dup_flag;
-                qos_flag = data.flags_constant.qos_flag;
-                retain_flag = data.flags_constant.retain_flag;
-              };
-              remaining_length = s._remaining_length;
-              publish = {
-                topic_length = max_u32;
-                topic_name = !$"";
-                property_length = max_u32;
-                payload = !$"";
-              };
-              error = {
-                code = define_no_error_code;
-                message = define_no_error;
-              };
-            }
+            (
+              if (U8.eq s._message_type define_mqtt_control_packet_DISCONNECT) then
+                (
+                  {
+                    message_type = data.message_type_constant;
+                    message_name = data.message_name_constant;
+                    flags = {
+                      flag = data.flags_constant.flag;
+                      dup_flag = data.flags_constant.dup_flag;
+                      qos_flag = data.flags_constant.qos_flag;
+                      retain_flag = data.flags_constant.retain_flag;
+                    };
+                    remaining_length = s._remaining_length;
+                    publish = {
+                      topic_length = max_u32;
+                      topic_name = !$"";
+                      property_length = max_u32;
+                      payload = !$"";
+                    };
+                    disconnect = (
+                      if (U8.eq data.flags_constant.flag define_disconnect_reason_code_normal_disconnection) then
+                        define_struct_disconnect_normal_disconnection
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_disconnect_with_will_message) then
+                        define_struct_disconnect_disconnect_with_will_message
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_unspecified_error) then
+                        define_struct_disconnect_unspecified_error
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_malformed_packet) then
+                        define_struct_disconnect_malformed_packet
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_protocol_error) then
+                        define_struct_disconnect_protocol_error
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_implementation_specific_error) then
+                        define_struct_disconnect_implementation_specific_error
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_not_authorized) then
+                        define_struct_disconnect_not_authorized
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_busy) then
+                        define_struct_disconnect_server_busy
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_shutting_down) then
+                        define_struct_disconnect_server_shutting_down
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_keep_alive_timeout) then
+                          define_struct_disconnect_keep_alive_timeout
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_session_taken_over) then
+                          define_struct_disconnect_session_taken_over
+                          
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_filter_invalid) then
+                          define_struct_disconnect_topic_filter_invalid
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_name_invalid) then
+                          define_struct_disconnect_topic_name_invalid
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_receive_maximum_exceeded) then
+                          define_struct_disconnect_receive_maximum_exceeded
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_topic_alias_invalid) then
+                          define_struct_disconnect_topic_alias_invalid
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_packet_too_large) then
+                          define_struct_disconnect_packet_too_large
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_message_rate_too_high) then
+                          define_struct_disconnect_message_rate_too_high
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_quota_exceeded) then
+                          define_struct_disconnect_quota_exceeded
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_administrative_action) then
+                          define_struct_disconnect_administrative_action
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_payload_format_invalid) then
+                          define_struct_disconnect_payload_format_invalid
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_retain_not_supported) then
+                          define_struct_disconnect_retain_not_supported
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_qos_not_supported) then
+                          define_struct_disconnect_qos_not_supported
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_use_another_server) then
+                          define_struct_disconnect_use_another_server
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_server_moved) then
+                          define_struct_disconnect_server_moved
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_shared_subscriptions_not_supported) then
+                          define_struct_disconnect_shared_subscriptions_not_supported
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_connection_rate_exceeded) then
+                          define_struct_disconnect_connection_rate_exceeded
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_maximum_connect_time) then
+                          define_struct_disconnect_maximum_connect_time
+
+                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_subscription_identifiers_not_supported) then
+                          define_struct_disconnect_subscription_identifiers_not_supported
+
+                      else // if (U8.eq data.flags_constant.flag define_disconnect_reason_wildcard_subscriptions_not_supported) then
+                          define_struct_disconnect_wildcard_subscriptions_not_supported
+                    );
+
+                    error = {
+                      code = define_no_error_code;
+                      message = define_no_error;
+                    };
+                  }
+                )
+              else
+                (
+                  let error_struct: struct_error_struct =
+                    {
+                        code = define_error_message_type_invalid_code;
+                        message = define_error_message_type_invalid;
+                    }
+                  in error_struct_fixed_header error_struct
+                )
+            )
       )
 
 val mqtt_packet_parse (request: B.buffer U8.t) (packet_size: type_packet_size):
@@ -986,6 +1435,8 @@ val mqtt_packet_parse (request: B.buffer U8.t) (packet_size: type_packet_size):
     (ensures (fun h0 _ h1 -> B.live h0 request /\ B.live h1 request))
 let mqtt_packet_parse request packet_size =
   push_frame ();
+  let message_type_bits: U8.t = slice_byte request.(0ul) 0uy 4uy in
+  let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
   let ptr_is_break: B.buffer bool = B.alloca false 1ul in
   let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_message_type: B.buffer type_mqtt_control_packets_restrict
