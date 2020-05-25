@@ -22,7 +22,7 @@ def encode_remaining_length(remaining_length):
 
 # make_file_path = '../src/out/mqttPacketParser.out'
 # command = ['make', '-C', '../src', 'measure_time']
-command = ['make', '-C', '../src', 'measure_time_optimize']
+command = ['make', '-C', '../src/mqtt-packet-parser', 'measure_time_optimize']
 subprocess.check_output(command, stderr=subprocess.STDOUT)
 
 i = 0
@@ -52,7 +52,7 @@ while True:
         '61' * payload_length
     )
 
-    packet_file_path = '../src/packet_example.bin'
+    packet_file_path = '../src/mqtt-packet-parser/packet_example.bin'
     mqtt_packet_data = bytearray.fromhex(file_data)
     if len(mqtt_packet_data) <= 268435460:
         with open(packet_file_path, 'wb') as f:
@@ -61,7 +61,7 @@ while True:
         print('done')
         break
 
-    executed_file_path = '../src/out/mqttPacketParser.out'
+    executed_file_path = '../src/mqtt-packet-parser/out/mqttPacketParser.out'
     command = [executed_file_path, packet_file_path]
 
     res = subprocess.check_output(command).decode('utf-8', 'ignore').strip().split(', ')
@@ -84,7 +84,7 @@ while True:
 
     x.append(payload_length/1000/1000) # mb
     y.append(one_packet_parse_time*1000) # ms
-
+print(y)
 fig = plt.figure()
 
 ax = fig.add_subplot()
