@@ -54,6 +54,8 @@ int main(int argc, char *argv[]) {
     printf("data.flags.qos_flag=0x%02x\n", data.flags.qos_flag);
     printf("data.flags.retain_flag=0x%02x\n", data.flags.retain_flag);
     printf("data.remaining_length=%u\n", data.remaining_length);
+    printf("data.connect.protocol_name=%s\n", data.connect.protocol_name);
+    printf("data.connect.protocol_version=%u\n", data.connect.protocol_version);
     printf("data.publish.topic_length=%u\n", data.publish.topic_length);
     printf("data.publish.topic_name=%s\n", data.publish.topic_name);
     printf("data.publish.property_length=%u\n", data.publish.property_length);
