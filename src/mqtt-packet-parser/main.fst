@@ -175,6 +175,7 @@ type struct_connect = {
   protocol_name: C.String.t;
   protocol_version: U8.t;
   flags: struct_connect_flags;
+  keep_alive: U32.t;
 }  
 
 type type_disconnect_reason_code = U8.t
@@ -778,6 +779,7 @@ type struct_fixed_header_parts = {
   _protocol_name_error_status: U8.t;
   _protocol_version_error_status: U8.t;
   _connect_flag: U8.t;
+  _keep_alive: U32.t;
 }
 
 val is_valid_flag: s:struct_fixed_header_constant -> flag: type_flag_restrict -> bool
@@ -983,6 +985,7 @@ let error_struct_fixed_header error_struct = {
         will_flag = max_u8;
         clean_start = max_u8;
       };
+      keep_alive = max_u32;
     };
     publish = {
       topic_length = max_u32;
@@ -1313,6 +1316,7 @@ let get_fixed_header s =
                 will_flag = max_u8;
                 clean_start = max_u8;
               };
+              keep_alive = max_u32;
             };
             publish = {
               topic_length = s._topic_length;
@@ -1366,6 +1370,7 @@ let get_fixed_header s =
                   will_flag = max_u8;
                   clean_start = max_u8;
                 };
+                keep_alive = max_u32;
               }
             else if (s._protocol_version_error_status = 1uy) then
               {
@@ -1380,6 +1385,7 @@ let get_fixed_header s =
                   will_flag = max_u8;
                   clean_start = max_u8;
                 };
+                keep_alive = max_u32;
               }
             else 
               {
@@ -1394,6 +1400,7 @@ let get_fixed_header s =
                   will_flag = will_flag;
                   clean_start = clean_start_flag;
                 };
+                keep_alive = s._keep_alive;
               };
           publish = {
             topic_length = max_u32;
@@ -1480,6 +1487,7 @@ let get_fixed_header s =
                         will_flag = max_u8;
                         clean_start = max_u8;
                       };
+                      keep_alive = max_u32;
                     };
                     publish = {
                       topic_length = max_u32;
@@ -1627,6 +1635,7 @@ let mqtt_packet_parse request packet_size =
   let ptr_protocol_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_protocol_version_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_connect_flag: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_keep_alive: B.buffer U8.t = B.alloca 0uy 2ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -1648,7 +1657,8 @@ let mqtt_packet_parse request packet_size =
     B.live h ptr_payload_error_status /\
     B.live h ptr_protocol_name_error_status /\
     B.live h ptr_protocol_version_error_status /\
-    B.live h ptr_connect_flag
+    B.live h ptr_connect_flag /\
+    B.live h ptr_keep_alive
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -1845,14 +1855,22 @@ let mqtt_packet_parse request packet_size =
                     (
                       ptr_connect_flag.(0ul) <- one_byte
                     )
-                  // else
-                  //   (
-                  //     print_string "x: ";
-                  //     print_u8 one_byte;
-                  //     print_string ", index: ";
-                  //     print_u32 variable_header_index;
-                  //     print_string "\n"
-                  //   )
+                  else if (U32.eq variable_header_index 8ul) then
+                    (
+                      ptr_keep_alive.(0ul) <- one_byte
+                    )
+                  else if (U32.eq variable_header_index 9ul) then
+                    (
+                      ptr_keep_alive.(1ul) <- one_byte
+                    )
+                  else
+                    (
+                      print_string "x: ";
+                      print_u8 one_byte;
+                      print_string ", index: ";
+                      print_u32 variable_header_index;
+                      print_string "\n"
+                    )
               )
             );
             if (U32.lte variable_header_index (U32.sub max_u32 1ul)) then
@@ -1883,6 +1901,12 @@ let mqtt_packet_parse request packet_size =
   let protocol_name_error_status: U8.t = ptr_protocol_name_error_status.(0ul) in
   let protocol_version_error_status: U8.t = ptr_protocol_version_error_status.(0ul) in
   let connect_flag: U8.t = ptr_connect_flag.(0ul) in
+  // U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
+  let keep_alive_msb_u8: U8.t = ptr_keep_alive.(0ul) in
+  let keep_alive_lsb_u8: U8.t = ptr_keep_alive.(1ul) in
+  let keep_alive_msb_u32: U32.t = uint8_to_uint32 keep_alive_msb_u8  in
+  let keep_alive_lsb_u32: U32.t = uint8_to_uint32 keep_alive_lsb_u8 in 
+  let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul) keep_alive_lsb_u32 in
   pop_frame ();
 
   let ed_fixed_header_parts:
@@ -1901,6 +1925,7 @@ let mqtt_packet_parse request packet_size =
       _protocol_name_error_status = protocol_name_error_status;
       _protocol_version_error_status = protocol_version_error_status;
       _connect_flag = connect_flag;
+      _keep_alive = keep_alive;
   } in
   get_fixed_header ed_fixed_header_parts
 
