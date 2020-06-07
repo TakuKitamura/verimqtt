@@ -1,6 +1,12 @@
 all:
 	time (make test && sleep 3 && krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
 
+playground_verify:
+	time (krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Playground -o ./out/playground.out playground.fst callPlayground.c && ./out/playground.out)
+
+playground_exec:
+	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Playground -o ./out/playground.out playground.fst callPlayground.c && ./out/playground.out)
+
 mesure_verify_time:
 	time (krml -warn-error +9 -verify -skip-extraction -skip-translation -skip-compilation -skip-linking -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
 

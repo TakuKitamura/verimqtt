@@ -47,21 +47,39 @@ int main(int argc, char *argv[]) {
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
     free(request);
 
-    printf("data.message_type=0x%02x\n", data.message_type);
-    printf("data.message_name=%s\n", data.message_name);
-    printf("data.flags.flag=0x%02x\n", data.flags.flag);
-    printf("data.flags.dup_flag=0x%02x\n", data.flags.dup_flag);
-    printf("data.flags.qos_flag=0x%02x\n", data.flags.qos_flag);
-    printf("data.flags.retain_flag=0x%02x\n", data.flags.retain_flag);
-    printf("data.remaining_length=%u\n", data.remaining_length);
-    printf("data.connect.protocol_name=%s\n", data.connect.protocol_name);
-    printf("data.connect.protocol_version=%u\n", data.connect.protocol_version);
-    printf("data.publish.topic_length=%u\n", data.publish.topic_length);
-    printf("data.publish.topic_name=%s\n", data.publish.topic_name);
-    printf("data.publish.property_length=%u\n", data.publish.property_length);
-    printf("data.publish.payload=%s\n", data.publish.payload);
-    printf("data.disconnect.disconnect_reason_code=0x%02x\n", data.disconnect.disconnect_reason_code);
-    printf("data.disconnect.disconnect_reason_code_name=%s\n", data.disconnect.disconnect_reason_code_name);
+    printf("data.message_type = 0x%02x\n", data.message_type);
+    printf("data.message_name = %s\n", data.message_name);
+    printf("data.flags.flag = 0x%02x\n", data.flags.flag);
+    printf("data.flags.dup_flag = 0x%02x\n", data.flags.dup_flag);
+    printf("data.flags.qos_flag = 0x%02x\n", data.flags.qos_flag);
+    printf("data.flags.retain_flag = 0x%02x\n", data.flags.retain_flag);
+    printf("data.remaining_length = %u\n", data.remaining_length);
+
+    puts("");
+
+    printf("data.connect.protocol_name = %s\n", data.connect.protocol_name);
+    printf("data.connect.protocol_version = %u\n", data.connect.protocol_version);
+    printf("data.connect.flags.connect_flag = 0x%02x\n", data.connect.flags.connect_flag);
+    printf("data.connect.flags.user_name = 0x%02x\n", data.connect.flags.user_name);
+    printf("data.connect.flags.password = 0x%02x\n", data.connect.flags.password);
+    printf("data.connect.flags.will_retain = 0x%02x\n", data.connect.flags.will_retain);
+    printf("data.connect.flags.will_qos = 0x%02x\n", data.connect.flags.will_qos);
+    printf("data.connect.flags.will_flag = 0x%02x\n", data.connect.flags.will_flag);
+    printf("data.connect.flags.clean_start = 0x%02x\n", data.connect.flags.clean_start);
+
+    puts("");
+
+    printf("data.publish.topic_length = %u\n", data.publish.topic_length);
+    printf("data.publish.topic_name = %s\n", data.publish.topic_name);
+    printf("data.publish.property_length = %u\n", data.publish.property_length);
+    printf("data.publish.payload = %s\n", data.publish.payload);
+
+
+    printf("data.disconnect.disconnect_reason_code = 0x%02x\n", data.disconnect.disconnect_reason_code);
+    printf("data.disconnect.disconnect_reason_code_name = %s\n", data.disconnect.disconnect_reason_code_name);
+
+    puts("");
+
     printf("data.error.code=%u\n", data.error.code);
     printf("data.error.message=%s\n", data.error.message);
     exit(EXIT_SUCCESS);
