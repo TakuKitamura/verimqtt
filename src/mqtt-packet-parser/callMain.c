@@ -66,6 +66,10 @@ int main(int argc, char *argv[]) {
     printf("data.connect.flags.will_qos = 0x%02x\n", data.connect.flags.will_qos);
     printf("data.connect.flags.will_flag = 0x%02x\n", data.connect.flags.will_flag);
     printf("data.connect.flags.clean_start = 0x%02x\n", data.connect.flags.clean_start);
+    printf("data.connect.keep_alive = 0x%02x\n", data.connect.keep_alive);
+    printf("data.connect.connect_topic_length = 0x%02x\n", data.connect.connect_topic_length);
+    printf("data.connect.connect_property.connect_property_id = 0x%02x\n", data.connect.connect_property.connect_property_id);
+    printf("data.connect.connect_property.connect_property_name = %s\n", data.connect.connect_property.connect_property_name);
 
     puts("");
 

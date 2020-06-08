@@ -160,24 +160,6 @@ type type_payload_restrict =
     payload: C.String.t{U32.v (strlen payload) <= U32.v max_packet_size}
   )
 
-type struct_connect_flags = {
-      connect_flag: U8.t;
-      user_name: U8.t;
-      password: U8.t;
-      will_retain: U8.t;
-      will_qos: U8.t;
-      will_flag: U8.t;
-      clean_start: U8.t;
-  }
-
-// 3.1.2.3 Connect Flags
-type struct_connect = {
-  protocol_name: C.String.t;
-  protocol_version: U8.t;
-  flags: struct_connect_flags;
-  keep_alive: U32.t;
-}  
-
 type type_disconnect_reason_code = U8.t
 let define_disconnect_reason_code_normal_disconnection: type_disconnect_reason_code = 0uy
 let define_disconnect_reason_code_disconnect_with_will_message: type_disconnect_reason_code = 4uy
@@ -209,6 +191,94 @@ let define_disconnect_reason_maximum_connect_time: type_disconnect_reason_code =
 let define_disconnect_reason_subscription_identifiers_not_supported: type_disconnect_reason_code = 161uy
 let define_disconnect_reason_wildcard_subscriptions_not_supported: type_disconnect_reason_code = 162uy
 
+type struct_connect_property = {
+    connect_property_id: U8.t;
+    connect_property_name: C.String.t;
+}
+
+let define_connect_property_session_expiry_interval_id: U8.t = 0x11uy
+let define_connect_property_receive_maximum_id: U8.t = 0x21uy
+let define_connect_property_maximum_packet_size_id: U8.t = 0x27uy
+let define_connect_property_topic_alias_maximum_id: U8.t = 0x22uy
+let define_connect_property_request_response_information_id: U8.t = 0x19uy
+let define_connect_property_request_problem_information_id: U8.t = 0x17uy
+let define_connect_property_user_property_id: U8.t = 0x26uy
+let define_connect_property_authentication_method_id: U8.t = 0x15uy
+let define_connect_property_authentication_data_id: U8.t = 0x16uy
+
+let define_struct_connect_property_session_expiry_interval: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_session_expiry_interval_id;
+    connect_property_name = !$"Session Expiry Interval";
+  }
+
+let define_struct_connect_property_receive_maximum: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_receive_maximum_id;
+    connect_property_name = !$"Receive Maximum";
+  }
+
+let define_struct_connect_property_maximum_packet_size: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_maximum_packet_size_id;
+    connect_property_name = !$"Maximum Packet Size";
+  }
+
+let define_struct_connect_property_topic_alias_maximum: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_topic_alias_maximum_id;
+    connect_property_name = !$"Topic Alias Maximum";
+  }
+
+let define_struct_connect_property_request_response_information: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_request_response_information_id;
+    connect_property_name = !$"Request Response Information";
+  }
+
+let define_struct_connect_property_request_problem_information: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_request_problem_information_id;
+    connect_property_name = !$"Request Problem Information";
+  }
+
+let define_struct_connect_property_user_property: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_user_property_id;
+    connect_property_name = !$"User Property";
+  }
+
+let define_struct_connect_property_authentication_method: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_authentication_method_id;
+    connect_property_name = !$"Authentication Method";
+  }
+
+let define_struct_connect_property_authentication_data: struct_connect_property =
+  {
+    connect_property_id = define_connect_property_authentication_data_id;
+    connect_property_name = !$"Authentication Data";
+  }
+
+type struct_connect_flags = {
+      connect_flag: U8.t;
+      user_name: U8.t;
+      password: U8.t;
+      will_retain: U8.t;
+      will_qos: U8.t;
+      will_flag: U8.t;
+      clean_start: U8.t;
+  }
+
+// 3.1.2.3 Connect Flags
+type struct_connect = {
+  protocol_name: C.String.t;
+  protocol_version: U8.t;
+  flags: struct_connect_flags;
+  keep_alive: U32.t;
+  connect_topic_length: U32.t;
+  connect_property: struct_connect_property;
+}  
 
 
 type type_disconnect_reason_code_name = C.String.t
@@ -780,6 +850,8 @@ type struct_fixed_header_parts = {
   _protocol_version_error_status: U8.t;
   _connect_flag: U8.t;
   _keep_alive: U32.t;
+  _connect_topic_length: U32.t;
+  _connect_property_id: U8.t;
 }
 
 val is_valid_flag: s:struct_fixed_header_constant -> flag: type_flag_restrict -> bool
@@ -986,6 +1058,11 @@ let error_struct_fixed_header error_struct = {
         clean_start = max_u8;
       };
       keep_alive = max_u32;
+      connect_topic_length = max_u32;
+      connect_property = {
+        connect_property_id = max_u8;
+        connect_property_name = !$"";
+      }
     };
     publish = {
       topic_length = max_u32;
@@ -1317,6 +1394,11 @@ let get_fixed_header s =
                 clean_start = max_u8;
               };
               keep_alive = max_u32;
+              connect_topic_length = max_u32;
+              connect_property = {
+                connect_property_id = max_u8;
+                connect_property_name = !$""
+              }
             };
             publish = {
               topic_length = s._topic_length;
@@ -1346,6 +1428,7 @@ let get_fixed_header s =
         let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
         let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
         let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
+        let connect_property_id: U8.t = s._connect_property_id in
         {
           message_type = data.message_type_constant;
           message_name = data.message_name_constant;
@@ -1371,6 +1454,11 @@ let get_fixed_header s =
                   clean_start = max_u8;
                 };
                 keep_alive = max_u32;
+                connect_topic_length = max_u32;
+                connect_property = {
+                  connect_property_id = max_u8;
+                  connect_property_name = !$""
+                }
               }
             else if (s._protocol_version_error_status = 1uy) then
               {
@@ -1386,6 +1474,11 @@ let get_fixed_header s =
                   clean_start = max_u8;
                 };
                 keep_alive = max_u32;
+                connect_topic_length = max_u32;
+                connect_property = {
+                  connect_property_id = max_u8;
+                  connect_property_name = !$""
+                }
               }
             else 
               {
@@ -1401,6 +1494,26 @@ let get_fixed_header s =
                   clean_start = clean_start_flag;
                 };
                 keep_alive = s._keep_alive;
+                connect_topic_length = s._connect_topic_length;
+                connect_property =
+                if (U8.eq connect_property_id define_connect_property_session_expiry_interval_id) then 
+                  define_struct_connect_property_session_expiry_interval
+                else if (U8.eq connect_property_id define_connect_property_receive_maximum_id) then 
+                  define_struct_connect_property_receive_maximum
+                else if (U8.eq connect_property_id define_connect_property_maximum_packet_size_id) then 
+                  define_struct_connect_property_maximum_packet_size
+                else if (U8.eq connect_property_id define_connect_property_topic_alias_maximum_id) then 
+                  define_struct_connect_property_topic_alias_maximum
+                else if (U8.eq connect_property_id define_connect_property_request_response_information_id) then 
+                  define_struct_connect_property_request_response_information
+                else if (U8.eq connect_property_id define_connect_property_request_problem_information_id) then 
+                  define_struct_connect_property_request_problem_information    
+                else if (U8.eq connect_property_id define_connect_property_user_property_id) then 
+                  define_struct_connect_property_user_property
+                else if (U8.eq connect_property_id define_connect_property_authentication_method_id) then 
+                  define_struct_connect_property_authentication_method
+                else
+                  define_struct_connect_property_authentication_data
               };
           publish = {
             topic_length = max_u32;
@@ -1488,6 +1601,11 @@ let get_fixed_header s =
                         clean_start = max_u8;
                       };
                       keep_alive = max_u32;
+                      connect_topic_length = max_u32;
+                      connect_property = {
+                        connect_property_id = max_u8;
+                        connect_property_name = !$"";
+                      }
                     };
                     publish = {
                       topic_length = max_u32;
@@ -1636,6 +1754,8 @@ let mqtt_packet_parse request packet_size =
   let ptr_protocol_version_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_connect_flag: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_keep_alive: B.buffer U8.t = B.alloca 0uy 2ul in
+  let ptr_connect_topic_length: B.buffer U32.t = B.alloca 0ul 1ul in
+  let ptr_connect_property_id: B.buffer U8.t = B.alloca 0uy 1ul in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h ptr_fixed_header_first_one_byte /\
@@ -1658,7 +1778,9 @@ let mqtt_packet_parse request packet_size =
     B.live h ptr_protocol_name_error_status /\
     B.live h ptr_protocol_version_error_status /\
     B.live h ptr_connect_flag /\
-    B.live h ptr_keep_alive
+    B.live h ptr_keep_alive /\
+    B.live h ptr_connect_topic_length /\
+    B.live h ptr_connect_property_id
     in
   let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -1861,7 +1983,24 @@ let mqtt_packet_parse request packet_size =
                     )
                   else if (U32.eq variable_header_index 9ul) then
                     (
-                      ptr_keep_alive.(1ul) <- one_byte
+                      if (U8.lte one_byte 0x7Fuy) then
+                        (
+                          ptr_keep_alive.(1ul) <- one_byte
+                        )
+                      // else 
+                      //   (
+                      //     // TODO: keep aliveが127以上の場合は未実装.
+                      //   )
+                    )
+                  else if (U32.eq variable_header_index 10ul) then
+                    (
+                      // TODO: topic length が一桁かつ, keep aliveが127以下の場合
+                      ptr_connect_topic_length.(0ul) <- uint8_to_uint32 one_byte
+                    )
+                  else if (U32.eq variable_header_index 11ul) then
+                    (
+                      // TODO: topic length が一桁かつ, keep aliveが127以下の場合
+                      ptr_connect_property_id.(0ul) <- one_byte
                     )
                   else
                     (
@@ -1901,12 +2040,13 @@ let mqtt_packet_parse request packet_size =
   let protocol_name_error_status: U8.t = ptr_protocol_name_error_status.(0ul) in
   let protocol_version_error_status: U8.t = ptr_protocol_version_error_status.(0ul) in
   let connect_flag: U8.t = ptr_connect_flag.(0ul) in
-  // U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
   let keep_alive_msb_u8: U8.t = ptr_keep_alive.(0ul) in
   let keep_alive_lsb_u8: U8.t = ptr_keep_alive.(1ul) in
   let keep_alive_msb_u32: U32.t = uint8_to_uint32 keep_alive_msb_u8  in
   let keep_alive_lsb_u32: U32.t = uint8_to_uint32 keep_alive_lsb_u8 in 
-  let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul) keep_alive_lsb_u32 in
+  let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul)keep_alive_lsb_u32 in
+  let connect_topic_length: U32.t = ptr_connect_topic_length.(0ul) in
+  let connect_property_id: U8.t = ptr_connect_property_id.(0ul) in
   pop_frame ();
 
   let ed_fixed_header_parts:
@@ -1926,6 +2066,8 @@ let mqtt_packet_parse request packet_size =
       _protocol_version_error_status = protocol_version_error_status;
       _connect_flag = connect_flag;
       _keep_alive = keep_alive;
+      _connect_topic_length = connect_topic_length;
+      _connect_property_id = connect_property_id;
   } in
   get_fixed_header ed_fixed_header_parts
 
