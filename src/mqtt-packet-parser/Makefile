@@ -1,11 +1,13 @@
+# TODO: Makefile 修正
+# TODO: Test 修正
+
 all:
+	cd src && \
+	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ../out -fsopt --cache_dir -fsopt ../out -no-prefix Main -no-prefix Utils -no-prefix Const -no-prefix Common -no-prefix Publish -no-prefix Connect -no-prefix Disconnect -no-prefix FFI  -o ../mqttPacketParser.out main.fst common.fst const.fst publish.fst connect.fst disconnect.fst ffi.fst callMain.c ffi.c && ../mqttPacketParser.out ../bin/publish.bin)
+
+
+all_exec:
 	time (make test && sleep 3 && krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
-
-playground_verify:
-	time (krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Playground -o ./out/playground.out playground.fst callPlayground.c && ./out/playground.out)
-
-playground_exec:
-	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Playground -o ./out/playground.out playground.fst callPlayground.c && ./out/playground.out)
 
 mesure_verify_time:
 	time (krml -warn-error +9 -verify -skip-extraction -skip-translation -skip-compilation -skip-linking -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
@@ -23,10 +25,7 @@ measure_time_debug:
 	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -ccopt -g -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst measureTime.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
 
 verify:
-	time (krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
-
-exec:
-	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
+	time (krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -no-prefix Utils -no-prefix Const -no-prefix Common -no-prefix Publish -no-prefix Connect -no-prefix Disconnect -no-prefix FFI  -o ./out/mqttPacketParser.out main.fst common.fst const.fst publish.fst connect.fst disconnect.fst ffi.fst callMain.c ffi.c && ./out/mqttPacketParser.out packet_example.bin)
 
 compile:
 	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c)
