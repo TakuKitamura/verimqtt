@@ -2,16 +2,6 @@
 #include <stdlib.h>
 
 #include "Main.h"
-// #include "C_String.h"
-// #include "Connect.h"
-// #include "Disconnect.h"
-// #include "Main.h"
-// #include "Common.h"
-// #include "Const.h"
-// #include "LowStar.h"
-// #include "Publish.h"
-// #include "Utils.h"
-// #include "kremlinit.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
