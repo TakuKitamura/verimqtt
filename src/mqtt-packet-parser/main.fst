@@ -860,6 +860,29 @@ type struct_fixed_header_parts = {
   _connect_property_id: U8.t;
 }
 
+type struct_publish_parts = {
+  publish_remaining_length: type_remaining_length;
+  publish_fixed_header_first_one_byte: U8.t;
+  publish_topic_name: type_topic_name_restrict;
+  publish_topic_length: type_topic_length_restrict;
+  publish_property_length: type_property_length;
+  publish_payload: type_payload_restrict;
+}
+
+type struct_connect_parts = {
+  connect_remaining_length: type_remaining_length;
+  connect_connect_constant: struct_fixed_header_constant;
+  connect_connect_flag: U8.t;
+  connect_keep_alive: U32.t;
+  connect_connect_topic_length: U32.t;
+  connect_connect_property_id: U8.t;
+}
+
+type struct_disconnect_parts = {
+  disconnect_remaining_length: type_remaining_length;
+  disconnect_disconnect_constant: struct_fixed_header_constant;
+}
+
 val is_valid_flag: s:struct_fixed_header_constant -> flag: type_flag_restrict -> bool
 let is_valid_flag s flag = U8.eq s.flags_constant.flag flag
 
@@ -1128,313 +1151,16 @@ let get_flag message_type fixed_header_first_one_byte =
             v
         )
 
-val get_fixed_header: s: struct_fixed_header_parts
+val assemble_publish_struct: s: struct_publish_parts
   -> Pure struct_fixed_header
     (requires true)
-    (ensures (fun r ->
-    if (U8.eq s._message_type define_mqtt_control_packet_PUBLISH) then
-      (
-        let dup_flag: type_dup_flags_restrict = get_dup_flag s._fixed_header_first_one_byte in
-        let qos_flag: type_qos_flags_restrict = get_qos_flag s._fixed_header_first_one_byte in
-        let retain_flag: type_retain_flags_restrict = get_retain_flag s._fixed_header_first_one_byte in
-        let have_error: bool =
-            (s.is_searching_remaining_length) ||
-            (U8.eq s._message_type max_u8) ||
-            (U8.eq dup_flag max_u8) ||
-            (U8.eq qos_flag max_u8) ||
-            (U8.eq retain_flag max_u8) ||
-            (U8.eq s._topic_name_error_status 1uy) ||
-            (U8.eq s._topic_name_error_status 2uy) ||
-            (U32.eq s._topic_length max_u32) ||
-            (s.is_searching_property_length) ||
-            (U8.gt s._payload_error_status 0uy) in
-        if (have_error) then
-            if (s.is_searching_remaining_length) then
-              r.error.code = define_error_remaining_length_invalid_code &&
-              r.error.message = define_error_remaining_length_invalid
-            else if (U8.eq s._message_type max_u8) then
-              r.error.code = define_error_message_type_invalid_code &&
-              r.error.message = define_error_message_type_invalid
-            else if (U8.eq dup_flag max_u8) then
-              r.error.code = define_error_dup_flag_invalid_code &&
-              r.error.message = define_error_dup_flag_invalid
-            else if (U8.eq qos_flag max_u8) then
-              r.error.code = define_error_qos_flag_invalid_code &&
-              r.error.message = define_error_qos_flag_invalid
-            else if (U8.eq retain_flag max_u8) then
-              r.error.code = define_error_retain_flag_invalid_code &&
-              r.error.message = define_error_retain_flag_invalid
-            else if (U32.eq s._topic_length max_u32) then
-              r.error.code = define_error_topic_length_invalid_code &&
-              r.error.message = define_error_topic_length_invalid
-            else if (U8.eq s._topic_name_error_status 1uy) then
-              r.error.code = define_error_topic_name_dont_zero_terminated_code &&
-              r.error.message = define_error_topic_name_dont_zero_terminated
-            else if (U8.eq s._topic_name_error_status 2uy) then
-              r.error.code = define_error_topic_name_have_inavlid_character_code &&
-              r.error.message = define_error_topic_name_have_inavlid_character
-            else if (s.is_searching_property_length) then
-              r.error.code = define_error_property_length_invalid_code &&
-              r.error.message = define_error_property_length_invalid
-            else
-              r.error.code = define_error_payload_invalid_code &&
-              r.error.message = define_error_payload_invalid
-        else
-          r.error.code = define_no_error_code &&
-          r.error.message = define_no_error
-      )
-    else
-      (
-        let flag: type_flag_restrict = get_flag s._message_type s._fixed_header_first_one_byte in
-        let data: struct_fixed_header_constant =
-          get_struct_fixed_header_constant_except_publish s._message_type in
-        let have_error: bool =
-          (s.is_searching_remaining_length) ||
-          (U8.eq s._message_type max_u8)
-           || (is_valid_flag data flag = false)
-          in
-        if (have_error) then
-          if (s.is_searching_remaining_length) then
-            r.error.code = define_error_remaining_length_invalid_code &&
-            r.error.message = define_error_remaining_length_invalid
-          else if (U8.eq s._message_type max_u8) then
-            r.error.code = define_error_message_type_invalid_code &&
-            r.error.message = define_error_message_type_invalid
-          else
-            r.error.code = define_error_flag_invalid_code &&
-            r.error.message = define_error_flag_invalid
-        else
-          if (U8.eq s._message_type define_mqtt_control_packet_DISCONNECT) then
-            (
-              r.error.code = define_no_error_code &&
-              r.error.message = define_no_error &&
-                (
-                  if (U8.eq data.flags_constant.flag define_disconnect_reason_code_normal_disconnection) then
-                    r.disconnect = define_struct_disconnect_normal_disconnection
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_disconnect_with_will_message) then
-                  r.disconnect = define_struct_disconnect_disconnect_with_will_message
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_unspecified_error) then
-                  r.disconnect = define_struct_disconnect_unspecified_error
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_malformed_packet) then
-                  r.disconnect = define_struct_disconnect_malformed_packet
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_protocol_error) then
-                  r.disconnect = define_struct_disconnect_protocol_error
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_implementation_specific_error) then
-                  r.disconnect = define_struct_disconnect_implementation_specific_error
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_not_authorized) then
-                  r.disconnect = define_struct_disconnect_not_authorized
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_busy) then
-                  r.disconnect = define_struct_disconnect_server_busy
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_shutting_down) then
-                  r.disconnect = define_struct_disconnect_server_shutting_down
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_keep_alive_timeout) then
-                    r.disconnect = define_struct_disconnect_keep_alive_timeout
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_session_taken_over) then
-                    r.disconnect = define_struct_disconnect_session_taken_over
-                      
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_filter_invalid) then
-                    r.disconnect = define_struct_disconnect_topic_filter_invalid
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_name_invalid) then
-                    r.disconnect = define_struct_disconnect_topic_name_invalid
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_receive_maximum_exceeded) then
-                    r.disconnect = define_struct_disconnect_receive_maximum_exceeded
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_topic_alias_invalid) then
-                    r.disconnect = define_struct_disconnect_topic_alias_invalid
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_packet_too_large) then
-                    r.disconnect = define_struct_disconnect_packet_too_large
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_message_rate_too_high) then
-                    r.disconnect = define_struct_disconnect_message_rate_too_high
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_quota_exceeded) then
-                    r.disconnect = define_struct_disconnect_quota_exceeded
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_administrative_action) then
-                    r.disconnect = define_struct_disconnect_administrative_action
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_payload_format_invalid) then
-                    r.disconnect = define_struct_disconnect_payload_format_invalid
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_retain_not_supported) then
-                    r.disconnect = define_struct_disconnect_retain_not_supported
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_qos_not_supported) then
-                    r.disconnect = define_struct_disconnect_qos_not_supported
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_use_another_server) then
-                    r.disconnect = define_struct_disconnect_use_another_server
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_server_moved) then
-                    r.disconnect = define_struct_disconnect_server_moved
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_shared_subscriptions_not_supported) then
-                    r.disconnect = define_struct_disconnect_shared_subscriptions_not_supported
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_connection_rate_exceeded) then
-                    r.disconnect = define_struct_disconnect_connection_rate_exceeded
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_maximum_connect_time) then
-                    r.disconnect = define_struct_disconnect_maximum_connect_time
-
-                  else if (U8.eq data.flags_constant.flag define_disconnect_reason_subscription_identifiers_not_supported) then
-                    r.disconnect = define_struct_disconnect_subscription_identifiers_not_supported
-
-                  else // if (U8.eq data.flags_constant.flag define_disconnect_reason_wildcard_subscriptions_not_supported) then
-                    r.disconnect = define_struct_disconnect_wildcard_subscriptions_not_supported
-                )
-            )
-          else
-            (
-              r.error.code = define_error_message_type_invalid_code &&
-              r.error.message = define_error_message_type_invalid
-            )
-      )
-    ))
-let get_fixed_header s =
-  if (U8.eq s._message_type define_mqtt_control_packet_PUBLISH) then
-    (
-      let dup_flag: type_dup_flags_restrict = get_dup_flag s._fixed_header_first_one_byte in
-      let qos_flag: type_qos_flags_restrict = get_qos_flag s._fixed_header_first_one_byte in
-      let retain_flag: type_retain_flags_restrict = get_retain_flag s._fixed_header_first_one_byte in
-      let have_error: bool =
-          (s.is_searching_remaining_length) ||
-          (U8.eq s._message_type max_u8) ||
-          (U8.eq dup_flag max_u8) ||
-          (U8.eq qos_flag max_u8) ||
-          (U8.eq retain_flag max_u8) ||
-          (U8.eq s._topic_name_error_status 1uy) ||
-          (U8.eq s._topic_name_error_status 2uy) ||
-          (U32.eq s._topic_length max_u32) ||
-          (s.is_searching_property_length) ||
-          (U8.gt s._payload_error_status 0uy) in
-      if (have_error) then
-        let error_struct: struct_error_struct =
-          (
-            if (s.is_searching_remaining_length) then
-              {
-                code = define_error_remaining_length_invalid_code;
-                message = define_error_remaining_length_invalid;
-              }
-            else if (U8.eq s._message_type max_u8) then
-              {
-                code = define_error_message_type_invalid_code;
-                message = define_error_message_type_invalid;
-              }
-            else if (U8.eq dup_flag max_u8) then
-              {
-                code = define_error_dup_flag_invalid_code;
-                message = define_error_dup_flag_invalid;
-              }
-            else if (U8.eq qos_flag max_u8) then
-              {
-                code = define_error_qos_flag_invalid_code;
-                message = define_error_qos_flag_invalid;
-              }
-            else if (U8.eq retain_flag max_u8) then
-              {
-                code = define_error_retain_flag_invalid_code;
-                message = define_error_retain_flag_invalid;
-              }
-            else if (U32.eq s._topic_length max_u32) then
-              {
-                code = define_error_topic_length_invalid_code;
-                message = define_error_topic_length_invalid;
-              }
-            else if (U8.eq s._topic_name_error_status 1uy) then
-              {
-                code = define_error_topic_name_dont_zero_terminated_code;
-                message = define_error_topic_name_dont_zero_terminated;
-              }
-            else if (U8.eq s._topic_name_error_status 2uy) then
-              {
-                code = define_error_topic_name_have_inavlid_character_code;
-                message = define_error_topic_name_have_inavlid_character;
-              }
-            else if (s.is_searching_property_length) then
-              {
-                code = define_error_property_length_invalid_code;
-                message = define_error_property_length_invalid;
-              }
-            else
-              {
-                code = define_error_payload_invalid_code;
-                message = define_error_payload_invalid;
-              }
-          ) in error_struct_fixed_header error_struct
-      else
-        let data: struct_fixed_header_constant =
-          struct_fixed_publish dup_flag qos_flag retain_flag in
-          {
-            message_type = data.message_type_constant;
-            message_name = data.message_name_constant;
-            flags = {
-              flag = data.flags_constant.flag;
-              dup_flag = data.flags_constant.dup_flag;
-              qos_flag = data.flags_constant.qos_flag;
-              retain_flag = data.flags_constant.retain_flag;
-            };
-            remaining_length = s._remaining_length;
-            connect = {
-              protocol_name = !$"";
-              protocol_version = max_u8;
-              flags = {
-                connect_flag = max_u8;
-                user_name = max_u8;
-                password = max_u8;
-                will_retain = max_u8;
-                will_qos = max_u8;
-                will_flag = max_u8;
-                clean_start = max_u8;
-              };
-              keep_alive = max_u32;
-              connect_topic_length = max_u32;
-              connect_property = {
-                connect_property_id = max_u8;
-                connect_property_name = !$""
-              }
-            };
-            publish = {
-              topic_length = s._topic_length;
-              topic_name = s._topic_name;
-              property_length = s._property_length;
-              payload = s._payload;
-            };
-            disconnect = {
-              disconnect_reason_code = max_u8;
-              disconnect_reason_code_name = !$"";
-            };
-            error = {
-              code = define_no_error_code;
-              message = define_no_error;
-            };
-          }
-    )
-    else if (U8.eq s._message_type define_mqtt_control_packet_CONNECT) then
-      (
-        let data: struct_fixed_header_constant =
-          get_struct_fixed_header_constant_except_publish s._message_type in
-        let connect_flag: U8.t = s._connect_flag in
-        let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
-        let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
-        let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
-        let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
-        let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
-        let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
-        let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
-        let connect_property_id: U8.t = s._connect_property_id in
+    (ensures (fun r -> true))
+let assemble_publish_struct s =
+      let dup_flag: type_dup_flags_restrict = get_dup_flag s.publish_fixed_header_first_one_byte in
+      let qos_flag: type_qos_flags_restrict = get_qos_flag s.publish_fixed_header_first_one_byte in
+      let retain_flag: type_retain_flags_restrict = get_retain_flag s.publish_fixed_header_first_one_byte in
+      let data: struct_fixed_header_constant =
+        struct_fixed_publish dup_flag qos_flag retain_flag in
         {
           message_type = data.message_type_constant;
           message_name = data.message_name_constant;
@@ -1444,285 +1170,252 @@ let get_fixed_header s =
             qos_flag = data.flags_constant.qos_flag;
             retain_flag = data.flags_constant.retain_flag;
           };
-          remaining_length = s._remaining_length;
-          connect = 
-            if (s._protocol_name_error_status = 1uy) then
-              {
-                protocol_name = !$"";
-                protocol_version = max_u8;
-                flags = {
-                  connect_flag = max_u8;
-                  user_name = max_u8;
-                  password = max_u8;
-                  will_retain = max_u8;
-                  will_qos = max_u8;
-                  will_flag = max_u8;
-                  clean_start = max_u8;
-                };
-                keep_alive = max_u32;
-                connect_topic_length = max_u32;
-                connect_property = {
-                  connect_property_id = max_u8;
-                  connect_property_name = !$""
-                }
-              }
-            else if (s._protocol_version_error_status = 1uy) then
-              {
-                protocol_name = !$"";
-                protocol_version = max_u8;
-                flags = {
-                  connect_flag = max_u8;
-                  user_name = max_u8;
-                  password = max_u8;
-                  will_retain = max_u8;
-                  will_qos = max_u8;
-                  will_flag = max_u8;
-                  clean_start = max_u8;
-                };
-                keep_alive = max_u32;
-                connect_topic_length = max_u32;
-                connect_property = {
-                  connect_property_id = max_u8;
-                  connect_property_name = !$""
-                }
-              }
-            else 
-              {
-                protocol_name = !$"MQTT";
-                protocol_version = 5uy;
-                flags = {
-                  connect_flag = connect_flag;
-                  user_name = user_name_flag;
-                  password = password_flag;
-                  will_retain = will_retain_flag;
-                  will_qos = will_qos_flag;
-                  will_flag = will_flag;
-                  clean_start = clean_start_flag;
-                };
-                keep_alive = s._keep_alive;
-                connect_topic_length = s._connect_topic_length;
-                connect_property =
-                if (U8.eq connect_property_id define_connect_property_session_expiry_interval_id) then 
-                  define_struct_connect_property_session_expiry_interval
-                else if (U8.eq connect_property_id define_connect_property_receive_maximum_id) then 
-                  define_struct_connect_property_receive_maximum
-                else if (U8.eq connect_property_id define_connect_property_maximum_packet_size_id) then 
-                  define_struct_connect_property_maximum_packet_size
-                else if (U8.eq connect_property_id define_connect_property_topic_alias_maximum_id) then 
-                  define_struct_connect_property_topic_alias_maximum
-                else if (U8.eq connect_property_id define_connect_property_request_response_information_id) then 
-                  define_struct_connect_property_request_response_information
-                else if (U8.eq connect_property_id define_connect_property_request_problem_information_id) then 
-                  define_struct_connect_property_request_problem_information    
-                else if (U8.eq connect_property_id define_connect_property_user_property_id) then 
-                  define_struct_connect_property_user_property
-                else if (U8.eq connect_property_id define_connect_property_authentication_method_id) then 
-                  define_struct_connect_property_authentication_method
-                else
-                  define_struct_connect_property_authentication_data
-              };
-          publish = {
-            topic_length = max_u32;
-            topic_name = !$"";
-            property_length = max_u32;
-            payload = !$"";
+          remaining_length = s.publish_remaining_length;
+          connect = {
+            protocol_name = !$"";
+            protocol_version = max_u8;
+            flags = {
+              connect_flag = max_u8;
+              user_name = max_u8;
+              password = max_u8;
+              will_retain = max_u8;
+              will_qos = max_u8;
+              will_flag = max_u8;
+              clean_start = max_u8;
+            };
+            keep_alive = max_u32;
+            connect_topic_length = max_u32;
+            connect_property = {
+              connect_property_id = max_u8;
+              connect_property_name = !$""
+            }
           };
-          disconnect = define_struct_disconnect_error;
-          error = 
-            if (s._protocol_name_error_status = 1uy) then
-              {
-                code = define_error_protocol_name_invalid_code;
-                message = define_error_protocol_name_invalid;
-              }
-            else if (s._protocol_version_error_status = 1uy) then
-              {
-                code = define_error_protocol_version_invalid_code;
-                message = define_error_protocol_version_invalid;
-              }
-            else if (not (U8.eq resreved_flag 0uy) ) then
-             {
-                code = define_error_connect_flag_invalid_code;
-                message = define_error_connect_flag_invalid;
-              }
-            else 
-              {
-                code = define_no_error_code;
-                message = define_no_error;
-              };
+          publish = {
+            topic_length = s.publish_topic_length;
+            topic_name = s.publish_topic_name;
+            property_length = s.publish_property_length;
+            payload = s.publish_payload;
+          };
+          disconnect = {
+            disconnect_reason_code = max_u8;
+            disconnect_reason_code_name = !$"";
+          };
+          error = {
+            code = define_no_error_code;
+            message = define_no_error;
+          };
         }
-      )
-    else
-      (
-        let flag: type_flag_restrict = get_flag s._message_type s._fixed_header_first_one_byte in
-        let data: struct_fixed_header_constant =
-          get_struct_fixed_header_constant_except_publish s._message_type in
-        let have_error: bool =
-          (s.is_searching_remaining_length) ||
-          (U8.eq s._message_type max_u8) ||
-          (is_valid_flag data flag = false) in
-          if (have_error) then
-            let error_struct: struct_error_struct =
-              (
-                if (s.is_searching_remaining_length) then
-                  {
-                      code = define_error_remaining_length_invalid_code;
-                      message = define_error_remaining_length_invalid;
-                  }
-                else if (U8.eq s._message_type max_u8) then
-                  {
-                      code = define_error_message_type_invalid_code;
-                      message = define_error_message_type_invalid;
-                  }
-                else
-                  {
-                      code = define_error_flag_invalid_code;
-                      message = define_error_flag_invalid;
-                  }
-              ) in error_struct_fixed_header error_struct
+
+
+val assemble_connect_struct: s: struct_connect_parts
+  -> Pure struct_fixed_header
+    (requires true)
+    (ensures (fun r -> true))
+let assemble_connect_struct s =
+  // let data: struct_fixed_header_constant =
+  //   get_struct_fixed_header_constant_except_publish s.connect_message_type in
+  let connect_constant: struct_fixed_header_constant = s.connect_connect_constant in
+  let connect_flag: U8.t = s.connect_connect_flag in
+  let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
+  let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
+  let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
+  let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
+  let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
+  let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
+  let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
+  let connect_property_id: U8.t = s.connect_connect_property_id in
+  {
+    message_type = connect_constant.message_type_constant;
+    message_name = connect_constant.message_name_constant;
+    flags = {
+      flag = connect_constant.flags_constant.flag;
+      dup_flag = connect_constant.flags_constant.dup_flag;
+      qos_flag = connect_constant.flags_constant.qos_flag;
+      retain_flag = connect_constant.flags_constant.retain_flag;
+    };
+    remaining_length = s.connect_remaining_length;
+    connect = 
+        {
+          protocol_name = !$"MQTT";
+          protocol_version = 5uy;
+          flags = {
+            connect_flag = connect_flag;
+            user_name = user_name_flag;
+            password = password_flag;
+            will_retain = will_retain_flag;
+            will_qos = will_qos_flag;
+            will_flag = will_flag;
+            clean_start = clean_start_flag;
+          };
+          keep_alive = s.connect_keep_alive;
+          connect_topic_length = s.connect_connect_topic_length;
+          connect_property =
+          if (U8.eq connect_property_id define_connect_property_session_expiry_interval_id) then 
+            define_struct_connect_property_session_expiry_interval
+          else if (U8.eq connect_property_id define_connect_property_receive_maximum_id) then 
+            define_struct_connect_property_receive_maximum
+          else if (U8.eq connect_property_id define_connect_property_maximum_packet_size_id) then 
+            define_struct_connect_property_maximum_packet_size
+          else if (U8.eq connect_property_id define_connect_property_topic_alias_maximum_id) then 
+            define_struct_connect_property_topic_alias_maximum
+          else if (U8.eq connect_property_id define_connect_property_request_response_information_id) then 
+            define_struct_connect_property_request_response_information
+          else if (U8.eq connect_property_id define_connect_property_request_problem_information_id) then 
+            define_struct_connect_property_request_problem_information    
+          else if (U8.eq connect_property_id define_connect_property_user_property_id) then 
+            define_struct_connect_property_user_property
+          else if (U8.eq connect_property_id define_connect_property_authentication_method_id) then 
+            define_struct_connect_property_authentication_method
           else
-            (
-              if (U8.eq s._message_type define_mqtt_control_packet_DISCONNECT) then
-                (
-                  {
-                    message_type = data.message_type_constant;
-                    message_name = data.message_name_constant;
-                    flags = {
-                      flag = data.flags_constant.flag;
-                      dup_flag = data.flags_constant.dup_flag;
-                      qos_flag = data.flags_constant.qos_flag;
-                      retain_flag = data.flags_constant.retain_flag;
-                    };
-                    remaining_length = s._remaining_length;
-                    connect = {
-                      protocol_name = !$"";
-                      protocol_version = max_u8;
-                      flags = {
-                        connect_flag = max_u8;
-                        user_name = max_u8;
-                        password = max_u8;
-                        will_retain = max_u8;
-                        will_qos = max_u8;
-                        will_flag = max_u8;
-                        clean_start = max_u8;
-                      };
-                      keep_alive = max_u32;
-                      connect_topic_length = max_u32;
-                      connect_property = {
-                        connect_property_id = max_u8;
-                        connect_property_name = !$"";
-                      }
-                    };
-                    publish = {
-                      topic_length = max_u32;
-                      topic_name = !$"";
-                      property_length = max_u32;
-                      payload = !$"";
-                    };
-                    disconnect = (
-                      if (U8.eq data.flags_constant.flag define_disconnect_reason_code_normal_disconnection) then
-                        define_struct_disconnect_normal_disconnection
+            define_struct_connect_property_authentication_data
+        };
+    publish = {
+      topic_length = max_u32;
+      topic_name = !$"";
+      property_length = max_u32;
+      payload = !$"";
+    };
+    disconnect = define_struct_disconnect_error;
+    error = {
+      code = define_no_error_code;
+      message = define_no_error;
+    };
+  }
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_disconnect_with_will_message) then
-                        define_struct_disconnect_disconnect_with_will_message
+val assemble_disconnect_struct: s: struct_disconnect_parts
+  -> Pure struct_fixed_header
+    (requires true)
+    (ensures (fun r -> true))
+let assemble_disconnect_struct s =
+    let disconnect_constant: struct_fixed_header_constant = s.disconnect_disconnect_constant in
+    {
+      message_type = disconnect_constant.message_type_constant;
+      message_name = disconnect_constant.message_name_constant;
+      flags = {
+        flag = disconnect_constant.flags_constant.flag;
+        dup_flag = disconnect_constant.flags_constant.dup_flag;
+        qos_flag = disconnect_constant.flags_constant.qos_flag;
+        retain_flag = disconnect_constant.flags_constant.retain_flag;
+      };
+      remaining_length = s.disconnect_remaining_length;
+      connect = {
+        protocol_name = !$"";
+        protocol_version = max_u8;
+        flags = {
+          connect_flag = max_u8;
+          user_name = max_u8;
+          password = max_u8;
+          will_retain = max_u8;
+          will_qos = max_u8;
+          will_flag = max_u8;
+          clean_start = max_u8;
+        };
+        keep_alive = max_u32;
+        connect_topic_length = max_u32;
+        connect_property = {
+          connect_property_id = max_u8;
+          connect_property_name = !$"";
+        }
+      };
+      publish = {
+        topic_length = max_u32;
+        topic_name = !$"";
+        property_length = max_u32;
+        payload = !$"";
+      };
+      disconnect = (
+        if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_normal_disconnection) then
+          define_struct_disconnect_normal_disconnection
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_unspecified_error) then
-                        define_struct_disconnect_unspecified_error
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_disconnect_with_will_message) then
+          define_struct_disconnect_disconnect_with_will_message
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_malformed_packet) then
-                        define_struct_disconnect_malformed_packet
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_unspecified_error) then
+          define_struct_disconnect_unspecified_error
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_protocol_error) then
-                        define_struct_disconnect_protocol_error
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_malformed_packet) then
+          define_struct_disconnect_malformed_packet
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_implementation_specific_error) then
-                        define_struct_disconnect_implementation_specific_error
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_protocol_error) then
+          define_struct_disconnect_protocol_error
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_not_authorized) then
-                        define_struct_disconnect_not_authorized
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_implementation_specific_error) then
+          define_struct_disconnect_implementation_specific_error
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_busy) then
-                        define_struct_disconnect_server_busy
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_not_authorized) then
+          define_struct_disconnect_not_authorized
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_server_shutting_down) then
-                        define_struct_disconnect_server_shutting_down
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_server_busy) then
+          define_struct_disconnect_server_busy
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_keep_alive_timeout) then
-                          define_struct_disconnect_keep_alive_timeout
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_server_shutting_down) then
+          define_struct_disconnect_server_shutting_down
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_session_taken_over) then
-                          define_struct_disconnect_session_taken_over
-                          
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_filter_invalid) then
-                          define_struct_disconnect_topic_filter_invalid
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_code_topic_name_invalid) then
-                          define_struct_disconnect_topic_name_invalid
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_keep_alive_timeout) then
+            define_struct_disconnect_keep_alive_timeout
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_receive_maximum_exceeded) then
-                          define_struct_disconnect_receive_maximum_exceeded
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_session_taken_over) then
+            define_struct_disconnect_session_taken_over
+            
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_topic_filter_invalid) then
+            define_struct_disconnect_topic_filter_invalid
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_topic_name_invalid) then
+            define_struct_disconnect_topic_name_invalid
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_topic_alias_invalid) then
-                          define_struct_disconnect_topic_alias_invalid
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_receive_maximum_exceeded) then
+            define_struct_disconnect_receive_maximum_exceeded
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_packet_too_large) then
-                          define_struct_disconnect_packet_too_large
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_topic_alias_invalid) then
+            define_struct_disconnect_topic_alias_invalid
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_message_rate_too_high) then
-                          define_struct_disconnect_message_rate_too_high
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_packet_too_large) then
+            define_struct_disconnect_packet_too_large
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_quota_exceeded) then
-                          define_struct_disconnect_quota_exceeded
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_message_rate_too_high) then
+            define_struct_disconnect_message_rate_too_high
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_administrative_action) then
-                          define_struct_disconnect_administrative_action
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_quota_exceeded) then
+            define_struct_disconnect_quota_exceeded
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_payload_format_invalid) then
-                          define_struct_disconnect_payload_format_invalid
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_administrative_action) then
+            define_struct_disconnect_administrative_action
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_retain_not_supported) then
-                          define_struct_disconnect_retain_not_supported
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_payload_format_invalid) then
+            define_struct_disconnect_payload_format_invalid
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_qos_not_supported) then
-                          define_struct_disconnect_qos_not_supported
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_retain_not_supported) then
+            define_struct_disconnect_retain_not_supported
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_use_another_server) then
-                          define_struct_disconnect_use_another_server
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_qos_not_supported) then
+            define_struct_disconnect_qos_not_supported
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_server_moved) then
-                          define_struct_disconnect_server_moved
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_use_another_server) then
+            define_struct_disconnect_use_another_server
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_shared_subscriptions_not_supported) then
-                          define_struct_disconnect_shared_subscriptions_not_supported
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_server_moved) then
+            define_struct_disconnect_server_moved
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_connection_rate_exceeded) then
-                          define_struct_disconnect_connection_rate_exceeded
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_shared_subscriptions_not_supported) then
+            define_struct_disconnect_shared_subscriptions_not_supported
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_maximum_connect_time) then
-                          define_struct_disconnect_maximum_connect_time
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_connection_rate_exceeded) then
+            define_struct_disconnect_connection_rate_exceeded
 
-                      else if (U8.eq data.flags_constant.flag define_disconnect_reason_subscription_identifiers_not_supported) then
-                          define_struct_disconnect_subscription_identifiers_not_supported
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_maximum_connect_time) then
+            define_struct_disconnect_maximum_connect_time
 
-                      else // if (U8.eq data.flags_constant.flag define_disconnect_reason_wildcard_subscriptions_not_supported) then
-                          define_struct_disconnect_wildcard_subscriptions_not_supported
-                    );
+        else if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_subscription_identifiers_not_supported) then
+            define_struct_disconnect_subscription_identifiers_not_supported
 
-                    error = {
-                      code = define_no_error_code;
-                      message = define_no_error;
-                    };
-                  }
-                )
-              else
-                (
-                  let error_struct: struct_error_struct =
-                    {
-                        code = define_error_message_type_invalid_code;
-                        message = define_error_message_type_invalid;
-                    }
-                  in error_struct_fixed_header error_struct
-                )
-            )
-      )
+        else // if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_wildcard_subscriptions_not_supported) then
+            define_struct_disconnect_wildcard_subscriptions_not_supported
+      );
+
+      error = {
+        code = define_no_error_code;
+        message = define_no_error;
+      };
+    }
 
 val mqtt_packet_parse (request: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
@@ -2047,32 +1740,203 @@ let mqtt_packet_parse request packet_size =
   let connect_flag: U8.t = ptr_connect_flag.(0ul) in
   let keep_alive_msb_u8: U8.t = ptr_keep_alive.(0ul) in
   let keep_alive_lsb_u8: U8.t = ptr_keep_alive.(1ul) in
-  let keep_alive_msb_u32: U32.t = uint8_to_uint32 keep_alive_msb_u8  in
-  let keep_alive_lsb_u32: U32.t = uint8_to_uint32 keep_alive_lsb_u8 in 
-  let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul)keep_alive_lsb_u32 in
   let connect_topic_length: U32.t = ptr_connect_topic_length.(0ul) in
   let connect_property_id: U8.t = ptr_connect_property_id.(0ul) in
   pop_frame ();
+  
+  if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+    (
+      let dup_flag: type_dup_flags_restrict = get_dup_flag fixed_header_first_one_byte in
+      let qos_flag: type_qos_flags_restrict = get_qos_flag fixed_header_first_one_byte in
+      let retain_flag: type_retain_flags_restrict = get_retain_flag fixed_header_first_one_byte in
+      let have_error: bool =
+        (is_searching_remaining_length) ||
+        (U8.eq message_type max_u8) ||
+        (U8.eq dup_flag max_u8) ||
+        (U8.eq qos_flag max_u8) ||
+        (U8.eq retain_flag max_u8) ||
+        (U8.eq topic_name_error_status 1uy) ||
+        (U8.eq topic_name_error_status 2uy) ||
+        (U32.eq topic_length max_u32) ||
+        (is_searching_property_length) ||
+        (U8.gt payload_error_status 0uy) in
+      if (have_error) then
+        (
+          let error_struct: struct_error_struct =
+            (
+              if (is_searching_remaining_length) then
+                {
+                  code = define_error_remaining_length_invalid_code;
+                  message = define_error_remaining_length_invalid;
+                }
+              else if (U8.eq message_type max_u8) then
+                {
+                  code = define_error_message_type_invalid_code;
+                  message = define_error_message_type_invalid;
+                }
+              else if (U8.eq dup_flag max_u8) then
+                {
+                  code = define_error_dup_flag_invalid_code;
+                  message = define_error_dup_flag_invalid;
+                }
+              else if (U8.eq qos_flag max_u8) then
+                {
+                  code = define_error_qos_flag_invalid_code;
+                  message = define_error_qos_flag_invalid;
+                }
+              else if (U8.eq retain_flag max_u8) then
+                {
+                  code = define_error_retain_flag_invalid_code;
+                  message = define_error_retain_flag_invalid;
+                }
+              else if (U32.eq topic_length max_u32) then
+                {
+                  code = define_error_topic_length_invalid_code;
+                  message = define_error_topic_length_invalid;
+                }
+              else if (U8.eq topic_name_error_status 1uy) then
+                {
+                  code = define_error_topic_name_dont_zero_terminated_code;
+                  message = define_error_topic_name_dont_zero_terminated;
+                }
+              else if (U8.eq topic_name_error_status 2uy) then
+                {
+                  code = define_error_topic_name_have_inavlid_character_code;
+                  message = define_error_topic_name_have_inavlid_character;
+                }
+              // else if (is_searching_property_length) then
+              //   {
+              //     code = define_error_property_length_invalid_code;
+              //     message = define_error_property_length_invalid;
+              //   }
+              else
+                {
+                  code = define_error_property_length_invalid_code;
+                  message = define_error_property_length_invalid;
+                }
+            ) in error_struct_fixed_header error_struct
+        )
+      else
+        (
+          let ed_fixed_header_parts:
+            struct_publish_parts = {
+              publish_fixed_header_first_one_byte = fixed_header_first_one_byte;
+              publish_remaining_length = remaining_length;
+              publish_topic_length = topic_length;
+              publish_topic_name = topic_name;
+              publish_property_length = property_length;
+              publish_payload = payload;
+          } in
+          assemble_publish_struct ed_fixed_header_parts
+        )
+    )
+  else if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
+    (
+        let connect_constant: struct_fixed_header_constant =
+          get_struct_fixed_header_constant_except_publish message_type in
+        let connect_flag: U8.t = connect_flag in
+        let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
+        let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
+        let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
+        let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
+        let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
+        let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
+        let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
+        let connect_property_id: U8.t = connect_property_id in
+        let keep_alive_msb_u32: U32.t = uint8_to_uint32 keep_alive_msb_u8  in
+        let keep_alive_lsb_u32: U32.t = uint8_to_uint32 keep_alive_lsb_u8 in 
+        let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul)keep_alive_lsb_u32 in
 
-  let ed_fixed_header_parts:
-    struct_fixed_header_parts = {
-      _fixed_header_first_one_byte = fixed_header_first_one_byte;
-      is_searching_remaining_length = is_searching_remaining_length;
-      is_searching_property_length = is_searching_property_length;
-      _message_type = message_type;
-      _remaining_length = remaining_length;
-      _topic_length = topic_length;
-      _topic_name = topic_name;
-      _topic_name_error_status = topic_name_error_status;
-      _property_length = property_length;
-      _payload = payload;
-      _payload_error_status = payload_error_status;
-      _protocol_name_error_status = protocol_name_error_status;
-      _protocol_version_error_status = protocol_version_error_status;
-      _connect_flag = connect_flag;
-      _keep_alive = keep_alive;
-      _connect_topic_length = connect_topic_length;
-      _connect_property_id = connect_property_id;
-  } in
-  get_fixed_header ed_fixed_header_parts
-
+        let have_error: bool =
+          (protocol_name_error_status = 1uy) ||
+          (protocol_version_error_status = 1uy) ||
+          (not (U8.eq resreved_flag 0uy) ) in
+        if (have_error) then
+          (
+            let error_struct: struct_error_struct =
+              (
+                if (protocol_name_error_status = 1uy) then
+                  {
+                    code = define_error_protocol_name_invalid_code;
+                    message = define_error_protocol_name_invalid;
+                  }
+                else if (protocol_version_error_status = 1uy) then
+                  {
+                    code = define_error_protocol_version_invalid_code;
+                    message = define_error_protocol_version_invalid;
+                  }
+                // else if (not (U8.eq resreved_flag 0uy) ) then
+                //   {
+                //     code = define_error_connect_flag_invalid_code;
+                //     message = define_error_connect_flag_invalid;
+                //   }
+                else 
+                  {
+                    code = define_error_connect_flag_invalid_code;
+                    message = define_error_connect_flag_invalid;
+                  }
+              ) in error_struct_fixed_header error_struct
+          )
+        else
+          (
+            let ed_fixed_header_parts:
+              struct_connect_parts = {
+                connect_remaining_length = remaining_length;
+                connect_connect_constant = connect_constant;
+                connect_connect_flag = connect_flag;
+                connect_keep_alive = keep_alive;
+                connect_connect_topic_length = connect_topic_length;
+                connect_connect_property_id = connect_property_id;
+            } in
+            assemble_connect_struct ed_fixed_header_parts            
+          )
+    )
+    else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
+      (
+        let flag: type_flag_restrict = get_flag message_type fixed_header_first_one_byte in
+        let disconnect_constant: struct_fixed_header_constant =
+          get_struct_fixed_header_constant_except_publish message_type in
+        let have_error: bool =
+          (is_searching_remaining_length) ||
+          (U8.eq message_type max_u8) ||
+          (is_valid_flag disconnect_constant flag = false) in
+          if (have_error) then
+            (
+              let error_struct: struct_error_struct =
+                (
+                  if (is_searching_remaining_length) then
+                    {
+                        code = define_error_remaining_length_invalid_code;
+                        message = define_error_remaining_length_invalid;
+                    }
+                  else if (U8.eq message_type max_u8) then
+                    {
+                        code = define_error_message_type_invalid_code;
+                        message = define_error_message_type_invalid;
+                    }
+                  else
+                    {
+                        code = define_error_flag_invalid_code;
+                        message = define_error_flag_invalid;
+                    }
+                ) in error_struct_fixed_header error_struct
+            )
+          else
+            (
+              let ed_fixed_header_parts:
+              struct_disconnect_parts = {
+                disconnect_disconnect_constant = disconnect_constant;
+                disconnect_remaining_length = remaining_length;
+              } in
+              assemble_disconnect_struct ed_fixed_header_parts
+            )
+      )
+    else
+      (
+        let error_struct: struct_error_struct =
+          {
+              code = define_error_message_type_invalid_code;
+              message = define_error_message_type_invalid;
+          }
+        in error_struct_fixed_header error_struct
+      )
