@@ -491,6 +491,12 @@ let define_struct_disconnect_wildcard_subscriptions_not_supported: struct_discon
     disconnect_reason_code_name = define_disconnect_reason_wildcard_subscriptions_not_supported_name;
   } 
 
+let define_struct_disconnect_error: struct_disconnect_reason =
+  {
+    disconnect_reason_code = max_u8;
+    disconnect_reason_code_name = !$"";
+  }
+
 type type_error_message = C.String.t
 let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
 let define_error_message_type_invalid: type_error_message = !$"message_type is invalid."
@@ -1521,8 +1527,7 @@ let get_fixed_header s =
             property_length = max_u32;
             payload = !$"";
           };
-          // ここはエラーの定数を宣言してそれに置き換え
-          disconnect = define_struct_disconnect_normal_disconnection;
+          disconnect = define_struct_disconnect_error;
           error = 
             if (s._protocol_name_error_status = 1uy) then
               {
