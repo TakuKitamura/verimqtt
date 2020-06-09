@@ -25,7 +25,8 @@ measure_time_debug:
 	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -ccopt -g -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst measureTime.c utils.c && ./out/mqttPacketParser.out packet_example.bin)
 
 verify:
-	time (krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -no-prefix Utils -no-prefix Const -no-prefix Common -no-prefix Publish -no-prefix Connect -no-prefix Disconnect -no-prefix FFI  -o ./out/mqttPacketParser.out main.fst common.fst const.fst publish.fst connect.fst disconnect.fst ffi.fst callMain.c ffi.c && ./out/mqttPacketParser.out packet_example.bin)
+	cd src && \
+	time (krml -warn-error +9 -verify -drop WasmSupport -drop C_Endianness -drop C -tmpdir ../out -fsopt --cache_dir -fsopt ../out -no-prefix Main -no-prefix Utils -no-prefix Const -no-prefix Common -no-prefix Publish -no-prefix Connect -no-prefix Disconnect -no-prefix FFI  -o ../mqttPacketParser.out main.fst common.fst const.fst publish.fst connect.fst disconnect.fst ffi.fst callMain.c ffi.c && ../mqttPacketParser.out ../bin/publish.bin)
 
 compile:
 	time (krml -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ./out -fsopt --cache_dir -fsopt ./out -no-prefix Main -o ./out/mqttPacketParser.out main.fst callMain.c utils.c)
