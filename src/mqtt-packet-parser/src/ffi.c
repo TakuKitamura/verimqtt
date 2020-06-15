@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "kremlib.h"
 
+// 本番環境では削除
 void print_hex(uint8_t i) {
   printf("%02x", i);
 }

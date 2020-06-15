@@ -7,6 +7,10 @@ module B = LowStar.Buffer
 open FStar.HyperStack.ST
 open Common
 
+open C
+open LowStar.Printf
+
+// 本番環境では削除
 assume val print_hex (i:U8.t): Stack unit
   (requires (fun h -> true))
   (ensures (fun h0 ret h1 -> true))

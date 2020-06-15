@@ -9,13 +9,15 @@ open LowStar.BufferOps
 open LowStar.Printf
 open FStar.Int.Cast
 open C.String
+open FFI
+open C
 
 open Const
 open Common
 open Publish
 open Connect
 open Disconnect
-open FFI
+open Debug
 
 #reset-options "--z3rlimit 500 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
@@ -35,7 +37,7 @@ let mqtt_packet_parse request packet_size =
   let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_message_type: B.buffer type_mqtt_control_packets_restrict
     = B.alloca max_u8 1ul in
-  let ptris_searching_remaining_length: B.buffer bool = B.alloca true 1ul in
+  let ptr_is_searching_remaining_length: B.buffer bool = B.alloca true 1ul in
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
   let ptr_remaining_length: B.buffer type_remaining_length =
    B.alloca 0ul 1ul in
@@ -62,7 +64,7 @@ let mqtt_packet_parse request packet_size =
     B.live h ptr_message_type /\
     B.live h request /\
     B.live h ptr_for_decoding_packets /\
-    B.live h ptris_searching_remaining_length /\
+    B.live h ptr_is_searching_remaining_length /\
     B.live h ptr_remaining_length /\
     B.live h ptr_variable_header_index /\
     B.live h ptr_for_topic_length /\
@@ -88,7 +90,7 @@ let mqtt_packet_parse request packet_size =
   =
     let one_byte : U8.t = request.(i) in
         let is_searching_remaining_length: bool =
-         ptris_searching_remaining_length.(0ul) in
+         ptr_is_searching_remaining_length.(0ul) in
         let is_break: bool = ptr_is_break.(0ul) in
       if (is_break) then
         ()
@@ -101,21 +103,47 @@ let mqtt_packet_parse request packet_size =
             if (U8.eq message_type max_u8) then
               (
                 ptr_is_break.(0ul) <- true;
-                ptris_searching_remaining_length.(0ul) <- false
+                ptr_is_searching_remaining_length.(0ul) <- false
               )
         )
       else if (U32.gte i 1ul && U32.lte i 4ul && is_searching_remaining_length) then
         (
-          let i_u8: U8.t = uint32_to_uint8(i) in
-          let i_minus_one: U32.t = U32.sub i 1ul in
-          ptr_for_decoding_packets.(i_minus_one) <- one_byte;
-          let r: (remaining_length:type_remaining_length) =
-            get_remaining_length i_u8 ptr_for_decoding_packets packet_size in
-          if (r <> max_u32) then (
-            ptris_searching_remaining_length.(0ul) <- false;
-            ptr_remaining_length.(0ul) <- r
-          )
+          let bytes_length_minus_one: U32.t = U32.sub i 1ul in
+          ptr_for_decoding_packets.(bytes_length_minus_one) <- one_byte;
+          let is_end_byte: bool =
+            (
+              if (U32.eq i 1ul && U8.lte one_byte 0x7Fuy) ||
+                (U32.gte i 2ul && U8.gte one_byte 0x01uy && U8.lte one_byte 0x7Fuy)
+               then
+                true
+              else
+                false
+            ) in
+          if (is_end_byte) then
+            (
+              let bytes_length_u8: U8.t = uint32_to_uint8(i) in
+              let untrust_remaining_length: type_remaining_length =
+                decodeing_variable_bytes ptr_for_decoding_packets bytes_length_u8 in
+                print_string "packet_size=";
+                print_u32 packet_size;
+                print_string "\n";
+                print_string "bytes_length=";
+                print_u32 i;
+                print_string "\n";
+                print_string "remaining_length=";
+                print_u32 untrust_remaining_length;
+                print_string "\n";
+              let valid_remaining_length: bool = 
+                U32.eq (U32.sub packet_size 1ul) (U32.add untrust_remaining_length i) in
+              if valid_remaining_length then (
+                ptr_is_searching_remaining_length.(0ul) <- false;
+                ptr_remaining_length.(0ul) <- untrust_remaining_length
+              )           
+              else
+                ptr_is_break.(0ul) <- true
+            )
         )
+
       else if (not is_searching_remaining_length) then
         (
           let variable_header_index: U32.t = ptr_variable_header_index.(0ul) in
@@ -138,7 +166,7 @@ let mqtt_packet_parse request packet_size =
                       (
                         ptr_topic_length.(0ul) <- max_u32;
                         ptr_is_break.(0ul) <- true;
-                        ptris_searching_remaining_length.(0ul) <- false
+                        ptr_is_searching_remaining_length.(0ul) <- false
                       )
                     else
                       (
@@ -153,7 +181,7 @@ let mqtt_packet_parse request packet_size =
                       (
                         ptr_topic_length.(0ul) <- max_u32;
                         ptr_is_break.(0ul) <- true;
-                        ptris_searching_remaining_length.(0ul) <- false
+                        ptr_is_searching_remaining_length.(0ul) <- false
                       )
                     else
                       (
@@ -302,14 +330,14 @@ let mqtt_packet_parse request packet_size =
                       // TODO: topic length が一桁かつ, keep aliveが127以下の場合
                       ptr_connect_property_id.(0ul) <- one_byte
                     )
-                  else
-                    (
-                      print_string "x: ";
-                      print_u8 one_byte;
-                      print_string ", index: ";
-                      print_u32 variable_header_index;
-                      print_string "\n"
-                    )
+                  // else
+                  //   (
+                  //     print_string "x: ";
+                  //     print_u8 one_byte;
+                  //     print_string ", index: ";
+                  //     print_u32 variable_header_index;
+                  //     print_string "\n"
+                  //   )
               )
             );
             if (U32.lte variable_header_index (U32.sub max_u32 1ul)) then
@@ -324,7 +352,7 @@ let mqtt_packet_parse request packet_size =
   in
   C.Loops.for 0ul packet_size inv body;
 
-  let is_searching_remaining_length: bool = ptris_searching_remaining_length.(0ul) in
+  let is_searching_remaining_length: bool = ptr_is_searching_remaining_length.(0ul) in
   let fixed_header_first_one_byte: U8.t = ptr_fixed_header_first_one_byte.(0ul) in
   let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
   let remaining_length: type_remaining_length
@@ -345,200 +373,200 @@ let mqtt_packet_parse request packet_size =
   let connect_topic_length: U32.t = ptr_connect_topic_length.(0ul) in
   let connect_property_id: U8.t = ptr_connect_property_id.(0ul) in
   pop_frame ();
-  
-  if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
-    (
-      let dup_flag: type_dup_flags_restrict = get_dup_flag fixed_header_first_one_byte in
-      let qos_flag: type_qos_flags_restrict = get_qos_flag fixed_header_first_one_byte in
-      let retain_flag: type_retain_flags_restrict = get_retain_flag fixed_header_first_one_byte in
-      let have_error: bool =
-        (is_searching_remaining_length) ||
-        (U8.eq message_type max_u8) ||
-        (U8.eq dup_flag max_u8) ||
-        (U8.eq qos_flag max_u8) ||
-        (U8.eq retain_flag max_u8) ||
-        (U8.eq topic_name_error_status 1uy) ||
-        (U8.eq topic_name_error_status 2uy) ||
-        (U32.eq topic_length max_u32) ||
-        (is_searching_property_length) ||
-        (U8.gt payload_error_status 0uy) in
-      if (have_error) then
-        (
-          let error_struct: struct_error_struct =
-            (
-              if (is_searching_remaining_length) then
-                {
-                  code = define_error_remaining_length_invalid_code;
-                  message = define_error_remaining_length_invalid;
-                }
-              else if (U8.eq message_type max_u8) then
-                {
-                  code = define_error_message_type_invalid_code;
-                  message = define_error_message_type_invalid;
-                }
-              else if (U8.eq dup_flag max_u8) then
-                {
-                  code = define_error_dup_flag_invalid_code;
-                  message = define_error_dup_flag_invalid;
-                }
-              else if (U8.eq qos_flag max_u8) then
-                {
-                  code = define_error_qos_flag_invalid_code;
-                  message = define_error_qos_flag_invalid;
-                }
-              else if (U8.eq retain_flag max_u8) then
-                {
-                  code = define_error_retain_flag_invalid_code;
-                  message = define_error_retain_flag_invalid;
-                }
-              else if (U32.eq topic_length max_u32) then
-                {
-                  code = define_error_topic_length_invalid_code;
-                  message = define_error_topic_length_invalid;
-                }
-              else if (U8.eq topic_name_error_status 1uy) then
-                {
-                  code = define_error_topic_name_dont_zero_terminated_code;
-                  message = define_error_topic_name_dont_zero_terminated;
-                }
-              else if (U8.eq topic_name_error_status 2uy) then
-                {
-                  code = define_error_topic_name_have_inavlid_character_code;
-                  message = define_error_topic_name_have_inavlid_character;
-                }
-              // else if (is_searching_property_length) then
-              //   {
-              //     code = define_error_property_length_invalid_code;
-              //     message = define_error_property_length_invalid;
-              //   }
-              else
-                {
-                  code = define_error_property_length_invalid_code;
-                  message = define_error_property_length_invalid;
-                }
-            ) in error_struct_fixed_header error_struct
-        )
-      else
-        (
-          let ed_fixed_header_parts:
-            struct_publish_parts = {
-              publish_fixed_header_first_one_byte = fixed_header_first_one_byte;
-              publish_remaining_length = remaining_length;
-              publish_topic_length = topic_length;
-              publish_topic_name = topic_name;
-              publish_property_length = property_length;
-              publish_payload = payload;
-          } in
-          assemble_publish_struct ed_fixed_header_parts
-        )
-    )
-  else if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
-    (
-        let connect_constant: struct_fixed_header_constant =
-          get_struct_fixed_header_constant_except_publish message_type in
-        let connect_flag: U8.t = connect_flag in
-        let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
-        let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
-        let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
-        let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
-        let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
-        let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
-        let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
-        let connect_property_id: U8.t = connect_property_id in
-        let keep_alive_msb_u32: U32.t = uint8_to_uint32 keep_alive_msb_u8  in
-        let keep_alive_lsb_u32: U32.t = uint8_to_uint32 keep_alive_lsb_u8 in 
-        let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul)keep_alive_lsb_u32 in
+  let is_share_error: bool = (is_searching_remaining_length) || (U8.eq message_type max_u8) in
 
-        let have_error: bool =
-          (protocol_name_error_status = 1uy) ||
-          (protocol_version_error_status = 1uy) ||
-          (not (U8.eq resreved_flag 0uy) ) in
-        if (have_error) then
-          (
-            let error_struct: struct_error_struct =
-              (
-                if (protocol_name_error_status = 1uy) then
-                  {
-                    code = define_error_protocol_name_invalid_code;
-                    message = define_error_protocol_name_invalid;
-                  }
-                else if (protocol_version_error_status = 1uy) then
-                  {
-                    code = define_error_protocol_version_invalid_code;
-                    message = define_error_protocol_version_invalid;
-                  }
-                // else if (not (U8.eq resreved_flag 0uy) ) then
-                //   {
-                //     code = define_error_connect_flag_invalid_code;
-                //     message = define_error_connect_flag_invalid;
-                //   }
-                else 
-                  {
-                    code = define_error_connect_flag_invalid_code;
-                    message = define_error_connect_flag_invalid;
-                  }
-              ) in error_struct_fixed_header error_struct
-          )
-        else
-          (
-            let ed_fixed_header_parts:
-              struct_connect_parts = {
-                connect_remaining_length = remaining_length;
-                connect_connect_constant = connect_constant;
-                connect_connect_flag = connect_flag;
-                connect_keep_alive = keep_alive;
-                connect_connect_topic_length = connect_topic_length;
-                connect_connect_property_id = connect_property_id;
-            } in
-            assemble_connect_struct ed_fixed_header_parts            
-          )
+  if (is_share_error) then
+    (
+
+      let error_struct: struct_error_struct =
+        (
+          if (is_searching_remaining_length) then
+            {
+              code = define_error_remaining_length_invalid_code;
+              message = define_error_remaining_length_invalid;
+            }
+          else // if (U8.eq message_type max_u8) then
+            {
+              code = define_error_message_type_invalid_code;
+              message = define_error_message_type_invalid;
+            }
+        ) in error_struct_fixed_header error_struct
     )
-    else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
-      (
-        let flag: type_flag_restrict = get_flag message_type fixed_header_first_one_byte in
-        let disconnect_constant: struct_fixed_header_constant =
-          get_struct_fixed_header_constant_except_publish message_type in
-        let have_error: bool =
-          (is_searching_remaining_length) ||
-          (U8.eq message_type max_u8) ||
-          (is_valid_flag disconnect_constant flag = false) in
+  else
+    (  
+      if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+        (
+          let dup_flag: type_dup_flags_restrict = get_dup_flag fixed_header_first_one_byte in
+          let qos_flag: type_qos_flags_restrict = get_qos_flag fixed_header_first_one_byte in
+          let retain_flag: type_retain_flags_restrict = get_retain_flag fixed_header_first_one_byte in
+          let have_error: bool =
+            (U8.eq dup_flag max_u8) ||
+            (U8.eq qos_flag max_u8) ||
+            (U8.eq retain_flag max_u8) ||
+            (U8.eq topic_name_error_status 1uy) ||
+            (U8.eq topic_name_error_status 2uy) ||
+            (U32.eq topic_length max_u32) ||
+            (is_searching_property_length) ||
+            (U8.gt payload_error_status 0uy) in
           if (have_error) then
             (
               let error_struct: struct_error_struct =
                 (
-                  if (is_searching_remaining_length) then
+                  if (U8.eq dup_flag max_u8) then
                     {
-                        code = define_error_remaining_length_invalid_code;
-                        message = define_error_remaining_length_invalid;
+                      code = define_error_dup_flag_invalid_code;
+                      message = define_error_dup_flag_invalid;
                     }
-                  else if (U8.eq message_type max_u8) then
+                  else if (U8.eq qos_flag max_u8) then
                     {
-                        code = define_error_message_type_invalid_code;
-                        message = define_error_message_type_invalid;
+                      code = define_error_qos_flag_invalid_code;
+                      message = define_error_qos_flag_invalid;
                     }
-                  else
+                  else if (U8.eq retain_flag max_u8) then
                     {
-                        code = define_error_flag_invalid_code;
-                        message = define_error_flag_invalid;
+                      code = define_error_retain_flag_invalid_code;
+                      message = define_error_retain_flag_invalid;
+                    }
+                  else if (U32.eq topic_length max_u32) then
+                    {
+                      code = define_error_topic_length_invalid_code;
+                      message = define_error_topic_length_invalid;
+                    }
+                  else if (U8.eq topic_name_error_status 1uy) then
+                    {
+                      code = define_error_topic_name_dont_zero_terminated_code;
+                      message = define_error_topic_name_dont_zero_terminated;
+                    }
+                  else if (U8.eq topic_name_error_status 2uy) then
+                    {
+                      code = define_error_topic_name_have_inavlid_character_code;
+                      message = define_error_topic_name_have_inavlid_character;
+                    }
+                  else // if (is_searching_property_length) then
+                    {
+                      code = define_error_property_length_invalid_code;
+                      message = define_error_property_length_invalid;
                     }
                 ) in error_struct_fixed_header error_struct
             )
           else
             (
               let ed_fixed_header_parts:
-              struct_disconnect_parts = {
-                disconnect_disconnect_constant = disconnect_constant;
-                disconnect_remaining_length = remaining_length;
+                struct_publish_parts = {
+                  publish_fixed_header_first_one_byte = fixed_header_first_one_byte;
+                  publish_remaining_length = remaining_length;
+                  publish_topic_length = topic_length;
+                  publish_topic_name = topic_name;
+                  publish_property_length = property_length;
+                  publish_payload = payload;
               } in
-              assemble_disconnect_struct ed_fixed_header_parts
+              assemble_publish_struct ed_fixed_header_parts
             )
-      )
-    else
-      (
-        let error_struct: struct_error_struct =
-          {
-              code = define_error_message_type_invalid_code;
-              message = define_error_message_type_invalid;
-          }
-        in error_struct_fixed_header error_struct
-      )
+        )
+      else if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
+        (
+            let connect_constant: struct_fixed_header_constant =
+              get_struct_fixed_header_constant_except_publish message_type in
+            let connect_flag: U8.t = connect_flag in
+            let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
+            let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
+            let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
+            let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
+            let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
+            let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
+            let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
+            let connect_property_id: U8.t = connect_property_id in
+            let keep_alive_msb_u32: U32.t = uint8_to_uint32 keep_alive_msb_u8  in
+            let keep_alive_lsb_u32: U32.t = uint8_to_uint32 keep_alive_lsb_u8 in 
+            let keep_alive: U32.t = U32.logor (U32.shift_left keep_alive_msb_u32 8ul)keep_alive_lsb_u32 in
+
+            let have_error: bool =
+              (protocol_name_error_status = 1uy) ||
+              (protocol_version_error_status = 1uy) ||
+              (not (U8.eq resreved_flag 0uy) ) in
+            if (have_error) then
+              (
+                let error_struct: struct_error_struct =
+                  (
+                    if (protocol_name_error_status = 1uy) then
+                      {
+                        code = define_error_protocol_name_invalid_code;
+                        message = define_error_protocol_name_invalid;
+                      }
+                    else if (protocol_version_error_status = 1uy) then
+                      {
+                        code = define_error_protocol_version_invalid_code;
+                        message = define_error_protocol_version_invalid;
+                      }
+                    else // if (not (U8.eq resreved_flag 0uy) ) then
+                      {
+                        code = define_error_connect_flag_invalid_code;
+                        message = define_error_connect_flag_invalid;
+                      }
+                  ) in error_struct_fixed_header error_struct
+              )
+            else
+              (
+                let ed_fixed_header_parts:
+                  struct_connect_parts = {
+                    connect_remaining_length = remaining_length;
+                    connect_connect_constant = connect_constant;
+                    connect_connect_flag = connect_flag;
+                    connect_keep_alive = keep_alive;
+                    connect_connect_topic_length = connect_topic_length;
+                    connect_connect_property_id = connect_property_id;
+                } in
+                assemble_connect_struct ed_fixed_header_parts            
+              )
+        )
+        else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
+          (
+            let flag: type_flag_restrict = get_flag message_type fixed_header_first_one_byte in
+            let disconnect_constant: struct_fixed_header_constant =
+              get_struct_fixed_header_constant_except_publish message_type in
+            let have_error: bool =
+              (is_searching_remaining_length) ||
+              (U8.eq message_type max_u8) ||
+              (is_valid_flag disconnect_constant flag = false) in
+              if (have_error) then
+                (
+                  let error_struct: struct_error_struct =
+                    (
+                      if (is_searching_remaining_length) then
+                        {
+                            code = define_error_remaining_length_invalid_code;
+                            message = define_error_remaining_length_invalid;
+                        }
+                      else if (U8.eq message_type max_u8) then
+                        {
+                            code = define_error_message_type_invalid_code;
+                            message = define_error_message_type_invalid;
+                        }
+                      else
+                        {
+                            code = define_error_flag_invalid_code;
+                            message = define_error_flag_invalid;
+                        }
+                    ) in error_struct_fixed_header error_struct
+                )
+              else
+                (
+                  let ed_fixed_header_parts:
+                  struct_disconnect_parts = {
+                    disconnect_disconnect_constant = disconnect_constant;
+                    disconnect_remaining_length = remaining_length;
+                  } in
+                  assemble_disconnect_struct ed_fixed_header_parts
+                )
+          )
+        else
+          (
+            let error_struct: struct_error_struct =
+              {
+                  code = define_error_message_type_invalid_code;
+                  message = define_error_message_type_invalid;
+              } in
+            unimplemented "Unknown Packet type.\n";
+            error_struct_fixed_header error_struct
+          )
+    )
