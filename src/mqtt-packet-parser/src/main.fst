@@ -49,7 +49,7 @@ let mqtt_packet_parse request packet_size =
   let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_topic_name_order_mark_check: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_property_length: B.buffer type_property_length = B.alloca 0ul 1ul in
-  let ptris_searching_property_length: B.buffer bool = B.alloca true 1ul in
+  let ptr_is_searching_property_length: B.buffer bool = B.alloca true 1ul in
   let ptr_payload: B.buffer type_payload_restrict = B.alloca !$"" 1ul in
   let ptr_payload_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_protocol_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
@@ -58,14 +58,19 @@ let mqtt_packet_parse request packet_size =
   let ptr_keep_alive: B.buffer U8.t = B.alloca 0uy 2ul in
   let ptr_connect_topic_length: B.buffer U32.t = B.alloca 0ul 1ul in
   let ptr_connect_property_id: B.buffer U8.t = B.alloca 0uy 1ul in
+
+  let first_one_byte: U8.t = request.(0ul) in
+  let message_type_bits: U8.t = slice_byte first_one_byte 0uy 4uy in
+  let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
+
+  let variable_length: struct_variable_length = get_variable_byte request packet_size 1ul in
+  let remaining_length: type_remaining_length = variable_length.variable_length_value in
+  print_u32 remaining_length;
+  print_string "\n";
+
   let inv h (i: nat) =
     B.live h ptr_is_break /\
-    B.live h ptr_fixed_header_first_one_byte /\
-    B.live h ptr_message_type /\
     B.live h request /\
-    B.live h ptr_for_decoding_packets /\
-    B.live h ptr_is_searching_remaining_length /\
-    B.live h ptr_remaining_length /\
     B.live h ptr_variable_header_index /\
     B.live h ptr_for_topic_length /\
     B.live h ptr_topic_length /\
@@ -74,7 +79,7 @@ let mqtt_packet_parse request packet_size =
     B.live h ptr_topic_name_error_status /\
     B.live h ptr_topic_name_order_mark_check /\
     B.live h ptr_property_length /\
-    B.live h ptris_searching_property_length /\
+    B.live h ptr_is_searching_property_length /\
     B.live h ptr_payload /\
     B.live h ptr_payload_error_status /\
     B.live h ptr_protocol_name_error_status /\
@@ -84,71 +89,17 @@ let mqtt_packet_parse request packet_size =
     B.live h ptr_connect_topic_length /\
     B.live h ptr_connect_property_id
     in
-  let body (i: U32.t{ 0 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
+  let body (i: U32.t{ 2 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true))
   =
     let one_byte : U8.t = request.(i) in
-        let is_searching_remaining_length: bool =
-         ptr_is_searching_remaining_length.(0ul) in
         let is_break: bool = ptr_is_break.(0ul) in
       if (is_break) then
         ()
-      else if (i = 0ul) then
-        (
-          let message_type_bits: U8.t = slice_byte one_byte 0uy 4uy in
-          let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
-            ptr_message_type.(0ul) <- message_type;
-            ptr_fixed_header_first_one_byte.(0ul) <- one_byte;
-            if (U8.eq message_type max_u8) then
-              (
-                ptr_is_break.(0ul) <- true;
-                ptr_is_searching_remaining_length.(0ul) <- false
-              )
-        )
-      else if (U32.gte i 1ul && U32.lte i 4ul && is_searching_remaining_length) then
-        (
-          let bytes_length_minus_one: U32.t = U32.sub i 1ul in
-          ptr_for_decoding_packets.(bytes_length_minus_one) <- one_byte;
-          let is_end_byte: bool =
-            (
-              if (U32.eq i 1ul && U8.lte one_byte 0x7Fuy) ||
-                (U32.gte i 2ul && U8.gte one_byte 0x01uy && U8.lte one_byte 0x7Fuy)
-               then
-                true
-              else
-                false
-            ) in
-          if (is_end_byte) then
-            (
-              let bytes_length_u8: U8.t = uint32_to_uint8(i) in
-              let untrust_remaining_length: type_remaining_length =
-                decodeing_variable_bytes ptr_for_decoding_packets bytes_length_u8 in
-                print_string "packet_size=";
-                print_u32 packet_size;
-                print_string "\n";
-                print_string "bytes_length=";
-                print_u32 i;
-                print_string "\n";
-                print_string "remaining_length=";
-                print_u32 untrust_remaining_length;
-                print_string "\n";
-              let valid_remaining_length: bool = 
-                U32.eq (U32.sub packet_size 1ul) (U32.add untrust_remaining_length i) in
-              if valid_remaining_length then (
-                ptr_is_searching_remaining_length.(0ul) <- false;
-                ptr_remaining_length.(0ul) <- untrust_remaining_length
-              )           
-              else
-                ptr_is_break.(0ul) <- true
-            )
-        )
-
-      else if (not is_searching_remaining_length) then
+      else
         (
           let variable_header_index: U32.t = ptr_variable_header_index.(0ul) in
-          let message_type: type_mqtt_control_packets_restrict =
-            ptr_message_type.(0ul) in
             if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
               (
                 let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
@@ -165,8 +116,7 @@ let mqtt_packet_parse request packet_size =
                     if (U32.gt _topic_length 65535ul) then
                       (
                         ptr_topic_length.(0ul) <- max_u32;
-                        ptr_is_break.(0ul) <- true;
-                        ptr_is_searching_remaining_length.(0ul) <- false
+                        ptr_is_break.(0ul) <- true
                       )
                     else
                       (
@@ -176,12 +126,11 @@ let mqtt_packet_parse request packet_size =
                 else if (U32.gte variable_header_index 2ul) then
                   (
                     let is_searching_property_length: bool =
-                     ptris_searching_property_length.(0ul) in
+                     ptr_is_searching_property_length.(0ul) in
                     if (topic_length = max_u32) then
                       (
                         ptr_topic_length.(0ul) <- max_u32;
-                        ptr_is_break.(0ul) <- true;
-                        ptr_is_searching_remaining_length.(0ul) <- false
+                        ptr_is_break.(0ul) <- true
                       )
                     else
                       (
@@ -240,7 +189,7 @@ let mqtt_packet_parse request packet_size =
                           if (one_byte = 0uy) then
                             (
                               ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
-                              ptris_searching_property_length.(0ul) <- false
+                              ptr_is_searching_property_length.(0ul) <- false
                             )
                             // else (
                             //   // TODO: 3.3.2.3 PUBLISH Properties 
@@ -345,23 +294,18 @@ let mqtt_packet_parse request packet_size =
                 U32.(variable_header_index +^ 1ul)
 
         )
-      else
-        (
-          ()
-        )
+      // else
+      //   (
+      //     ()
+      //   )
   in
-  C.Loops.for 0ul packet_size inv body;
-
-  let is_searching_remaining_length: bool = ptr_is_searching_remaining_length.(0ul) in
-  let fixed_header_first_one_byte: U8.t = ptr_fixed_header_first_one_byte.(0ul) in
-  let message_type: type_mqtt_control_packets_restrict = ptr_message_type.(0ul) in
-  let remaining_length: type_remaining_length
-    = ptr_remaining_length.(0ul) in
+  let next_start_index: U32.t = variable_length.next_start_index in
+  C.Loops.for next_start_index packet_size inv body;
 
   let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
   let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
   let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
-  let is_searching_property_length: bool = ptris_searching_property_length.(0ul) in
+  let is_searching_property_length: bool = ptr_is_searching_property_length.(0ul) in
   let property_length: type_property_length = ptr_property_length.(0ul) in
   let payload: type_payload_restrict = ptr_payload.(0ul) in
   let payload_error_status: U8.t = ptr_payload_error_status.(0ul) in
@@ -373,14 +317,14 @@ let mqtt_packet_parse request packet_size =
   let connect_topic_length: U32.t = ptr_connect_topic_length.(0ul) in
   let connect_property_id: U8.t = ptr_connect_property_id.(0ul) in
   pop_frame ();
-  let is_share_error: bool = (is_searching_remaining_length) || (U8.eq message_type max_u8) in
+  let is_share_error: bool = (variable_length.have_error) || (U8.eq message_type max_u8) in
 
   if (is_share_error) then
     (
 
       let error_struct: struct_error_struct =
         (
-          if (is_searching_remaining_length) then
+          if (variable_length.have_error) then
             {
               code = define_error_remaining_length_invalid_code;
               message = define_error_remaining_length_invalid;
@@ -396,9 +340,9 @@ let mqtt_packet_parse request packet_size =
     (  
       if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
         (
-          let dup_flag: type_dup_flags_restrict = get_dup_flag fixed_header_first_one_byte in
-          let qos_flag: type_qos_flags_restrict = get_qos_flag fixed_header_first_one_byte in
-          let retain_flag: type_retain_flags_restrict = get_retain_flag fixed_header_first_one_byte in
+          let dup_flag: type_dup_flags_restrict = get_dup_flag first_one_byte in
+          let qos_flag: type_qos_flags_restrict = get_qos_flag first_one_byte in
+          let retain_flag: type_retain_flags_restrict = get_retain_flag first_one_byte in
           let have_error: bool =
             (U8.eq dup_flag max_u8) ||
             (U8.eq qos_flag max_u8) ||
@@ -453,7 +397,7 @@ let mqtt_packet_parse request packet_size =
             (
               let ed_fixed_header_parts:
                 struct_publish_parts = {
-                  publish_fixed_header_first_one_byte = fixed_header_first_one_byte;
+                  publish_fixed_header_first_one_byte = first_one_byte;
                   publish_remaining_length = remaining_length;
                   publish_topic_length = topic_length;
                   publish_topic_name = topic_name;
@@ -521,33 +465,19 @@ let mqtt_packet_parse request packet_size =
         )
         else if (U8.eq message_type define_mqtt_control_packet_DISCONNECT) then
           (
-            let flag: type_flag_restrict = get_flag message_type fixed_header_first_one_byte in
+            let flag: type_flag_restrict = get_flag message_type first_one_byte in
             let disconnect_constant: struct_fixed_header_constant =
               get_struct_fixed_header_constant_except_publish message_type in
             let have_error: bool =
-              (is_searching_remaining_length) ||
-              (U8.eq message_type max_u8) ||
               (is_valid_flag disconnect_constant flag = false) in
               if (have_error) then
                 (
                   let error_struct: struct_error_struct =
-                    (
-                      if (is_searching_remaining_length) then
-                        {
-                            code = define_error_remaining_length_invalid_code;
-                            message = define_error_remaining_length_invalid;
-                        }
-                      else if (U8.eq message_type max_u8) then
-                        {
-                            code = define_error_message_type_invalid_code;
-                            message = define_error_message_type_invalid;
-                        }
-                      else
-                        {
-                            code = define_error_flag_invalid_code;
-                            message = define_error_flag_invalid;
-                        }
-                    ) in error_struct_fixed_header error_struct
+                    {
+                        code = define_error_flag_invalid_code;
+                        message = define_error_flag_invalid;
+                    }
+                  in error_struct_fixed_header error_struct
                 )
               else
                 (

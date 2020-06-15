@@ -625,3 +625,9 @@ type struct_disconnect_parts = {
   disconnect_remaining_length: type_remaining_length;
   disconnect_disconnect_constant: struct_fixed_header_constant;
 }
+
+type struct_variable_length = {
+  have_error: bool;
+  variable_length_value: U32.t;
+  next_start_index: U32.t;
+}
