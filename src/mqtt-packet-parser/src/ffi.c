@@ -8,6 +8,8 @@ void print_hex(uint8_t i) {
 }
 
 C_String_t topic_name_uint8_to_c_string(uint8_t *u8_buffer) {
+  // for (int i = 0; i <= 50; i++)
+  //   printf("aaa 0x%x\n", u8_buffer[i]);
   return (char *)u8_buffer;
 }
 

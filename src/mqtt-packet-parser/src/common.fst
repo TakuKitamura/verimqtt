@@ -451,3 +451,49 @@ let get_flag message_type fixed_header_first_one_byte =
             v
         )
 
+val replace_byte: data: (B.buffer U8.t) 
+  -> data_size: U32.t 
+  -> Stack (r: B.buffer U8.t)
+    (requires fun h0 -> B.live h0 data)
+    (ensures fun h0 r h1 -> true)
+let replace_byte data data_size =
+  push_frame ();
+  let ptr_search_counter: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_return_data: B.buffer U8.t = B.alloca 0uy data_size in
+  let ptr_counter: B.buffer U32.t = B.alloca 0ul data_size in
+  let inv h (i: nat) = B.live h data /\ 
+  B.live h ptr_search_counter in
+  let body (i): Stack unit
+    (requires (fun h -> inv h (U32.v i)))
+    (ensures (fun _ _ _ -> true)) =
+    (
+      let one_byte: U8.t = data.(i) in
+      let search_count = ptr_search_counter.(0ul) in
+      ptr_return_data.(U32.sub i ptr_counter.(0ul)) <- one_byte;
+      if (U8.eq search_count 0uy && U8.eq one_byte 0xEFuy) then
+        (
+          ptr_search_counter.(0ul) <- 1uy
+        )
+      else if (U8.eq search_count 1uy &&  U8.eq one_byte 0xBBuy) then
+        (
+          ptr_search_counter.(0ul) <- 2uy
+        )
+      else if (U8.eq search_count 2uy &&  U8.eq one_byte 0xBFuy) then
+        (
+          // ptr_search_counter.(0ul) <- 3uy
+          ptr_return_data.(U32.sub i 2ul) <- 0xFEuy;
+          ptr_return_data.(U32.sub i 1ul) <- 0xFFuy;
+          ptr_return_data.(i) <- 0x00uy;
+          ptr_counter.(0ul) <- U32.add ptr_counter.(0ul) 1ul;
+          ptr_search_counter.(0ul) <- 0uy
+        )
+      else
+        (
+          ptr_search_counter.(0ul) <- 0uy
+        )
+    )
+  in
+  C.Loops.for 0ul data_size inv body;
+  let return_data: B.buffer U8.t = ptr_return_data in
+  pop_frame ();
+  return_data
