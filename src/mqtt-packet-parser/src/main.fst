@@ -31,23 +31,12 @@ val mqtt_packet_parse (request: B.buffer U8.t) (packet_size: type_packet_size):
     (ensures (fun h0 _ h1 -> B.live h0 request /\ B.live h1 request))
 let mqtt_packet_parse request packet_size =
   push_frame ();
-  let message_type_bits: U8.t = slice_byte request.(0ul) 0uy 4uy in
-  let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
   let ptr_is_break: B.buffer bool = B.alloca false 1ul in
-  let ptr_fixed_header_first_one_byte: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_message_type: B.buffer type_mqtt_control_packets_restrict
-    = B.alloca max_u8 1ul in
-  let ptr_is_searching_remaining_length: B.buffer bool = B.alloca true 1ul in
-  let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
-  let ptr_remaining_length: B.buffer type_remaining_length =
-   B.alloca 0ul 1ul in
-  let ptr_variable_header_index: B.buffer U32.t = B.alloca 0ul 1ul in
   let ptr_for_topic_length: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_topic_length: B.buffer type_topic_length_restrict = B.alloca max_u32 1ul in
   let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
   let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
   let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_topic_name_order_mark_check: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_property_length: B.buffer type_property_length = B.alloca 0ul 1ul in
   let ptr_is_searching_property_length: B.buffer bool = B.alloca true 1ul in
   let ptr_payload: B.buffer type_payload_restrict = B.alloca !$"" 1ul in
@@ -65,20 +54,16 @@ let mqtt_packet_parse request packet_size =
 
   let variable_length: struct_variable_length = get_variable_byte request packet_size 1ul in
   let remaining_length: type_remaining_length = variable_length.variable_length_value in
-  print_u32 remaining_length;
-  print_string "\n";
 
   let next_start_index: U32.t = variable_length.next_start_index in
   let inv h (i: nat) =
     B.live h ptr_is_break /\
     B.live h request /\
-    B.live h ptr_variable_header_index /\
     B.live h ptr_for_topic_length /\
     B.live h ptr_topic_length /\
     B.live h ptr_topic_name_u8 /\
     B.live h ptr_topic_name /\
     B.live h ptr_topic_name_error_status /\
-    B.live h ptr_topic_name_order_mark_check /\
     B.live h ptr_property_length /\
     B.live h ptr_is_searching_property_length /\
     B.live h ptr_payload /\
@@ -100,12 +85,7 @@ let mqtt_packet_parse request packet_size =
       ()
     else
       (
-        let j = U32.sub i next_start_index in
-        let variable_header_index: U32.t = U32.sub i next_start_index in
-        print_u32 j;
-        print_string "\n";
-        print_u32 variable_header_index;
-        print_string "\n";
+        let variable_header_index = U32.sub i next_start_index in
         if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
           (
             let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
@@ -150,36 +130,15 @@ let mqtt_packet_parse request packet_size =
                       else
                         (
                           ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
-                          // print_string "0x";
-                          // print_hex one_byte;
-                          // print_string "\n";
-                          // let topic_name_order_mark_check: U8.t = ptr_topic_name_order_mark_check.(0ul) in
-                          // if (U8.eq topic_name_order_mark_check 0uy && U8.eq one_byte 0xefuy) then
-                          //   (
-                          //     ptr_topic_name_order_mark_check.(0ul) <- 1uy
-                          //   )
-                          // else if (U8.eq topic_name_order_mark_check 1uy && U8.eq one_byte 0xbbuy) then
-                          //   (
-                          //     ptr_topic_name_order_mark_check.(0ul) <- 2uy
-                          //   )
-                          // else if (U8.eq topic_name_order_mark_check 2uy && U8.eq one_byte 0xbfuy && U32.gte variable_header_index 4ul) then
-                          //   (
-                          //     ptr_topic_name_order_mark_check.(0ul) <- 3uy;
-                          //     ptr_topic_name_u8.(U32.sub variable_header_index 4ul) <- 0xfeuy;
-                          //     ptr_topic_name_u8.(U32.sub variable_header_index 3ul) <- 0xffuy
-                          //     // ptr_variable_header_index.(0ul) <- U32.sub variable_header_index 1ul
-                          //   )
-                          // else
-                          //   (
                           // 0xEF 0xBB 0xBF は 0xFE 0xFF 置換
-                          ptr_topic_name_order_mark_check.(0ul) <- 0uy;
+                          // ptr_topic_name_order_mark_check.(0ul) <- 0uy;
                           if (variable_header_index = (U32.(topic_length +^ 1ul))) then
                             (
                               let topic_name: type_topic_name_restrict =
                                 (
                                   if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                                    let data = replace_byte ptr_topic_name_u8 65536ul in
-                                    topic_name_uint8_to_c_string data
+                                    let replace_bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
+                                    topic_name_uint8_to_c_string replace_bom
                                   else
                                     (
                                       ptr_topic_name_error_status.(0ul) <- 1uy;
@@ -187,7 +146,6 @@ let mqtt_packet_parse request packet_size =
                                     )
                                 ) in ptr_topic_name.(0ul) <- topic_name
                             )
-                            // )
                           )
 
                     )
@@ -299,10 +257,7 @@ let mqtt_packet_parse request packet_size =
               //     print_string "\n"
               //   )
           )
-        );
-        if (U32.lte variable_header_index (U32.sub max_u32 1ul)) then
-          ptr_variable_header_index.(0ul) <-
-            U32.(variable_header_index +^ 1ul)
+        )
       )
   in
   C.Loops.for next_start_index packet_size inv body;

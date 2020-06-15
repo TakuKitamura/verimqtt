@@ -21,13 +21,6 @@ let most_significant_four_bit_to_zero i =
     else
       i
 
-val except_most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y = 0 || U8.v y = 128}
-let except_most_significant_four_bit_to_zero i =
-    if (U8.(i <=^ 127uy)) then
-      0uy
-    else
-      128uy
-
 val decodeing_variable_bytes: ptr_for_decoding_packets: B.buffer U8.t
   -> bytes_length:U8.t{U8.v bytes_length >= 1 && U8.v bytes_length <= 4}
   -> Stack (remaining_length:type_remaining_length)
@@ -146,8 +139,6 @@ let get_variable_byte packet_data packet_size now_index =
   let next_start_index = ptr_next_start_index.(0ul) in
   pop_frame ();
 
-  print_u8 byte_length;
-  print_string "\n";
   if (byte_length = 0uy) then
     {
       have_error = true;
@@ -451,12 +442,12 @@ let get_flag message_type fixed_header_first_one_byte =
             v
         )
 
-val replace_byte: data: (B.buffer U8.t) 
+val replace_utf8_encoded: data: (B.buffer U8.t) 
   -> data_size: U32.t 
   -> Stack (r: B.buffer U8.t)
     (requires fun h0 -> B.live h0 data)
     (ensures fun h0 r h1 -> true)
-let replace_byte data data_size =
+let replace_utf8_encoded data data_size =
   push_frame ();
   let ptr_search_counter: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_return_data: B.buffer U8.t = B.alloca 0uy data_size in
