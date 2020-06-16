@@ -488,3 +488,75 @@ let replace_utf8_encoded data data_size =
   let return_data: B.buffer U8.t = ptr_return_data in
   pop_frame ();
   return_data
+
+val share_common_data_check: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
+  -> Stack (share_common_data_check: struct_share_common_data_check)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let share_common_data_check packet_data packet_size =
+  let first_one_byte: U8.t = packet_data.(0ul) in
+  let message_type_bits: U8.t = slice_byte first_one_byte 0uy 4uy in
+  let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
+
+  let variable_length: struct_variable_length = get_variable_byte packet_data packet_size 1ul in
+  let remaining_length: type_remaining_length = variable_length.variable_length_value in
+
+  let next_start_index: U32.t = variable_length.next_start_index in
+  let is_share_error: bool = (variable_length.have_error) || (U8.eq message_type max_u8) in
+  if (is_share_error) then
+    (
+      let error_struct: struct_error_struct =
+        (
+          if (variable_length.have_error) then
+            {
+              code = define_error_remaining_length_invalid_code;
+              message = define_error_remaining_length_invalid;
+            }
+          else // if (U8.eq message_type max_u8) then
+            {
+              code = define_error_message_type_invalid_code;
+              message = define_error_message_type_invalid;
+            }
+        ) in 
+        let error = error_struct_fixed_header error_struct in
+        let share_common_data_check: struct_share_common_data_check =
+        {
+          share_common_data_have_error = is_share_error;
+          share_common_data_error = error;
+          share_common_data = {
+            common_packet_data = packet_data;
+            common_packet_size = packet_size;
+            common_message_type = max_u8;
+            common_remaining_length = max_u32;
+            common_next_start_index = max_u32;
+            common_first_one_byte = max_u8;
+          };
+        } in share_common_data_check
+    )
+  else
+    (
+     let error_struct: struct_error_struct =
+        (
+          {
+            code = define_no_error_code;
+            message = !$"";
+          }
+        ) in 
+        let no_error = error_struct_fixed_header error_struct in
+        let share_common_data: struct_share_common_data =
+          {
+            common_packet_data = packet_data;
+            common_packet_size = packet_size;
+            common_message_type = message_type;
+            common_remaining_length = remaining_length;
+            common_next_start_index = next_start_index;
+            common_first_one_byte = first_one_byte;
+          } in
+        let share_common_data_check: struct_share_common_data_check =
+        {
+          share_common_data_have_error = is_share_error;
+          share_common_data_error = no_error;
+          share_common_data = share_common_data;
+        } in share_common_data_check
+    )

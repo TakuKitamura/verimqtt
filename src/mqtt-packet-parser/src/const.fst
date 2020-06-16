@@ -2,6 +2,7 @@ module Const
 
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
+module B = LowStar.Buffer
 
 open C.String
 
@@ -630,4 +631,39 @@ type struct_variable_length = {
   have_error: bool;
   variable_length_value: U32.t;
   next_start_index: U32.t;
+}
+
+type struct_share_common_data = {
+  common_packet_data: B.buffer U8.t;
+  common_packet_size: type_packet_size;
+  common_message_type: type_mqtt_control_packets_restrict;
+  common_remaining_length: type_remaining_length;
+  common_next_start_index: U32.t;
+  common_first_one_byte: U8.t;
+}
+
+type struct_share_common_data_check = {
+  share_common_data_have_error: bool;
+  share_common_data_error: struct_fixed_header;
+  share_common_data: struct_share_common_data;
+}
+
+type struct_publish_packet_seed = {
+  publish_seed_topic_length: type_topic_length_restrict;
+  publish_seed_topic_name: type_topic_name_restrict;
+  publish_seed_topic_name_error_status: U8.t;
+  publish_seed_is_searching_property_length: bool;
+  publish_seed_property_length: type_property_length;
+  publish_seed_payload: type_payload_restrict;
+  publish_seed_payload_error_status: U8.t;
+}
+
+type struct_connect_packet_seed = {
+  connect_seed_protocol_name_error_status: U8.t;
+  connect_seed_protocol_version_error_status: U8.t;
+  connect_seed_connect_flag: U8.t;
+  connect_seed_keep_alive_msb_u8: U8.t;
+  connect_seed_keep_alive_lsb_u8: U8.t;
+  connect_seed_connect_topic_length: U32.t;
+  connect_seed_connect_property_id: U8.t;
 }

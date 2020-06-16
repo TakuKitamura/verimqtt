@@ -1,7 +1,9 @@
 module Disconnect
 
 open C.String
+
 open Const
+open Common
 
 module U8 = FStar.UInt8
 
@@ -139,3 +141,30 @@ let assemble_disconnect_struct s =
         message = define_no_error;
       };
     }
+
+val disconnect_packet_parse_result: (share_common_data: struct_share_common_data)
+  -> struct_fixed_header
+let disconnect_packet_parse_result share_common_data =
+  let disconnect_constant: struct_fixed_header_constant =
+    get_struct_fixed_header_constant_except_publish share_common_data.common_message_type in
+  let flag: type_flag_restrict = get_flag share_common_data.common_message_type share_common_data.common_first_one_byte in
+  let have_error: bool =
+    (is_valid_flag disconnect_constant flag = false) in
+    if (have_error) then
+      (
+        let error_struct: struct_error_struct =
+          {
+              code = define_error_flag_invalid_code;
+              message = define_error_flag_invalid;
+          }
+        in error_struct_fixed_header error_struct
+      )
+    else
+      (
+        let ed_fixed_header_parts:
+        struct_disconnect_parts = {
+          disconnect_disconnect_constant = disconnect_constant;
+          disconnect_remaining_length = share_common_data.common_remaining_length;
+        } in
+        assemble_disconnect_struct ed_fixed_header_parts
+      )
