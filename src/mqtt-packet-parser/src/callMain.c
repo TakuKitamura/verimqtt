@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
     printf("data.publish.topic_name = %s\n", data.publish.topic_name);
     printf("data.publish.property_length = %u\n", data.publish.property_length);
     printf("data.publish.payload = %s\n", data.publish.payload);
+    printf("data.publish.property_id = %u\n", data.publish.property_id);
 
 
     printf("data.disconnect.disconnect_reason_code = 0x%02x\n", data.disconnect.disconnect_reason_code);

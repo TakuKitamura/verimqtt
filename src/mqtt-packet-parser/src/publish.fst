@@ -8,10 +8,12 @@ open C.String
 open LowStar.BufferOps
 open FStar.HyperStack.ST
 open FStar.Int.Cast
+open LowStar.Printf
 
 open Const
 open Common
 open FFI
+open Debug
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
@@ -96,6 +98,7 @@ let assemble_publish_struct s =
             topic_length = s.publish_topic_length;
             topic_name = s.publish_topic_name;
             property_length = s.publish_property_length;
+            property_id = s.publish_property_id;
             payload = s.publish_payload;
           };
           disconnect = {
@@ -126,6 +129,8 @@ let publish_packet_parser packet_data packet_size next_start_index =
   let ptr_is_searching_property_length: B.buffer bool = B.alloca true 1ul in
   let ptr_payload: B.buffer type_payload_restrict = B.alloca !$"" 1ul in
   let ptr_payload_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_next_start_index: B.buffer U32.t = B.alloca 0ul 1ul in
+  let ptr_property_id: B.buffer U8.t = B.alloca max_u8 1ul in
 
   let inv h (i: nat) =
     B.live h packet_data /\
@@ -138,7 +143,9 @@ let publish_packet_parser packet_data packet_size next_start_index =
     B.live h ptr_property_length /\
     B.live h ptr_is_searching_property_length /\
     B.live h ptr_payload /\
-    B.live h ptr_payload_error_status
+    B.live h ptr_payload_error_status /\
+    B.live h ptr_next_start_index /\
+    B.live h ptr_property_id
     in
   let body (i: U32.t{ 2 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
     (requires (fun h -> inv h (U32.v i)))
@@ -194,7 +201,6 @@ let publish_packet_parser packet_data packet_size next_start_index =
                     (
                       ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
                       // 0xEF 0xBB 0xBF は 0xFE 0xFF 置換
-                      // ptr_topic_name_order_mark_check.(0ul) <- 0uy;
                       if (variable_header_index = (U32.(topic_length +^ 1ul))) then
                         (
                           let topic_name: type_topic_name_restrict =
@@ -216,37 +222,58 @@ let publish_packet_parser packet_data packet_size next_start_index =
                 && is_searching_property_length
                 ) then
                 (
+                  let variable_length: struct_variable_length = 
+                    get_variable_byte packet_data packet_size i in
+                  let property_length: type_remaining_length = 
+                    variable_length.variable_length_value in
+                  let next_start_index: U32.t = variable_length.next_start_index in
+                  print_u32 property_length;
+                  print_string "<- property_length\n";
+                  print_u32 next_start_index;
+                  print_string "<- next_start_index\n";
 
-                  if (one_byte = 0uy) then
-                    (
-                      ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
-                      ptr_is_searching_property_length.(0ul) <- false
-                    )
-                    // else (
-                    //   // TODO: 3.3.2.3 PUBLISH Properties 
-                    //   // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901109
-                    //   // print_not_implemented "PUBLISH Properties Parsing"
-                    // )
+                  ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
+                  ptr_next_start_index.(0ul) <- next_start_index;
+                  ptr_is_searching_property_length.(0ul) <- false
                 )
               else if (not is_searching_property_length) then
                 (
-                  let payload_offset: type_payload_offset = i in
-                  let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
-                  let payload: type_payload_restrict =
+                  print_u32 i;
+                  print_string "<- i\n";
+                  if (U32.lt i (U32.add ptr_next_start_index.(0ul) ptr_property_length.(0ul))) then
                     (
-                      let last_payload_index: U32.t =
-                        U32.(packet_size -^ payload_offset) in
-                      let last_payload_element: U8.t = ptr_payload_u8.(last_payload_index) in
-                        if (last_payload_element <> 0uy) then
-                          (
-                            ptr_payload_error_status.(0ul) <- 1uy;
-                            !$""
-                          )
-                        else
-                          payload_uint8_to_c_string ptr_payload_u8 min_packet_size max_packet_size packet_size
-                    ) in
-                  ptr_payload.(0ul) <- payload;
-                  ptr_is_break.(0ul) <- true
+                      if (U32.eq i ptr_next_start_index.(0ul)) then
+                        (
+                          print_hex one_byte;
+                          ptr_property_id.(0ul) <- one_byte;
+                          print_string "<- id\n"
+                        ) 
+                      else
+                        (
+                          print_hex one_byte;
+                          print_string "<- one_byte\n"           
+                        )
+                    )
+                  else 
+                    (
+                      let payload_offset: type_payload_offset = i in
+                      let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
+                      let payload: type_payload_restrict =
+                        (
+                          let last_payload_index: U32.t =
+                            U32.(packet_size -^ payload_offset) in
+                          let last_payload_element: U8.t = ptr_payload_u8.(last_payload_index) in
+                            if (last_payload_element <> 0uy) then
+                              (
+                                ptr_payload_error_status.(0ul) <- 1uy;
+                                !$""
+                              )
+                            else
+                              payload_uint8_to_c_string ptr_payload_u8 min_packet_size max_packet_size packet_size
+                        ) in
+                      ptr_payload.(0ul) <- payload;
+                      ptr_is_break.(0ul) <- true
+                     )
                 )
               else
                 (
@@ -270,6 +297,7 @@ let publish_packet_parser packet_data packet_size next_start_index =
   let property_length: type_property_length = ptr_property_length.(0ul) in
   let payload: type_payload_restrict = ptr_payload.(0ul) in
   let payload_error_status: U8.t = ptr_payload_error_status.(0ul) in
+  let property_id: U8.t = ptr_property_id.(0ul) in
 
   let publish_packet_seed: struct_publish_packet_seed = {
     publish_seed_topic_length = topic_length;
@@ -279,6 +307,7 @@ let publish_packet_parser packet_data packet_size next_start_index =
     publish_seed_property_length = property_length;
     publish_seed_payload = payload;
     publish_seed_payload_error_status = payload_error_status;
+    publish_seed_property_id = property_id;
   } in publish_packet_seed
 
 val publish_packet_parse_result: (share_common_data: struct_share_common_data)
@@ -352,6 +381,7 @@ let publish_packet_parse_result share_common_data =
           publish_topic_name = publish_packet_seed.publish_seed_topic_name;
           publish_property_length = publish_packet_seed.publish_seed_property_length;
           publish_payload = publish_packet_seed.publish_seed_payload;
+          publish_property_id = publish_packet_seed.publish_seed_property_id;
       } in
       assemble_publish_struct ed_fixed_header_parts
     )

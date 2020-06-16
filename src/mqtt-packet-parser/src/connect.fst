@@ -78,6 +78,7 @@ let assemble_connect_struct s =
       topic_name = !$"";
       property_length = max_u32;
       payload = !$"";
+      property_id = max_u8;
     };
     disconnect = define_struct_disconnect_error;
     error = {
@@ -164,6 +165,8 @@ let connect_packet_parser packet_data packet_size next_start_index =
           else if (U32.eq variable_header_index 10ul) then
             (
               // TODO: topic length が一桁かつ, keep aliveが127以下の場合
+              let variable_length: struct_variable_length = 
+                        get_variable_byte packet_data packet_size i in
               ptr_connect_topic_length.(0ul) <- uint8_to_uint32 one_byte
             )
           else if (U32.eq variable_header_index 11ul) then

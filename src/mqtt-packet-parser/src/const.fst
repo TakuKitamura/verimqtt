@@ -262,6 +262,7 @@ type struct_variable_header_publish = {
   topic_name: type_topic_name_restrict;
   property_length: type_property_length;
   payload: type_payload_restrict;
+  property_id: U8.t;
 }
 
 type type_disconnect_reason_code = U8.t
@@ -611,6 +612,7 @@ type struct_publish_parts = {
   publish_topic_length: type_topic_length_restrict;
   publish_property_length: type_property_length;
   publish_payload: type_payload_restrict;
+  publish_property_id: U8.t;
 }
 
 type struct_connect_parts = {
@@ -656,6 +658,7 @@ type struct_publish_packet_seed = {
   publish_seed_property_length: type_property_length;
   publish_seed_payload: type_payload_restrict;
   publish_seed_payload_error_status: U8.t;
+  publish_seed_property_id: U8.t;
 }
 
 type struct_connect_packet_seed = {

@@ -47,6 +47,7 @@ let assemble_disconnect_struct s =
         topic_name = !$"";
         property_length = max_u32;
         payload = !$"";
+        property_id = max_u8;
       };
       disconnect = (
         if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_code_normal_disconnection) then

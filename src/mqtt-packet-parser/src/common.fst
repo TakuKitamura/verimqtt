@@ -109,22 +109,26 @@ let get_variable_byte packet_data packet_size now_index =
           ptr_for_decoding_packets.(j) <- packet_data.(i);
           let is_end_byte: bool =
             (
-              if (U32.eq i 1ul && U8.lte packet_data.(i) 0x7Fuy) ||
-                (U32.gte i 2ul && U8.gte packet_data.(i) 0x01uy && U8.lte packet_data.(i) 0x7Fuy)
+              if (U32.eq j 0ul && U8.lte packet_data.(i) 0x7Fuy) ||
+                (U32.gte j 1ul && U8.gte packet_data.(i) 0x01uy && U8.lte packet_data.(i) 0x7Fuy)
                 then
                 true
               else
                 false
             ) in
-
             if (is_end_byte) then
               (
                 let bytes_length_u8: U8.t = uint32_to_uint8(U32.add j 1ul) in
                 let untrust_remaining_length: type_remaining_length =
                   decodeing_variable_bytes ptr_for_decoding_packets bytes_length_u8 in
-                let byte_length: U32.t = U32.add untrust_remaining_length i in
+                let byte_length: U32.t = U32.add j 1ul in
                 let valid_remaining_length: bool = 
-                  U32.eq (U32.sub packet_size 1ul) (U32.add untrust_remaining_length i) in
+                  (
+                    if (U32.eq now_index 1ul) then
+                      U32.eq (U32.sub packet_size 1ul) (U32.add untrust_remaining_length i)
+                    else 
+                      true
+                  ) in
                 if valid_remaining_length then (
                   ptr_remaining_length.(0ul) <- untrust_remaining_length;
                   ptr_byte_length.(0ul) <- bytes_length_u8;
@@ -358,6 +362,7 @@ let error_struct_fixed_header error_struct = {
       topic_name = !$"";
       property_length = max_u32;
       payload = !$"";
+      property_id = max_u8;
     };
     disconnect = {
       disconnect_reason_code = max_u8;
