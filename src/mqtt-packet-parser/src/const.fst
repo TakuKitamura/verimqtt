@@ -670,3 +670,8 @@ type struct_connect_packet_seed = {
   connect_seed_connect_topic_length: U32.t;
   connect_seed_connect_property_id: U8.t;
 }
+
+type struct_replace_utf8_encoded = {
+  replace_bom: B.buffer U8.t;
+  bom_count: U32.t;
+}

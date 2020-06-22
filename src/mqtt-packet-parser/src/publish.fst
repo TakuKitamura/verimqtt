@@ -206,8 +206,11 @@ let publish_packet_parser packet_data packet_size next_start_index =
                           let topic_name: type_topic_name_restrict =
                             (
                               if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                                let replace_bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
-                                topic_name_uint8_to_c_string replace_bom
+                                let bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
+                                // TODO: remaining length も対応させる
+                                ptr_topic_length.(0ul) 
+                                  <- U32.sub ptr_topic_length.(0ul) bom.bom_count;
+                                topic_name_uint8_to_c_string bom.replace_bom
                               else
                                 (
                                   ptr_topic_name_error_status.(0ul) <- 1uy;

@@ -449,7 +449,7 @@ let get_flag message_type fixed_header_first_one_byte =
 
 val replace_utf8_encoded: data: (B.buffer U8.t) 
   -> data_size: U32.t 
-  -> Stack (r: B.buffer U8.t)
+  -> Stack (r: struct_replace_utf8_encoded)
     (requires fun h0 -> B.live h0 data)
     (ensures fun h0 r h1 -> true)
 let replace_utf8_encoded data data_size =
@@ -490,9 +490,13 @@ let replace_utf8_encoded data data_size =
     )
   in
   C.Loops.for 0ul data_size inv body;
-  let return_data: B.buffer U8.t = ptr_return_data in
+  let bom_data: B.buffer U8.t = ptr_return_data in
+  let bom_count: U32.t = ptr_counter.(0ul) in
   pop_frame ();
-  return_data
+  let replace_utf8_encoded: struct_replace_utf8_encoded = {
+    replace_bom = bom_data;
+    bom_count = bom_count;
+  } in replace_utf8_encoded
 
 val share_common_data_check: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
