@@ -13,7 +13,7 @@ open LowStar.Printf
 open Const
 open Common
 open FFI
-open Debug
+open Debug_FFI
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
@@ -111,6 +111,67 @@ let assemble_publish_struct s =
           };
         }
 
+val get_topic_name: packet_data: (B.buffer U8.t) 
+  -> topic_name_start_index: U32.t
+  -> topic_length: U32.t
+  -> Stack (topic_name: struct_topic_name)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let get_topic_name packet_data topic_name_start_index topic_length =
+  push_frame ();
+  let ptr_counter: B.buffer U32.t = B.alloca 0ul 1ul in
+  let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
+  let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
+  let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
+  let inv h (i: nat) = B.live h packet_data /\
+  B.live h ptr_counter /\
+  B.live h ptr_topic_name_u8 /\
+  B.live h ptr_topic_name /\
+  B.live h ptr_topic_name_error_status in
+  let body (i): Stack unit
+    (requires (fun h -> inv h (U32.v i)))
+    (ensures (fun _ _ _ -> true)) =
+    (
+      let one_byte: U8.t = packet_data.(i) in 
+      if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x23uy || U8.eq one_byte 0x2buy) then
+        (
+          ptr_topic_name_error_status.(0ul) <- 2uy
+        )
+      else
+        (
+          // ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
+          ptr_topic_name_u8.(ptr_counter.(0ul)) <- one_byte;
+          // 0xEF 0xBB 0xBF は 0xFE 0xFF 置換
+          if (ptr_counter.(0ul) = (U32.(topic_length -^ 1ul))) then
+            (
+              let topic_name: type_topic_name_restrict =
+                (
+                  if (ptr_topic_name_u8.(65535ul) = 0uy) then
+                    let bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
+                    // TODO: remaining length, ptr_topic_length も -1 対応させる?
+                    // ptr_topic_length.(0ul) 
+                    //   <- U32.sub ptr_topic_length.(0ul) bom.bom_count;
+                    topic_name_uint8_to_c_string bom.replace_bom
+                  else
+                    (
+                      ptr_topic_name_error_status.(0ul) <- 1uy;
+                      !$""
+                    )
+                ) in ptr_topic_name.(0ul) <- topic_name
+            )
+          );
+          ptr_counter.(0ul) <- U32.add ptr_counter.(0ul) 1ul
+    )
+  in
+  let last: U32.t = U32.add topic_length topic_name_start_index in
+  C.Loops.for topic_name_start_index last inv body;
+  let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
+  let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
+  let topic_name: struct_topic_name = {
+    topic_name_error_status = topic_name_error_status;
+    topic_name = topic_name;
+  } in topic_name
+
 val publish_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> next_start_index:U32.t
@@ -119,196 +180,50 @@ val publish_packet_parser: packet_data: (B.buffer U8.t)
     (ensures fun h0 r h1 -> true)
 let publish_packet_parser packet_data packet_size next_start_index =
   push_frame();
-  let ptr_is_break: B.buffer bool = B.alloca false 1ul in
-  let ptr_for_topic_length: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_topic_length: B.buffer type_topic_length_restrict = B.alloca max_u32 1ul in
-  let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
-  let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
-  let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_property_length: B.buffer type_property_length = B.alloca 0ul 1ul in
-  let ptr_is_searching_property_length: B.buffer bool = B.alloca true 1ul in
-  let ptr_payload: B.buffer type_payload_restrict = B.alloca !$"" 1ul in
-  let ptr_payload_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_next_start_index: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_property_id: B.buffer U8.t = B.alloca max_u8 1ul in
 
-  let inv h (i: nat) =
-    B.live h packet_data /\
-    B.live h ptr_is_break /\
-    B.live h ptr_for_topic_length /\
-    B.live h ptr_topic_length /\
-    B.live h ptr_topic_name_u8 /\
-    B.live h ptr_topic_name /\
-    B.live h ptr_topic_name_error_status /\
-    B.live h ptr_property_length /\
-    B.live h ptr_is_searching_property_length /\
-    B.live h ptr_payload /\
-    B.live h ptr_payload_error_status /\
-    B.live h ptr_next_start_index /\
-    B.live h ptr_property_id
-    in
-  let body (i: U32.t{ 2 <= U32.v i && U32.v i < U32.v packet_size  }): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
-    (ensures (fun _ _ _ -> true))
-  =
-    let one_byte : U8.t = packet_data.(i) in
-    let is_break: bool = ptr_is_break.(0ul) in
-    if (is_break) then
-      ()
-    else
-      (
-        let variable_header_index = U32.sub i next_start_index in
-        let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
-        if (variable_header_index = 0ul) then
-          ptr_for_topic_length.(0ul) <- one_byte
-        else if (variable_header_index = 1ul) then
-          (
-            let msb_u8: U8.t = ptr_for_topic_length.(0ul) in
-            let lsb_u8: U8.t = one_byte in
-            let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
-            let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
-            let _topic_length: U32.t =
-              U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
-            if (U32.gt _topic_length 65535ul) then
-              (
-                ptr_topic_length.(0ul) <- max_u32;
-                ptr_is_break.(0ul) <- true
-              )
-            else
-              (
-                ptr_topic_length.(0ul) <- _topic_length
-              )
-          )
-        else if (U32.gte variable_header_index 2ul) then
-          (
-            let is_searching_property_length: bool =
-              ptr_is_searching_property_length.(0ul) in
-            if (topic_length = max_u32) then
-              (
-                ptr_topic_length.(0ul) <- max_u32;
-                ptr_is_break.(0ul) <- true
-              )
-            else
-              (
-              if (U32.lte variable_header_index (U32.(topic_length +^ 1ul))) then
-                (
-                  if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x23uy || U8.eq one_byte 0x2buy) then
-                    (
-                      ptr_topic_name_error_status.(0ul) <- 2uy;
-                      ptr_is_break.(0ul) <- true
-                    )
-                  else
-                    (
-                      ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
-                      // 0xEF 0xBB 0xBF は 0xFE 0xFF 置換
-                      if (variable_header_index = (U32.(topic_length +^ 1ul))) then
-                        (
-                          let topic_name: type_topic_name_restrict =
-                            (
-                              if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                                let bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
-                                // TODO: remaining length も対応させる
-                                ptr_topic_length.(0ul) 
-                                  <- U32.sub ptr_topic_length.(0ul) bom.bom_count;
-                                topic_name_uint8_to_c_string bom.replace_bom
-                              else
-                                (
-                                  ptr_topic_name_error_status.(0ul) <- 1uy;
-                                  !$""
-                                )
-                            ) in ptr_topic_name.(0ul) <- topic_name
-                        )
-                      )
-                )
-              else if (U32.gt variable_header_index (U32.(topic_length +^ 1ul))
-                && U32.lte variable_header_index (U32.(topic_length +^ 5ul))
-                && is_searching_property_length
-                ) then
-                (
-                  let variable_length: struct_variable_length = 
-                    get_variable_byte packet_data packet_size i in
-                  let property_length: type_remaining_length = 
-                    variable_length.variable_length_value in
-                  let next_start_index: U32.t = variable_length.next_start_index in
-                  print_u32 property_length;
-                  print_string "<- property_length\n";
-                  print_u32 next_start_index;
-                  print_string "<- next_start_index\n";
+  let msb_u8: U8.t = packet_data.(next_start_index) in
+  let lsb_u8: U8.t = packet_data.(U32.add next_start_index 1ul) in
+  let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
+  let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
+  let topic_length: U32.t =
+    U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
+  
+  let topic_name_struct: struct_topic_name = 
+    get_topic_name packet_data (U32.add next_start_index 2ul) topic_length in
+  let topic_name_error_status: U8.t = topic_name_struct.topic_name_error_status in
 
-                  ptr_property_length.(0ul) <- uint8_to_uint32 one_byte;
-                  ptr_next_start_index.(0ul) <- next_start_index;
-                  ptr_is_searching_property_length.(0ul) <- false
-                )
-              else if (not is_searching_property_length) then
-                (
-                  print_u32 i;
-                  print_string "<- i\n";
-                  if (U32.lt i (U32.add ptr_next_start_index.(0ul) ptr_property_length.(0ul))) then
-                    (
-                      if (U32.eq i ptr_next_start_index.(0ul)) then
-                        (
-                          print_hex one_byte;
-                          ptr_property_id.(0ul) <- one_byte;
-                          print_string "<- id\n"
-                        ) 
-                      else
-                        (
-                          print_hex one_byte;
-                          print_string "<- one_byte\n"           
-                        )
-                    )
-                  else 
-                    (
-                      let payload_offset: type_payload_offset = i in
-                      let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
-                      let payload: type_payload_restrict =
-                        (
-                          let last_payload_index: U32.t =
-                            U32.(packet_size -^ payload_offset) in
-                          let last_payload_element: U8.t = ptr_payload_u8.(last_payload_index) in
-                            if (last_payload_element <> 0uy) then
-                              (
-                                ptr_payload_error_status.(0ul) <- 1uy;
-                                !$""
-                              )
-                            else
-                              payload_uint8_to_c_string ptr_payload_u8 min_packet_size max_packet_size packet_size
-                        ) in
-                      ptr_payload.(0ul) <- payload;
-                      ptr_is_break.(0ul) <- true
-                     )
-                )
-              else
-                (
-                  ()
-                )
-              )
-          )
-        else
-          (
-            ()
-          )
-      )
-  in
-  C.Loops.for next_start_index packet_size inv body;
+  let variable_length: struct_variable_length = 
+    get_variable_byte 
+      packet_data packet_size (U32.add (U32.add next_start_index 2ul) topic_length) in
+  let property_length: type_remaining_length = 
+    variable_length.variable_length_value in
+  let property_start_index: U32.t = variable_length.next_start_index in
+  let property_struct: struct_property = 
+    parse_property packet_data property_length property_start_index in
+  let property_id = property_struct.property_id in
+
+  let payload_struct: struct_payload = 
+    get_payload packet_data packet_size property_struct.payload_start_index in
+    
+  let payload_error_status = 
+  if (payload_struct.is_valid_payload = false) then
+    (
+      1uy
+    )
+  else
+    (
+      0uy
+    ) in
   pop_frame ();
-
-  let topic_length: type_topic_length_restrict = ptr_topic_length.(0ul) in
-  let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
-  let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
-  let is_searching_property_length: bool = ptr_is_searching_property_length.(0ul) in
-  let property_length: type_property_length = ptr_property_length.(0ul) in
-  let payload: type_payload_restrict = ptr_payload.(0ul) in
-  let payload_error_status: U8.t = ptr_payload_error_status.(0ul) in
-  let property_id: U8.t = ptr_property_id.(0ul) in
 
   let publish_packet_seed: struct_publish_packet_seed = {
     publish_seed_topic_length = topic_length;
-    publish_seed_topic_name = topic_name;
+    publish_seed_topic_name = topic_name_struct.topic_name;
     publish_seed_topic_name_error_status = topic_name_error_status;
-    publish_seed_is_searching_property_length = is_searching_property_length;
+    publish_seed_is_searching_property_length = false;
     publish_seed_property_length = property_length;
-    publish_seed_payload = payload;
+    publish_seed_payload = 
+      payload_uint8_to_c_string payload_struct.payload min_packet_size max_packet_size packet_size;
     publish_seed_payload_error_status = payload_error_status;
     publish_seed_property_id = property_id;
   } in publish_packet_seed

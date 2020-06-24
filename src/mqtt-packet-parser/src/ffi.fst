@@ -10,11 +10,6 @@ open Common
 open C
 open LowStar.Printf
 
-// 本番環境では削除
-assume val print_hex (i:U8.t): Stack unit
-  (requires (fun h -> true))
-  (ensures (fun h0 ret h1 -> true))
-
 assume val topic_name_uint8_to_c_string: u8_buffer: B.buffer U8.t -> Stack C.String.t
   (requires (fun h -> B.live h u8_buffer /\ zero_terminated_buffer_u8 h u8_buffer /\ B.length u8_buffer = 65536))
   (ensures (fun h0 ret h1 -> U32.v (C.String.strlen ret) <= 65535))

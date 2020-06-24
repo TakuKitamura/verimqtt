@@ -675,3 +675,18 @@ type struct_replace_utf8_encoded = {
   replace_bom: B.buffer U8.t;
   bom_count: U32.t;
 }
+
+type struct_topic_name = {
+  topic_name_error_status: U8.t;
+  topic_name: type_topic_name_restrict;
+}
+
+type struct_property = {
+  property_id: U8.t;
+  payload_start_index: U32.t;
+}
+
+type struct_payload = {
+  is_valid_payload: bool;
+  payload: B.buffer U8.t;
+}

@@ -13,6 +13,7 @@ open C.String
 
 
 open Const
+open Debug_FFI
 
 val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
 let most_significant_four_bit_to_zero i =
@@ -569,3 +570,72 @@ let share_common_data_check packet_data packet_size =
           share_common_data = share_common_data;
         } in share_common_data_check
     )
+
+val parse_property: packet_data: (B.buffer U8.t) 
+  -> property_length: U32.t
+  -> property_start_index: U32.t
+  -> Stack (property: struct_property)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let parse_property packet_data property_length property_start_index =
+  push_frame ();
+  let ptr_property_id: B.buffer U8.t = B.alloca max_u8 1ul in
+  let inv h (i: nat) = B.live h packet_data /\
+  B.live h ptr_property_id in
+  let body (i): Stack unit
+    (requires (fun h -> inv h (U32.v i)))
+    (ensures (fun _ _ _ -> true)) =
+    (
+      let one_byte: U8.t = packet_data.(i) in 
+      if (U32.eq i property_start_index) then
+        (
+          // print_hex one_byte;
+          ptr_property_id.(0ul) <- one_byte
+          // print_u8 one_byte;
+          // print_string " <- id (10)\n"
+        )
+      else
+        (
+          // TODO: プロパティに合わせてパースする
+          // ()
+          print_string "0x";
+          print_hex one_byte;
+          print_string " <- property_element\n"           
+        )
+    )
+  in
+  let last: U32.t = U32.add property_length property_start_index in
+  C.Loops.for property_start_index last inv body;
+  let property_id: U8.t = ptr_property_id.(0ul) in
+  pop_frame ();
+  let property: struct_property = {
+    property_id = property_id;
+    payload_start_index = last;
+  } in property
+
+
+val get_payload: packet_data: (B.buffer U8.t) 
+  -> packet_size: U32.t
+  -> payload_start_index: U32.t
+  -> Stack (payload: struct_payload)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let get_payload packet_data packet_size payload_start_index =
+  let payload_offset: type_payload_offset = payload_start_index in
+  let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
+  let last_payload_index: U32.t =
+    U32.(packet_size -^ payload_offset) in
+  let last_payload_element: U8.t = ptr_payload_u8.(last_payload_index) in
+  let is_valid_payload: bool = 
+    (
+      if (last_payload_element <> 0uy) then
+        false
+      else
+        true
+    ) in
+
+  let payload :struct_payload = {
+    is_valid_payload = is_valid_payload;
+    payload = ptr_payload_u8;
+  } in payload
+    

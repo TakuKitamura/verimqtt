@@ -74,15 +74,15 @@ int main(int argc, char *argv[]) {
     puts("");
 
     printf("data.publish.topic_length = %u\n", data.publish.topic_length);
-    // printf("data.publish.topic_name = %s\n", data.publish.topic_name);
-    printf("data.publish.topic_name_bytes =\n [");
-    for (int i=0; i < data.publish.topic_length; i++) {
-        printf("0x%02X", data.publish.topic_name[i] & 0x000000FF);
-        if (i + 1 == data.publish.topic_length) 
-            puts("]\n");
-        else
-            printf(", ");
-    }
+    printf("data.publish.topic_name = %s\n", data.publish.topic_name);
+    // printf("data.publish.topic_name_bytes =\n [");
+    // for (int i=0; i < data.publish.topic_length; i++) {
+    //     printf("0x%02X", data.publish.topic_name[i] & 0x000000FF);
+    //     if (i + 1 == data.publish.topic_length) 
+    //         puts("]\n");
+    //     else
+    //         printf(", ");
+    // }
 
     printf("data.publish.property_length = %u\n", data.publish.property_length);
     printf("data.publish.payload = %s\n", data.publish.payload);
