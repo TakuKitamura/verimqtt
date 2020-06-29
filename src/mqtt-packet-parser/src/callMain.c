@@ -85,7 +85,17 @@ int main(int argc, char *argv[]) {
     // }
 
     printf("data.publish.property_length = %u\n", data.publish.property_length);
-    printf("data.publish.payload = %s\n", data.publish.payload);
+    // printf("data.publish.payload = %s\n", data.publish.payload);
+    printf("data.publish.topic_name_bytes =\n [");
+    for (int i=0; i < data.publish.payload_length; i++) {
+        printf("0x%02X", data.publish.payload[i] & 0x000000FF);
+        if (i + 1 == data.publish.payload_length) 
+            puts("]\n");
+        else
+            printf(", ");
+    }
+    printf("data.publish.payload_length = %u\n", data.publish.payload_length);
+
     printf("data.publish.property_id = %u\n", data.publish.property_id);
 
 

@@ -36,17 +36,18 @@ let assemble_disconnect_struct s =
           clean_start = max_u8;
         };
         keep_alive = max_u32;
-        connect_topic_length = max_u32;
+        connect_topic_length = 0ul;
         connect_property = {
           connect_property_id = max_u8;
           connect_property_name = !$"";
         }
       };
       publish = {
-        topic_length = max_u32;
+        topic_length = 0ul;
         topic_name = !$"";
-        property_length = max_u32;
+        property_length = 0ul;
         payload = !$"";
+        payload_length = 0ul;
         property_id = max_u8;
       };
       disconnect = (

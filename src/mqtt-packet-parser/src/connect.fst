@@ -74,10 +74,11 @@ let assemble_connect_struct s =
             define_struct_connect_property_authentication_data
         };
     publish = {
-      topic_length = max_u32;
+      topic_length = 0ul;
       topic_name = !$"";
-      property_length = max_u32;
+      property_length = 0ul;
       payload = !$"";
+      payload_length = 0ul;
       property_id = max_u8;
     };
     disconnect = define_struct_disconnect_error;

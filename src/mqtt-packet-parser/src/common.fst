@@ -338,7 +338,7 @@ let error_struct_fixed_header error_struct = {
       qos_flag = max_u8;
       retain_flag = max_u8;
     };
-    remaining_length = max_u32;
+    remaining_length = 0ul;
     connect = {
       protocol_name = !$"";
       protocol_version = max_u8;
@@ -352,17 +352,18 @@ let error_struct_fixed_header error_struct = {
         clean_start = max_u8;
       };
       keep_alive = max_u32;
-      connect_topic_length = max_u32;
+      connect_topic_length = 0ul;
       connect_property = {
         connect_property_id = max_u8;
         connect_property_name = !$"";
       }
     };
     publish = {
-      topic_length = max_u32;
+      topic_length = 0ul;
       topic_name = !$"";
-      property_length = max_u32;
+      property_length = 0ul;
       payload = !$"";
+      payload_length = 0ul;
       property_id = max_u8;
     };
     disconnect = {
@@ -571,6 +572,80 @@ let share_common_data_check packet_data packet_size =
         } in share_common_data_check
     )
 
+// 1: Byte
+// 2: Two Byte Integer
+// 3: Four Byte Integer
+// 4: UTF-8 Encoded String
+// 5: Variable Byte Integer
+// 6: Binary Data
+// 7: UTF-8 String Pair
+val get_property_type_id: property_id: (U8.t)
+  -> property_type_id: (U8.t)
+let get_property_type_id property_id =
+  if (property_id = 0x01uy || property_id = 0x17uy || property_id = 0x19uy || property_id = 0x24uy || property_id = 0x25uy || property_id = 0x28uy || property_id = 0x29uy || property_id = 0x2Auy) then
+    0x01uy // Byte
+  else if (property_id = 0x13uy || property_id = 0x21uy || property_id = 0x22uy || property_id = 0x23uy) then
+    0x02uy // Two Byte Integer
+  else if (property_id = 0x02uy || property_id = 0x11uy || property_id = 0x18uy || property_id = 0x27uy) then
+    0x03uy // Four Byte Integer
+  else if (property_id = 0x03uy || property_id = 0x08uy || property_id = 0x12uy || property_id = 0x15uy || property_id = 0x1Auy || property_id = 0x1Cuy || property_id = 0x1Fuy) then
+    0x04uy // UTF-8 Encoded String
+  else if (property_id = 0x0Buy) then
+    0x05uy // Variable Byte Integer
+  else if (property_id = 0x09uy || property_id = 0x16uy) then
+    0x06uy // Binary Data
+  else if (property_id = 0x26uy) then
+    0x07uy // UTF-8 String Pair
+  else
+    max_u8
+
+val get_two_byte_integer: msb_u8: (U8.t)
+  -> lsb_u8: (U8.t)
+  -> two_byte_integer: (U32.t)
+let get_two_byte_integer msb_u8 lsb_u8 =
+  let msb_u32: U32.t = uint8_to_uint32 msb_u8 in
+  let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
+  let two_byte_integer: U32.t =
+    U32.logor (U32.shift_left msb_u32 8ul) lsb_u32
+  in two_byte_integer 
+   
+// TODO: Payloadはnull終端である必要はないので関数呼び出し側は注意する
+val get_payload: packet_data: (B.buffer U8.t) 
+  -> payload_start_index: U32.t
+  -> packet_end_index: U32.t
+  -> Stack (payload: struct_payload)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let get_payload packet_data payload_start_index payload_end_index =
+  let payload_length: U32.t = U32.(payload_end_index -^ payload_start_index +^ 1ul) in
+  print_u32 payload_length;
+  let payload_offset: type_payload_offset = payload_start_index in
+  let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
+
+  let payload :struct_payload = {
+    is_valid_payload = true;
+    payload = ptr_payload_u8;
+    payload_length = payload_length;
+  } in payload
+
+val parse_property_binary: packet_data: (B.buffer U8.t) 
+  -> property_length: U32.t
+  -> property_start_index: U32.t
+  -> Stack (struct_property_binary: unit)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let parse_property_binary packet_data property_length property_start_index =
+  push_frame ();
+  let binary_length_msb_u8: U8.t = packet_data.(U32.add property_start_index 1ul) in
+  let binary_length_lsb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
+  let binary_length: U32.t = get_two_byte_integer binary_length_msb_u8 binary_length_lsb_u8 in
+  let payload_start_index: U32.t = U32.add property_start_index 3ul in
+  let payload_end_index: U32.t = U32.add payload_start_index (U32.sub binary_length 1ul) in
+  let payload_struct: struct_payload = 
+    get_payload packet_data payload_start_index payload_end_index in
+  pop_frame ();
+  ()
+
 val parse_property: packet_data: (B.buffer U8.t) 
   -> property_length: U32.t
   -> property_start_index: U32.t
@@ -579,63 +654,32 @@ val parse_property: packet_data: (B.buffer U8.t)
     (ensures fun h0 r h1 -> true)
 let parse_property packet_data property_length property_start_index =
   push_frame ();
-  let ptr_property_id: B.buffer U8.t = B.alloca max_u8 1ul in
-  let inv h (i: nat) = B.live h packet_data /\
-  B.live h ptr_property_id in
-  let body (i): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
-    (ensures (fun _ _ _ -> true)) =
-    (
-      let one_byte: U8.t = packet_data.(i) in 
-      if (U32.eq i property_start_index) then
-        (
-          // print_hex one_byte;
-          ptr_property_id.(0ul) <- one_byte
-          // print_u8 one_byte;
-          // print_string " <- id (10)\n"
-        )
-      else
-        (
-          // TODO: プロパティに合わせてパースする
-          // ()
-          print_string "0x";
-          print_hex one_byte;
-          print_string " <- property_element\n"           
-        )
-    )
-  in
   let last: U32.t = U32.add property_length property_start_index in
-  C.Loops.for property_start_index last inv body;
-  let property_id: U8.t = ptr_property_id.(0ul) in
+  // C.Loops.for property_start_index last inv body;
+  let property_id: U8.t = packet_data.(property_start_index) in
+  let property_type_id: U8.t = get_property_type_id property_id in
+  (
+    if property_type_id = 1uy then // Byte
+      ()
+    else if property_type_id = 2uy then // Two Byte Integer
+      ()
+    else if property_type_id = 3uy then // Four Byte Integer
+      ()
+    else if property_type_id = 4uy then // UTF-8 Encoded String
+      ()
+    else if property_type_id = 5uy then // Variable Byte Integer
+      ()
+    else if property_type_id = 6uy then // Binary Data
+      (
+        parse_property_binary packet_data property_length property_start_index
+      )
+    else if property_type_id = 7uy then // UTF-8 String Pair
+      ()
+    else 
+      ()
+  );
   pop_frame ();
   let property: struct_property = {
     property_id = property_id;
     payload_start_index = last;
   } in property
-
-
-val get_payload: packet_data: (B.buffer U8.t) 
-  -> packet_size: U32.t
-  -> payload_start_index: U32.t
-  -> Stack (payload: struct_payload)
-    (requires fun h0 -> B.live h0 packet_data)
-    (ensures fun h0 r h1 -> true)
-let get_payload packet_data packet_size payload_start_index =
-  let payload_offset: type_payload_offset = payload_start_index in
-  let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
-  let last_payload_index: U32.t =
-    U32.(packet_size -^ payload_offset) in
-  let last_payload_element: U8.t = ptr_payload_u8.(last_payload_index) in
-  let is_valid_payload: bool = 
-    (
-      if (last_payload_element <> 0uy) then
-        false
-      else
-        true
-    ) in
-
-  let payload :struct_payload = {
-    is_valid_payload = is_valid_payload;
-    payload = ptr_payload_u8;
-  } in payload
-    

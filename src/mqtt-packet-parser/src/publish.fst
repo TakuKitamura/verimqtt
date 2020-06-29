@@ -100,6 +100,7 @@ let assemble_publish_struct s =
             property_length = s.publish_property_length;
             property_id = s.publish_property_id;
             payload = s.publish_payload;
+            payload_length = s.publish_payload_length;
           };
           disconnect = {
             disconnect_reason_code = max_u8;
@@ -201,9 +202,10 @@ let publish_packet_parser packet_data packet_size next_start_index =
   let property_struct: struct_property = 
     parse_property packet_data property_length property_start_index in
   let property_id = property_struct.property_id in
-
+  let payload_start_index: U32.t = property_struct.payload_start_index in
+  let paylaod_end_index: U32.t = U32.sub packet_size 1ul in
   let payload_struct: struct_payload = 
-    get_payload packet_data packet_size property_struct.payload_start_index in
+    get_payload packet_data payload_start_index paylaod_end_index in
     
   let payload_error_status = 
   if (payload_struct.is_valid_payload = false) then
@@ -224,6 +226,7 @@ let publish_packet_parser packet_data packet_size next_start_index =
     publish_seed_property_length = property_length;
     publish_seed_payload = 
       payload_uint8_to_c_string payload_struct.payload min_packet_size max_packet_size packet_size;
+    publish_seed_payload_length = payload_struct.payload_length;
     publish_seed_payload_error_status = payload_error_status;
     publish_seed_property_id = property_id;
   } in publish_packet_seed
@@ -299,6 +302,7 @@ let publish_packet_parse_result share_common_data =
           publish_topic_name = publish_packet_seed.publish_seed_topic_name;
           publish_property_length = publish_packet_seed.publish_seed_property_length;
           publish_payload = publish_packet_seed.publish_seed_payload;
+          publish_payload_length = publish_packet_seed.publish_seed_payload_length;
           publish_property_id = publish_packet_seed.publish_seed_property_id;
       } in
       assemble_publish_struct ed_fixed_header_parts
