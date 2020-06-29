@@ -608,6 +608,23 @@ let get_two_byte_integer msb_u8 lsb_u8 =
   let two_byte_integer: U32.t =
     U32.logor (U32.shift_left msb_u32 8ul) lsb_u32
   in two_byte_integer 
+
+val get_four_byte_integer: 
+  mmsb_u8: (U8.t)
+  -> msb_u8: (U8.t)
+  -> lsb_u8: (U8.t)
+  -> llsb_u8: (U8.t)
+  -> four_byte_integer: (U32.t)
+let get_four_byte_integer mmsb_u8 msb_u8 lsb_u8 llsb_u8 =
+  let mmsb_u32: U32.t = uint8_to_uint32 mmsb_u8 in
+  let msb_u32: U32.t = uint8_to_uint32 msb_u8 in
+  let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
+  let llsb_u32: U32.t = uint8_to_uint32 llsb_u8 in
+  let four_byte_integer: U32.t =
+    U32.logor 
+      (U32.logor (U32.shift_left mmsb_u32 24ul) (U32.shift_left msb_u32 16ul))
+      (U32.logor (U32.shift_left lsb_u32 8ul) llsb_u32) 
+  in four_byte_integer 
    
 // TODO: Payloadはnull終端である必要はないので関数呼び出し側は注意する
 val get_payload: packet_data: (B.buffer U8.t) 
@@ -618,7 +635,6 @@ val get_payload: packet_data: (B.buffer U8.t)
     (ensures fun h0 r h1 -> true)
 let get_payload packet_data payload_start_index payload_end_index =
   let payload_length: U32.t = U32.(payload_end_index -^ payload_start_index +^ 1ul) in
-  print_u32 payload_length;
   let payload_offset: type_payload_offset = payload_start_index in
   let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
 
@@ -627,6 +643,61 @@ let get_payload packet_data payload_start_index payload_end_index =
     payload = ptr_payload_u8;
     payload_length = payload_length;
   } in payload
+
+val parse_property_two_byte_integer: packet_data: (B.buffer U8.t) 
+  -> property_start_index: U32.t
+  -> Stack (struct_property_binary: unit)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let parse_property_two_byte_integer packet_data property_start_index =
+  push_frame ();
+  let msb_u8: U8.t = packet_data.(U32.add property_start_index 1ul) in
+  let lsb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
+  let two_byte_integer: U32.t = get_two_byte_integer msb_u8 lsb_u8 in
+  pop_frame ();
+  ()
+
+val parse_property_four_byte_integer: packet_data: (B.buffer U8.t) 
+  -> property_start_index: U32.t
+  -> Stack (struct_property_binary: unit)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let parse_property_four_byte_integer packet_data property_start_index =
+  push_frame ();
+  let mmsb_u8: U8.t = packet_data.(U32.add property_start_index 1ul) in
+  let msb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
+  let lsb_u8: U8.t = packet_data.(U32.add property_start_index 3ul) in
+  let llsb_u8: U8.t = packet_data.(U32.add property_start_index 4ul) in
+  let four_byte_integer: U32.t = get_four_byte_integer mmsb_u8 msb_u8 lsb_u8 llsb_u8 in
+  pop_frame ();
+  ()
+
+val parse_property_one_byte_integer: packet_data: (B.buffer U8.t) 
+  -> property_start_index: U32.t
+  -> Stack (struct_property_binary: unit)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let parse_property_one_byte_integer packet_data property_start_index =
+  push_frame ();
+  let one_byte_integer: U8.t = packet_data.(U32.add property_start_index 1ul) in
+  pop_frame ();
+  ()
+
+val parse_property_variable_byte_integer: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
+  -> property_start_index: U32.t
+  -> Stack (struct_property_binary: unit)
+    (requires fun h0 -> B.live h0 packet_data)
+    (ensures fun h0 r h1 -> true)
+let parse_property_variable_byte_integer packet_data packet_size property_start_index =
+  let variable_length: struct_variable_length = 
+    get_variable_byte packet_data packet_size (U32.add property_start_index 1ul) in
+  let property_variable_value: type_remaining_length = variable_length.variable_length_value in
+  let next_start_index: U32.t = variable_length.next_start_index in
+  let is_error: bool = (variable_length.have_error || next_start_index = 0ul) in
+  print_bool is_error;
+  ()
+
 
 val parse_property_binary: packet_data: (B.buffer U8.t) 
   -> property_length: U32.t
@@ -647,28 +718,36 @@ let parse_property_binary packet_data property_length property_start_index =
   ()
 
 val parse_property: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
   -> property_length: U32.t
   -> property_start_index: U32.t
   -> Stack (property: struct_property)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
-let parse_property packet_data property_length property_start_index =
+let parse_property packet_data packet_size property_length property_start_index =
   push_frame ();
   let last: U32.t = U32.add property_length property_start_index in
-  // C.Loops.for property_start_index last inv body;
   let property_id: U8.t = packet_data.(property_start_index) in
   let property_type_id: U8.t = get_property_type_id property_id in
   (
     if property_type_id = 1uy then // Byte
-      ()
+      (
+        parse_property_one_byte_integer packet_data property_start_index
+      )
     else if property_type_id = 2uy then // Two Byte Integer
-      ()
+      (
+        parse_property_two_byte_integer packet_data property_start_index
+      )
     else if property_type_id = 3uy then // Four Byte Integer
-      ()
+      (
+        parse_property_four_byte_integer packet_data property_start_index
+      )
     else if property_type_id = 4uy then // UTF-8 Encoded String
       ()
     else if property_type_id = 5uy then // Variable Byte Integer
-      ()
+      (
+        parse_property_variable_byte_integer packet_data packet_size property_start_index
+      )
     else if property_type_id = 6uy then // Binary Data
       (
         parse_property_binary packet_data property_length property_start_index

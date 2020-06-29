@@ -112,6 +112,8 @@ let assemble_publish_struct s =
           };
         }
 
+// TODO: topic-name のエラー条件を追加する
+// TODO: UTF-8 の 制約を追加する
 val get_topic_name: packet_data: (B.buffer U8.t) 
   -> topic_name_start_index: U32.t
   -> topic_length: U32.t
@@ -200,7 +202,7 @@ let publish_packet_parser packet_data packet_size next_start_index =
     variable_length.variable_length_value in
   let property_start_index: U32.t = variable_length.next_start_index in
   let property_struct: struct_property = 
-    parse_property packet_data property_length property_start_index in
+    parse_property packet_data packet_size property_length property_start_index in
   let property_id = property_struct.property_id in
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let paylaod_end_index: U32.t = U32.sub packet_size 1ul in
