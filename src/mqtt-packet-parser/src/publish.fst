@@ -150,11 +150,11 @@ let get_topic_name packet_data topic_name_start_index topic_length =
               let topic_name: type_topic_name_restrict =
                 (
                   if (ptr_topic_name_u8.(65535ul) = 0uy) then
-                    let bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
+                    // let bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
                     // TODO: remaining length, ptr_topic_length も -1 対応させる?
                     // ptr_topic_length.(0ul) 
                     //   <- U32.sub ptr_topic_length.(0ul) bom.bom_count;
-                    topic_name_uint8_to_c_string bom.replace_bom
+                    uint8_to_c_string ptr_topic_name_u8
                   else
                     (
                       ptr_topic_name_error_status.(0ul) <- 1uy;

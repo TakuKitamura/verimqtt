@@ -86,11 +86,11 @@ int main(int argc, char *argv[]) {
 
     printf("data.publish.property_length = %u\n", data.publish.property_length);
     // printf("data.publish.payload = %s\n", data.publish.payload);
-    printf("data.publish.topic_name_bytes =\n [");
+    printf("data.publish.payload =\n [");
     for (int i=0; i < data.publish.payload_length; i++) {
         printf("0x%02X", data.publish.payload[i] & 0x000000FF);
         if (i + 1 == data.publish.payload_length) 
-            puts("]\n");
+            puts("]");
         else
             printf(", ");
     }

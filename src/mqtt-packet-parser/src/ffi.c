@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "kremlib.h"
 
-C_String_t topic_name_uint8_to_c_string(uint8_t *u8_buffer) {
+C_String_t uint8_to_c_string(uint8_t *u8_buffer) {
   return (char *)u8_buffer;
 }
 

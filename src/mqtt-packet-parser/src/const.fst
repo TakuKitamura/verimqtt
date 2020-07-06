@@ -1,6 +1,7 @@
 module Const
 
 module U8 = FStar.UInt8
+module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
 
@@ -693,4 +694,9 @@ type struct_payload = {
   is_valid_payload: bool;
   payload: B.buffer U8.t;
   payload_length: U32.t;
+}
+
+type struct_array_u16 = {
+  array_u16: B.buffer U16.t;
+  array_length_u16: U32.t;
 }
