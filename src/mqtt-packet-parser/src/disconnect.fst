@@ -137,7 +137,7 @@ let assemble_disconnect_struct s =
         else // if (U8.eq disconnect_constant.flags_constant.flag define_disconnect_reason_wildcard_subscriptions_not_supported) then
             define_struct_disconnect_wildcard_subscriptions_not_supported
       );
-
+      property = property_struct_base;
       error = {
         code = define_no_error_code;
         message = define_no_error;

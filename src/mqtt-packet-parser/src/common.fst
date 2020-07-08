@@ -372,6 +372,7 @@ let error_struct_fixed_header error_struct = {
       disconnect_reason_code = max_u8;
       disconnect_reason_code_name = !$"";
     };
+    property = property_struct_base;
     error = error_struct;
   }
 
@@ -652,22 +653,57 @@ let get_payload packet_data payload_start_index payload_end_index =
 
 val parse_property_two_byte_integer: packet_data: (B.buffer U8.t) 
   -> property_start_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_two_byte_integer packet_data property_start_index =
   push_frame ();
   let msb_u8: U8.t = packet_data.(U32.add property_start_index 1ul) in
   let lsb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
-  let two_byte_integer: U32.t = get_two_byte_integer_u8_to_u32 msb_u8 lsb_u8 in
-  print_u32 two_byte_integer;
-  print_string " <- two_byte_integer\n";
   pop_frame ();
-  ()
-
+  let two_byte_integer: U32.t = get_two_byte_integer_u8_to_u32 msb_u8 lsb_u8 in
+  let two_byte_integer_struct: struct_two_byte_integer = {
+    two_byte_integer_value = uint32_to_uint16 two_byte_integer;
+  } in
+  let b: struct_property_type = property_struct_type_base in
+  let property_struct_type_base: struct_property_type = {
+    one_byte_integer_struct = {
+      one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+    };
+    two_byte_integer_struct = two_byte_integer_struct;
+    four_byte_integer_struct = {
+      four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+    };
+    utf8_encoded_string_struct = {
+      utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+      utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+      utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+    };
+    variable_byte_integer_struct = {
+      variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+    };
+    binary_data_struct = {
+      binary_length = b.binary_data_struct.binary_length;
+      binary_value = b.binary_data_struct.binary_value;
+    };
+    utf8_string_pair_struct = {
+      utf8_string_pair_key = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+      };
+      utf8_string_pair_value = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+      };
+    };
+    property_type_error_code = 0uy;
+  } in property_struct_type_base
+  
 val parse_property_four_byte_integer: packet_data: (B.buffer U8.t) 
   -> property_start_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_four_byte_integer packet_data property_start_index =
@@ -676,65 +712,207 @@ let parse_property_four_byte_integer packet_data property_start_index =
   let msb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
   let lsb_u8: U8.t = packet_data.(U32.add property_start_index 3ul) in
   let llsb_u8: U8.t = packet_data.(U32.add property_start_index 4ul) in
-  let four_byte_integer: U32.t = get_four_byte_integer mmsb_u8 msb_u8 lsb_u8 llsb_u8 in
-  print_u32 four_byte_integer;
-  print_string " <- four_byte_integer\n";
   pop_frame ();
-  ()
+  let four_byte_integer: U32.t = get_four_byte_integer mmsb_u8 msb_u8 lsb_u8 llsb_u8 in
+  let four_byte_integer_struct: struct_four_byte_integer = {
+    four_byte_integer_value = four_byte_integer;
+  } in
+  let b: struct_property_type = property_struct_type_base in
+  let property_struct_type_base: struct_property_type = {
+    one_byte_integer_struct = {
+      one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+    };
+    two_byte_integer_struct = {
+      two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+    };
+    four_byte_integer_struct = four_byte_integer_struct;
+    utf8_encoded_string_struct = {
+      utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+      utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+      utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+    };
+    variable_byte_integer_struct = {
+      variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+    };
+    binary_data_struct = {
+      binary_length = b.binary_data_struct.binary_length;
+      binary_value = b.binary_data_struct.binary_value;
+    };
+    utf8_string_pair_struct = {
+      utf8_string_pair_key = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+      };
+      utf8_string_pair_value = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+      };
+    };
+    property_type_error_code = 0uy;
+  } in property_struct_type_base
 
 val parse_property_one_byte_integer: packet_data: (B.buffer U8.t) 
   -> property_start_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_one_byte_integer packet_data property_start_index =
   push_frame ();
   let one_byte_integer: U8.t = packet_data.(U32.add property_start_index 1ul) in
-  print_u8 one_byte_integer;
-  print_string " <- one_byte_integer\n";
   pop_frame ();
-  ()
+  let one_byte_integer_struct: struct_one_byte_integer = {
+    one_byte_integer_value = one_byte_integer;
+  } in
+  let b: struct_property_type = property_struct_type_base in
+  let property_struct_type_base: struct_property_type = {
+    one_byte_integer_struct = one_byte_integer_struct;
+    two_byte_integer_struct = {
+      two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+    };
+    four_byte_integer_struct = {
+      four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+    };
+    utf8_encoded_string_struct = {
+      utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+      utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+      utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+    };
+    variable_byte_integer_struct = {
+      variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+    };
+    binary_data_struct = {
+      binary_length = b.binary_data_struct.binary_length;
+      binary_value = b.binary_data_struct.binary_value;
+    };
+    utf8_string_pair_struct = {
+      utf8_string_pair_key = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+      };
+      utf8_string_pair_value = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+      };
+    };
+    property_type_error_code = 0uy;
+  } in property_struct_type_base
 
 val parse_property_variable_byte_integer: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> property_start_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_variable_byte_integer packet_data packet_size property_start_index =
   let variable_length: struct_variable_length = 
     get_variable_byte packet_data packet_size (U32.add property_start_index 1ul) in
   let property_variable_value: type_remaining_length = variable_length.variable_length_value in
-  print_u32 property_variable_value;
-  print_string " <- property_variable_value\n";
+  let variable_value_struct: struct_variable_byte_integer = {
+    variable_byte_integer_value = property_variable_value;
+  } in
   let next_start_index: U32.t = variable_length.next_start_index in
   let is_error: bool = (variable_length.have_error || next_start_index = 0ul) in
-  print_bool is_error;
-  ()
-
+  let b: struct_property_type = property_struct_type_base in
+  let property_struct_type_base: struct_property_type = {
+    one_byte_integer_struct = {
+      one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+    };
+    two_byte_integer_struct = {
+      two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+    };
+    four_byte_integer_struct = {
+      four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+    };
+    utf8_encoded_string_struct = {
+      utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+      utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+      utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+    };
+    variable_byte_integer_struct = variable_value_struct;
+    binary_data_struct = {
+      binary_length = b.binary_data_struct.binary_length;
+      binary_value = b.binary_data_struct.binary_value;
+    };
+    utf8_string_pair_struct = {
+      utf8_string_pair_key = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+      };
+      utf8_string_pair_value = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+      };
+    };
+    property_type_error_code = 
+      (
+        if (is_error) then 1uy
+        else 0uy
+      );
+  } in property_struct_type_base
 
 val parse_property_binary: packet_data: (B.buffer U8.t) 
   -> property_length: U32.t
   -> property_start_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_binary packet_data property_length property_start_index =
   push_frame ();
+  // TODO: エラーチェック
   let binary_length_msb_u8: U8.t = packet_data.(U32.add property_start_index 1ul) in
   let binary_length_lsb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
   let binary_length: U32.t = get_two_byte_integer_u8_to_u32 binary_length_msb_u8 binary_length_lsb_u8 in
   let payload_start_index: U32.t = U32.add property_start_index 3ul in
   let payload_end_index: U32.t = U32.add payload_start_index (U32.sub binary_length 1ul) in
+  pop_frame ();
   let payload_struct: struct_payload = 
     get_payload packet_data payload_start_index payload_end_index in
   print_buffer_u8 payload_struct.payload payload_struct.
   payload_length;
-  print_string " <- binary_data\n";
-  print_u32 payload_struct.payload_length;
-  print_string " <- binary_data_length\n";
-  pop_frame ();
-  ()
+  let binary_data_struct: struct_binary_data = {
+    binary_length = uint32_to_uint16 payload_struct.payload_length;
+    binary_value = payload_struct.payload;
+  } in
+  let b: struct_property_type = property_struct_type_base in
+  let property_struct_type_base: struct_property_type = {
+    one_byte_integer_struct = {
+      one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+    };
+    two_byte_integer_struct = {
+      two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+    };
+    four_byte_integer_struct = {
+      four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+    };
+    utf8_encoded_string_struct = {
+      utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+      utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+      utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+    };
+    variable_byte_integer_struct = {
+      variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+    };
+    binary_data_struct = binary_data_struct;
+    utf8_string_pair_struct = {
+      utf8_string_pair_key = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+      };
+      utf8_string_pair_value = {
+        utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+        utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+        utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+      };
+    };
+    property_type_error_code = 0uy;
+  } in property_struct_type_base
 
 val u8_array_to_u16_array: u8_array: (B.buffer U8.t)
   -> u8_array_length: U32.t
@@ -764,7 +942,6 @@ let u8_array_to_u16_array u8_array u8_array_length u8_array_start_index =
     (ensures (fun _ _ _ -> true)) =
     (
       let counter: U32.t = ptr_counter.(0ul) in
-      // print_buffer_u8 u8_array 100ul;
       if U32.eq (U32.rem (U32.sub i u8_array_start_index) 2ul) 1ul then
         (
           let two_byte_integer: U16.t = 
@@ -795,23 +972,16 @@ let u8_array_to_u16_array u8_array u8_array_length u8_array_start_index =
 val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t) 
   -> utf8_encoded_string_start_index: U32.t
   -> utf8_encoded_string_end_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (utf8_encoded_string_struct: struct_utf8_string)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf8_encoded_string_end_index =
   push_frame ();
   let utf8_encoded_string_entity_start_index: U32.t = 
     U32.add utf8_encoded_string_start_index 2ul in
-  // let u8_array_length: U32.t = 
-  //   U32.(utf8_encoded_string_end_index -^ utf8_encoded_string_entity_start_index +^ 1ul) in
-  // let array_u16: struct_array_u16 = 
-  //   u8_array_to_u16_array packet_data u8_array_length utf8_encoded_string_entity_start_index in
-  // let utf8_entity_u16: B.buffer U16.t = array_u16.array_u16 in
-  // let utf8_entity_length_u32: U32.t = array_u16.array_length_u16 in
 
   let utf8_entity_length_u32: U32.t = 
     U32.(utf8_encoded_string_end_index -^ utf8_encoded_string_entity_start_index +^ 1ul) in
-  // print_u32 utf8_entity_length_u32;
 
   let is_malformed_utf8: B.buffer bool = B.alloca false 1ul in
   let codelen: B.buffer U8.t = B.alloca 0uy 1ul in
@@ -824,24 +994,11 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
   let body (counter): Stack unit
     (requires (fun h -> inv h (U32.v counter)))
     (ensures (fun _ _ _ -> true)) =
-    // let is_break: bool = ptr_is_break.(0ul) in
-    // print_hex_u8 packet_data.(counter);
-    // print_string "\n";
-    // print_bool (is_malformed_utf8.(0ul));
     if (U32.gte i.(0ul) (U32.add utf8_encoded_string_end_index 1ul) || is_malformed_utf8.(0ul)) then
       ()
     else
       (
-        // i.(0ul) <- counter;
-        // print_string "0x";
-        // print_hex_u8 packet_data.(i.(0ul));
-        // print_string "\n";
-
         let one_byte: U8.t = packet_data.(i.(0ul)) in
-        // print_u32 i.(0ul) ;
-        print_string "0x";
-        print_hex_u8 one_byte;
-        print_string ", ";
 
         if (U8.eq one_byte 0uy) then
           (
@@ -987,26 +1144,24 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
       )
   in
   C.Loops.for utf8_encoded_string_entity_start_index (U32.add utf8_encoded_string_end_index 1ul) inv body;
-  (
-    if (is_malformed_utf8.(0ul)) then
-      (print_string("invalid utf-8\n"))
-    else
-      (
-        print_string " <- utf-8\n";
-        print_u32 utf8_entity_length_u32;
-        print_string " <- utf8_entity_length\n";
-        print_string "valid utf-8\n"
-      )
-
-  );
+  let utf8_value: B.buffer U8.t = B.offset packet_data utf8_encoded_string_entity_start_index in
+  let utf8_encoded_string_struct: struct_utf8_string = {
+    utf8_string_length = uint32_to_uint16 utf8_entity_length_u32;
+    utf8_string_value = utf8_value;
+    utf8_string_status_code =
+      if (is_malformed_utf8.(0ul)) then
+        1uy
+      else
+        0uy
+  } in 
   pop_frame ();
-  ()
+  utf8_encoded_string_struct
 
 val parse_property_utf8_encoded_string: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size  
   -> property_start_index: U32.t
   -> property_end_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_utf8_encoded_string packet_data packet_size property_start_index property_end_index =
@@ -1015,26 +1170,58 @@ let parse_property_utf8_encoded_string packet_data packet_size property_start_in
   let utf8_encoded_string_end_index: U32.t = property_end_index in
   let msb_u8: U8.t = packet_data.(utf8_encoded_string_start_index) in
   let lsb_u8: U8.t = packet_data.(U32.add utf8_encoded_string_start_index 1ul) in
+  pop_frame ();
   let two_byte_integer: U32.t = get_two_byte_integer_u8_to_u32 msb_u8 lsb_u8 in
-  (
+  let b: struct_property_type = property_struct_type_base in
+  ( 
     if (U32.eq two_byte_integer U32.(utf8_encoded_string_end_index -^ utf8_encoded_string_start_index -^ 1ul)) then
       (
-        is_valid_utf8_encoded_string packet_data 
-          utf8_encoded_string_start_index utf8_encoded_string_end_index
+        let utf8_encoded_string_struct: struct_utf8_string = is_valid_utf8_encoded_string packet_data 
+          utf8_encoded_string_start_index utf8_encoded_string_end_index in
+        let property_struct_type_base: struct_property_type = {
+          one_byte_integer_struct = {
+            one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+          };
+          two_byte_integer_struct = {
+            two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+          };
+          four_byte_integer_struct = {
+            four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+          };
+          utf8_encoded_string_struct = utf8_encoded_string_struct;
+          variable_byte_integer_struct = {
+            variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+          };
+          binary_data_struct = {
+            binary_length = b.binary_data_struct.binary_length;
+            binary_value = b.binary_data_struct.binary_value;
+          };
+          utf8_string_pair_struct = {
+            utf8_string_pair_key = {
+              utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+              utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+              utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+            };
+            utf8_string_pair_value = {
+              utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+              utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+              utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+            };
+          };
+          property_type_error_code = utf8_encoded_string_struct.utf8_string_status_code;
+        } in property_struct_type_base
       )
     else
       (
-        ()
+        b
       )
-  );
-  pop_frame ();
-  ()
+  )
 
 val parse_property_utf8_encoded_string_pair: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size  
   -> property_start_index: U32.t
   -> property_end_index: U32.t
-  -> Stack (struct_property_binary: unit)
+  -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let parse_property_utf8_encoded_string_pair packet_data packet_size property_start_index property_end_index =
@@ -1050,32 +1237,57 @@ let parse_property_utf8_encoded_string_pair packet_data packet_size property_sta
   let second_msb_u8: U8.t = packet_data.( U32.(utf8_encoded_string_pair_start_index +^ fist_byte_integer +^ 2ul )) in
   let second_lsb_u8: U8.t = packet_data.( U32.(utf8_encoded_string_pair_start_index +^ fist_byte_integer +^ 3ul )) in
   let second_byte_integer: U32.t = get_two_byte_integer_u8_to_u32 second_msb_u8 second_lsb_u8 in
-  print_u32 fist_byte_integer;
-  print_string " <- fist_byte_integer\n";
-  print_u32 second_byte_integer;
-  print_string " <- second_byte_integer\n";
-  print_u32 U32.(property_end_index -^ property_start_index);
-  print_string " <- size\n";
-
-  let _  = 
-  (
-    if (U32.eq U32.(fist_byte_integer +^ second_byte_integer +^ 4ul) (U32.sub property_end_index property_start_index)) then
-      (
-        print_string "OK\n";
+  let b: struct_property_type = property_struct_type_base in
+  if (U32.eq U32.(fist_byte_integer +^ second_byte_integer +^ 4ul) (U32.sub property_end_index property_start_index)) then
+    (
+      let utf8_string_pair_key: struct_utf8_string = 
         is_valid_utf8_encoded_string packet_data 
-          utf8_encoded_string_pair_start_index U32.(utf8_encoded_string_pair_start_index +^ fist_byte_integer +^ 1ul);
+          utf8_encoded_string_pair_start_index U32.(utf8_encoded_string_pair_start_index +^ fist_byte_integer +^ 1ul) in
+      let utf8_string_pair_value: struct_utf8_string =
         is_valid_utf8_encoded_string packet_data 
-          U32.(utf8_encoded_string_pair_start_index +^ fist_byte_integer +^ 2ul) utf8_encoded_string_pair_end_index
-      )
-    else
-      (
-        ()
-      )
-  ) in
-  pop_frame ();
-  ()
+          U32.(utf8_encoded_string_pair_start_index +^ fist_byte_integer +^ 2ul) utf8_encoded_string_pair_end_index in
+      let utf8_string_pair: struct_utf8_string_pair = {
+        utf8_string_pair_key = utf8_string_pair_key;
+        utf8_string_pair_value = utf8_string_pair_value;
+      } in
+      let property_struct_type_base: struct_property_type = {
+        one_byte_integer_struct = {
+          one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+        };
+        two_byte_integer_struct = {
+          two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+        };
+        four_byte_integer_struct = {
+          four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+        };
+        utf8_encoded_string_struct = {
+          utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+          utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+          utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+        };
+        variable_byte_integer_struct = {
+          variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+        };
+        binary_data_struct = {
+          binary_length = b.binary_data_struct.binary_length;
+          binary_value = b.binary_data_struct.binary_value;
+        };
+        utf8_string_pair_struct = utf8_string_pair;
+        property_type_error_code = 
+          (
+            if (utf8_string_pair_key.utf8_string_status_code = 1uy||
+             utf8_string_pair_value.utf8_string_status_code = 1uy) then
+              1uy
+            else
+              0uy
+          );
+      } in property_struct_type_base
+    )
+  else
+    (
+      b
+    )
 
-  
 val parse_property: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> property_length: U32.t
@@ -1088,8 +1300,9 @@ let parse_property packet_data packet_size property_length property_start_index 
   let last: U32.t = U32.add property_length property_start_index in
   let property_id: U8.t = packet_data.(property_start_index) in
   let property_type_id: U8.t = get_property_type_id property_id in
-  (
-    if property_type_id = 1uy then // Byte
+  let property_end_index: U32.t = U32.(property_start_index +^ property_length -^ 1ul) in
+  let property_type_struct: struct_property_type = (
+    if property_type_id = 1uy then // One Byte Integer
       (
         parse_property_one_byte_integer packet_data property_start_index
       )
@@ -1104,7 +1317,7 @@ let parse_property packet_data packet_size property_length property_start_index 
     else if property_type_id = 4uy then // UTF-8 Encoded String
       (
         parse_property_utf8_encoded_string
-          packet_data packet_size property_start_index U32.(property_start_index +^ property_length -^ 1ul)
+          packet_data packet_size property_start_index property_end_index
       )
     else if property_type_id = 5uy then // Variable Byte Integer
       (
@@ -1117,13 +1330,17 @@ let parse_property packet_data packet_size property_length property_start_index 
     else if property_type_id = 7uy then // UTF-8 String Pair
       (
         parse_property_utf8_encoded_string_pair
-          packet_data packet_size property_start_index U32.(property_start_index +^ property_length -^ 1ul)
+          packet_data packet_size property_start_index property_end_index
       )
     else 
-      ()
-  );
+      (
+        property_struct_type_base
+      )
+  ) in
   pop_frame ();
   let property: struct_property = {
     property_id = property_id;
+    property_type_id = property_type_id;
+    property_type_struct = property_type_struct;
     payload_start_index = last;
   } in property

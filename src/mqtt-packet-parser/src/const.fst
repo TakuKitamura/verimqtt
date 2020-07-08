@@ -596,6 +596,117 @@ type struct_error_struct = {
   message: type_error_message_restrict;
 }
 
+type struct_utf8_string = {
+  utf8_string_length: U16.t;
+  utf8_string_value: B.buffer U8.t;
+  utf8_string_status_code: U8.t;
+}
+
+type struct_utf8_string_pair = {
+  utf8_string_pair_key: struct_utf8_string;
+  utf8_string_pair_value: struct_utf8_string
+}
+
+type struct_binary_data = {
+  binary_length: U16.t;
+  binary_value: B.buffer U8.t;
+}
+
+type struct_one_byte_integer = {
+  one_byte_integer_value: U8.t;
+}
+
+type struct_two_byte_integer = {
+  two_byte_integer_value: U16.t;
+}
+
+type struct_four_byte_integer = {
+  four_byte_integer_value: U32.t;
+}
+
+type struct_variable_byte_integer = {
+  variable_byte_integer_value: type_remaining_length;
+}
+
+type struct_property_type = {
+  one_byte_integer_struct: struct_one_byte_integer;
+  two_byte_integer_struct: struct_two_byte_integer;
+  four_byte_integer_struct: struct_four_byte_integer;
+  utf8_encoded_string_struct: struct_utf8_string;
+  variable_byte_integer_struct: struct_variable_byte_integer;
+  binary_data_struct: struct_binary_data;
+  utf8_string_pair_struct: struct_utf8_string_pair;
+  property_type_error_code: U8.t;
+}
+
+type struct_property = {
+  property_id: U8.t;
+  property_type_id: U8.t;
+  property_type_struct: struct_property_type;
+  payload_start_index: U32.t;
+}
+
+type struct_payload = {
+  is_valid_payload: bool;
+  payload: B.buffer U8.t;
+  payload_length: U32.t;
+}
+
+type struct_array_u16 = {
+  array_u16: B.buffer U16.t;
+  array_length_u16: U32.t;
+}
+
+// let a: struct_four_byte_integer = {
+//     four_byte_integer_value = 0ul
+//   }
+
+val property_struct_type_base: struct_property_type
+let property_struct_type_base: struct_property_type = {
+  one_byte_integer_struct = {
+    one_byte_integer_value = 0uy;
+  };
+  two_byte_integer_struct = {
+    two_byte_integer_value = 0us;
+  };
+  four_byte_integer_struct = {
+    four_byte_integer_value = 0ul
+  };
+  utf8_encoded_string_struct = {
+    utf8_string_length = 0us;
+    utf8_string_value = B.alloca 0uy 1ul;
+    utf8_string_status_code = 0uy;
+  };
+  variable_byte_integer_struct = {
+    variable_byte_integer_value = 0ul;
+  };
+  binary_data_struct = {
+    binary_length = 0us;
+    binary_value = B.alloca 0uy 1ul;
+  };
+  utf8_string_pair_struct = {
+    utf8_string_pair_key = {
+      utf8_string_length = 0us;
+      utf8_string_value = B.alloca 0uy 1ul;
+      utf8_string_status_code = 0uy;
+    };
+    utf8_string_pair_value = {
+      utf8_string_length = 0us;
+      utf8_string_value = B.alloca 0uy 1ul;
+      utf8_string_status_code = 0uy;
+    };
+  };
+  property_type_error_code = max_u8
+}
+
+val property_struct_base: struct_property
+let property_struct_base: struct_property = {
+  property_id = max_u8;
+  property_type_id = max_u8;
+  property_type_struct = property_struct_type_base;
+  payload_start_index = 0ul;
+}
+
 type struct_fixed_header = {
   message_type: type_mqtt_control_packets_restrict;
   message_name: type_message_name_restrict;
@@ -604,6 +715,7 @@ type struct_fixed_header = {
   connect: struct_connect;
   publish: struct_variable_header_publish;
   disconnect: struct_disconnect_reason;
+  property: struct_property;
   error: struct_error_struct;
 }
 
@@ -616,6 +728,7 @@ type struct_publish_parts = {
   publish_payload: type_payload_restrict;
   publish_payload_length: U32.t;
   publish_property_id: U8.t;
+  publish_property: struct_property;
 }
 
 type struct_connect_parts = {
@@ -663,6 +776,7 @@ type struct_publish_packet_seed = {
   publish_seed_payload_length: U32.t;
   publish_seed_payload_error_status: U8.t;
   publish_seed_property_id: U8.t;
+  publish_seed_property: struct_property;
 }
 
 type struct_connect_packet_seed = {
@@ -685,18 +799,3 @@ type struct_topic_name = {
   topic_name: type_topic_name_restrict;
 }
 
-type struct_property = {
-  property_id: U8.t;
-  payload_start_index: U32.t;
-}
-
-type struct_payload = {
-  is_valid_payload: bool;
-  payload: B.buffer U8.t;
-  payload_length: U32.t;
-}
-
-type struct_array_u16 = {
-  array_u16: B.buffer U16.t;
-  array_length_u16: U32.t;
-}

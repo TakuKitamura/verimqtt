@@ -82,6 +82,7 @@ let assemble_connect_struct s =
       property_id = max_u8;
     };
     disconnect = define_struct_disconnect_error;
+    property = property_struct_base;
     error = {
       code = define_no_error_code;
       message = define_no_error;

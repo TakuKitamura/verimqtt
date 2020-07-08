@@ -106,6 +106,7 @@ let assemble_publish_struct s =
             disconnect_reason_code = max_u8;
             disconnect_reason_code_name = !$"";
           };
+          property = s.publish_property;
           error = {
             code = define_no_error_code;
             message = define_no_error;
@@ -231,6 +232,7 @@ let publish_packet_parser packet_data packet_size next_start_index =
     publish_seed_payload_length = payload_struct.payload_length;
     publish_seed_payload_error_status = payload_error_status;
     publish_seed_property_id = property_id;
+    publish_seed_property = property_struct;
   } in publish_packet_seed
 
 val publish_packet_parse_result: (share_common_data: struct_share_common_data)
@@ -244,6 +246,8 @@ let publish_packet_parse_result share_common_data =
   let dup_flag: type_dup_flags_restrict = get_dup_flag first_one_byte in
   let qos_flag: type_qos_flags_restrict = get_qos_flag first_one_byte in
   let retain_flag: type_retain_flags_restrict = get_retain_flag first_one_byte in
+  // TODO: エラーコードの見直し
+  // Poroperty_error
   let have_error: bool =
     (U8.eq dup_flag max_u8) ||
     (U8.eq qos_flag max_u8) ||
@@ -306,6 +310,7 @@ let publish_packet_parse_result share_common_data =
           publish_payload = publish_packet_seed.publish_seed_payload;
           publish_payload_length = publish_packet_seed.publish_seed_payload_length;
           publish_property_id = publish_packet_seed.publish_seed_property_id;
+          publish_property = publish_packet_seed.publish_seed_property;
       } in
       assemble_publish_struct ed_fixed_header_parts
     )

@@ -57,52 +57,117 @@ int main(int argc, char *argv[]) {
 
     puts("");
 
-    printf("data.connect.protocol_name = %s\n", data.connect.protocol_name);
-    printf("data.connect.protocol_version = %u\n", data.connect.protocol_version);
-    printf("data.connect.flags.connect_flag = 0x%02x\n", data.connect.flags.connect_flag);
-    printf("data.connect.flags.user_name = 0x%02x\n", data.connect.flags.user_name);
-    printf("data.connect.flags.password = 0x%02x\n", data.connect.flags.password);
-    printf("data.connect.flags.will_retain = 0x%02x\n", data.connect.flags.will_retain);
-    printf("data.connect.flags.will_qos = 0x%02x\n", data.connect.flags.will_qos);
-    printf("data.connect.flags.will_flag = 0x%02x\n", data.connect.flags.will_flag);
-    printf("data.connect.flags.clean_start = 0x%02x\n", data.connect.flags.clean_start);
-    printf("data.connect.keep_alive = 0x%02x\n", data.connect.keep_alive);
-    printf("data.connect.connect_property_length = 0x%02x\n", data.connect.connect_topic_length);
-    printf("data.connect.connect_property.connect_property_id = 0x%02x\n", data.connect.connect_property.connect_property_id);
-    printf("data.connect.connect_property.connect_property_name = %s\n", data.connect.connect_property.connect_property_name);
+    if (data.message_type == 1) {
+        printf("data.connect.protocol_name = %s\n", data.connect.protocol_name);
+        printf("data.connect.protocol_version = %u\n", data.connect.protocol_version);
+        printf("data.connect.flags.connect_flag = 0x%02x\n", data.connect.flags.connect_flag);
+        printf("data.connect.flags.user_name = 0x%02x\n", data.connect.flags.user_name);
+        printf("data.connect.flags.password = 0x%02x\n", data.connect.flags.password);
+        printf("data.connect.flags.will_retain = 0x%02x\n", data.connect.flags.will_retain);
+        printf("data.connect.flags.will_qos = 0x%02x\n", data.connect.flags.will_qos);
+        printf("data.connect.flags.will_flag = 0x%02x\n", data.connect.flags.will_flag);
+        printf("data.connect.flags.clean_start = 0x%02x\n", data.connect.flags.clean_start);
+        printf("data.connect.keep_alive = 0x%02x\n", data.connect.keep_alive);
+        printf("data.connect.connect_property_length = 0x%02x\n", data.connect.connect_topic_length);
+        printf("data.connect.connect_property.connect_property_id = 0x%02x\n", data.connect.connect_property.connect_property_id);
+        printf("data.connect.connect_property.connect_property_name = %s\n", data.connect.connect_property.connect_property_name);
 
-    puts("");
+        puts("");
+    } else if (data.message_type == 3) {
 
-    printf("data.publish.topic_length = %u\n", data.publish.topic_length);
-    printf("data.publish.topic_name = %s\n", data.publish.topic_name);
-    // printf("data.publish.topic_name_bytes =\n [");
-    // for (int i=0; i < data.publish.topic_length; i++) {
-    //     printf("0x%02X", data.publish.topic_name[i] & 0x000000FF);
-    //     if (i + 1 == data.publish.topic_length) 
-    //         puts("]\n");
-    //     else
-    //         printf(", ");
-    // }
+        printf("data.publish.topic_length = %u\n", data.publish.topic_length);
+        printf("data.publish.topic_name =\n [");
+        for (int i=0; i < data.publish.topic_length; i++) {
+            printf("0x%02X", data.publish.topic_name[i] & 0x000000FF);
+            if (i + 1 == data.publish.topic_length) 
+                puts("]\n");
+            else
+                printf(", ");
+        }
 
-    printf("data.publish.property_length = %u\n", data.publish.property_length);
-    // printf("data.publish.payload = %s\n", data.publish.payload);
-    printf("data.publish.payload =\n [");
-    for (int i=0; i < data.publish.payload_length; i++) {
-        printf("0x%02X", data.publish.payload[i] & 0x000000FF);
-        if (i + 1 == data.publish.payload_length) 
-            puts("]");
-        else
-            printf(", ");
+        printf("data.publish.property_length = %u\n", data.publish.property_length);
+        printf("data.publish.payload =\n [");
+        for (int i=0; i < data.publish.payload_length; i++) {
+            printf("0x%02X", data.publish.payload[i] & 0x000000FF);
+            if (i + 1 == data.publish.payload_length) 
+                puts("]");
+            else
+                printf(", ");
+        }
+        printf("data.publish.payload_length = %u\n", data.publish.payload_length);
+
+        printf("data.publish.property_id = %u\n", data.publish.property_id);
+
+        puts("");
+    } else if (data.message_type == 14) {
+        printf("data.disconnect.disconnect_reason_code = 0x%02x\n", data.disconnect.disconnect_reason_code);
+        printf("data.disconnect.disconnect_reason_code_name = %s\n", data.disconnect.disconnect_reason_code_name);
+        puts("");
     }
-    printf("data.publish.payload_length = %u\n", data.publish.payload_length);
-
-    printf("data.publish.property_id = %u\n", data.publish.property_id);
 
 
-    printf("data.disconnect.disconnect_reason_code = 0x%02x\n", data.disconnect.disconnect_reason_code);
-    printf("data.disconnect.disconnect_reason_code_name = %s\n", data.disconnect.disconnect_reason_code_name);
+ 
+    if (data.property.property_type_id != 255) {
+        printf("data.property.payload_start_index = %u\n", data.property.payload_start_index);
+        printf("data.property.property_id = %u\n", data.property.property_id);
+        printf("data.property.property_type_id = %u\n", data.property.property_type_id);
 
-    puts("");
+        if (data.property.property_type_id == 1) {
+            printf("data.property.property_type_struct.one_byte_integer_struct.one_byte_integer_value = %u\n", data.property.property_type_struct.one_byte_integer_struct);
+        } else if (data.property.property_type_id == 2) {
+             printf("data.property.property_type_struct.two_byte_integer_struct.two_byte_integer_value = %u\n", data.property.property_type_struct.two_byte_integer_struct);           
+        } else if (data.property.property_type_id == 3) {
+             printf("data.property.property_type_struct.four_byte_integer_struct.four_byte_integer_value = %u\n", data.property.property_type_struct.four_byte_integer_struct);  
+        } else if (data.property.property_type_id == 4) {
+            printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length = %u\n", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
+            printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value = \n [");
+            for (int i=0; i < data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length; i++) {
+                printf("0x%02X", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value[i] & 0x000000FF);
+                if (i + 1 == data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length) 
+                    puts("]");
+                else
+                    printf(", ");
+            }
+        } else if (data.property.property_type_id == 5) {
+            printf("data.property.property_type_struct.variable_byte_integer_struct.variable_integer_value = %u\n", data.property.property_type_struct.variable_byte_integer_struct);  
+        } else if (data.property.property_type_id == 6) {
+            printf("data.property.property_type_struct.binary_data_struct.binary_length = %u\n", data.property.property_type_struct.binary_data_struct.binary_length);
+            printf("data.property.property_type_struct.binary_data_struct.binary_value = \n [");
+            for (int i=0; i < data.property.property_type_struct.binary_data_struct.binary_length; i++) {
+                printf("0x%02X", data.property.property_type_struct.binary_data_struct.binary_value[i] & 0x000000FF);
+                if (i + 1 == data.property.property_type_struct.binary_data_struct.binary_length) 
+                    puts("]");
+                else
+                    printf(", ");
+            }
+        } else if (data.property.property_type_id == 7) {
+            // data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key;
+            // data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value;
+
+            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
+            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
+            for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
+                printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value[i] & 0x000000FF);
+                if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length) 
+                    puts("]");
+                else
+                    printf(", ");
+            }
+
+            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
+            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value = \n [");
+            for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length; i++) {
+                printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value[i] & 0x000000FF);
+                if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length) 
+                    puts("]");
+                else
+                    printf(", ");
+            }
+            
+
+        }
+        puts("");
+    }
 
     printf("data.error.code=%u\n", data.error.code);
     printf("data.error.message=%s\n", data.error.message);
