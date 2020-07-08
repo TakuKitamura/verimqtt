@@ -141,9 +141,6 @@ int main(int argc, char *argv[]) {
                     printf(", ");
             }
         } else if (data.property.property_type_id == 7) {
-            // data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key;
-            // data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value;
-
             printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
             printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
             for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
