@@ -256,7 +256,8 @@ let publish_packet_parse_result share_common_data =
     (U8.eq publish_packet_seed.publish_seed_topic_name_error_status 1uy) ||
     (U8.eq publish_packet_seed.publish_seed_topic_name_error_status 2uy) ||
     (publish_packet_seed.publish_seed_is_searching_property_length) ||
-    (U8.gt publish_packet_seed.publish_seed_payload_error_status 0uy) in
+    (U8.gt publish_packet_seed.publish_seed_payload_error_status 0uy) ||
+    (U8.gt publish_packet_seed.publish_seed_property.property_type_struct.property_type_error.property_error_code 0uy) in
   if (have_error) then
     (
       let error_struct: struct_error_struct =
@@ -291,11 +292,17 @@ let publish_packet_parse_result share_common_data =
               code = define_error_topic_name_have_inavlid_character_code;
               message = define_error_topic_name_have_inavlid_character;
             }
-          else // if (is_searching_property_length) then
+          else if (publish_packet_seed.publish_seed_is_searching_property_length) then
             {
               code = define_error_property_length_invalid_code;
               message = define_error_property_length_invalid;
             }
+          else // (U8.gt publish_packet_seed.publish_seed_property.property_type_struct.struct_property_type.property_type_error.property_error_code 0uy) then
+            {
+              code = define_error_property_error_code;
+              message = publish_packet_seed.publish_seed_property.property_type_struct.property_type_error.property_error_code_name;
+            }
+
         ) in error_struct_fixed_header error_struct
     )
   else

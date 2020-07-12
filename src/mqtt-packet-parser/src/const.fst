@@ -531,6 +531,7 @@ let define_error_topic_name_have_inavlid_character_code: type_error_code = 11uy
 let define_error_protocol_name_invalid_code: type_error_code = 12uy
 let define_error_protocol_version_invalid_code: type_error_code = 13uy
 let define_error_connect_flag_invalid_code: type_error_code = 14uy
+let define_error_property_error_code: type_error_code = 15uy
 
 type type_error_code_restrict =
   (v:
@@ -549,9 +550,12 @@ type type_error_code_restrict =
       v = define_error_payload_invalid_code ||
       v = define_error_protocol_name_invalid_code ||
       v = define_error_protocol_version_invalid_code ||
-      v = define_error_connect_flag_invalid_code
+      v = define_error_connect_flag_invalid_code ||
+      v = define_error_property_error_code
     }
   )
+
+// TODO: string 定数は排除し構造体定数に置き換える
 
 type type_error_message = C.String.t
 let define_error_remaining_length_invalid: type_error_message = !$"remaining_length is invalid."
@@ -568,6 +572,7 @@ let define_error_payload_invalid: type_error_message = !$"payload is invalid."
 let define_error_protocol_name_invalid: type_error_message = !$"protocol name is invalid."
 let define_error_protocol_version_invalid: type_error_message = !$"protocol version is invalid."
 let define_error_connect_flag_invalid: type_error_message = !$"connect flag is invalid."
+let define_error_property_invalid: type_error_message = !$"property is invalid."
 let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
@@ -587,7 +592,8 @@ type type_error_message_restrict =
       v = define_error_payload_invalid ||
       v = define_error_protocol_name_invalid ||
       v = define_error_protocol_version_invalid ||
-      v = define_error_connect_flag_invalid
+      v = define_error_connect_flag_invalid ||
+      v = define_error_property_invalid
     }
   )
 
@@ -628,6 +634,50 @@ type struct_variable_byte_integer = {
   variable_byte_integer_value: type_remaining_length;
 }
 
+type type_property_error_code = U8.t
+type type_property_error_code_name = C.String.t
+
+type struct_property_error = {
+  property_error_code: type_property_error_code;
+  property_error_code_name: type_property_error_code_name;
+}
+
+let property_no_error_code: type_property_error_code = 0uy
+let property_utf8_encoded_string_error_code: type_property_error_code = 1uy
+let property_variable_integer_error_code: type_property_error_code = 2uy
+let property_binary_data_error_code: type_property_error_code = 3uy
+let property_utf8_encoded_string_pair_error_code: type_property_error_code = 4uy
+
+let define_struct_property_no_error: struct_property_error =
+  {
+    property_error_code = property_no_error_code;
+    property_error_code_name = !$"";
+  }
+  
+let define_struct_property_utf8_encoded_string_error: struct_property_error = 
+  {
+    property_error_code = property_utf8_encoded_string_error_code;
+    property_error_code_name = !$"a utf8 encoded string property is invalid";
+  }
+
+let define_struct_property_variable_integer_error: struct_property_error =
+  {
+    property_error_code = property_variable_integer_error_code;
+    property_error_code_name = !$"a variable integer property is invalid";
+  }
+
+let define_struct_property_binary_data_error: struct_property_error =
+  {
+    property_error_code = property_binary_data_error_code;
+    property_error_code_name = !$"a binary data property is invalid";
+  }
+
+let define_struct_property_utf8_encoded_string_pair_error: struct_property_error = 
+  {
+    property_error_code = property_utf8_encoded_string_pair_error_code;
+    property_error_code_name = !$"a utf8 encoded string pair property is invalid";
+  }
+
 type struct_property_type = {
   one_byte_integer_struct: struct_one_byte_integer;
   two_byte_integer_struct: struct_two_byte_integer;
@@ -636,7 +686,7 @@ type struct_property_type = {
   variable_byte_integer_struct: struct_variable_byte_integer;
   binary_data_struct: struct_binary_data;
   utf8_string_pair_struct: struct_utf8_string_pair;
-  property_type_error_code: U8.t;
+  property_type_error: struct_property_error;
 }
 
 type struct_property = {
@@ -656,10 +706,6 @@ type struct_array_u16 = {
   array_u16: B.buffer U16.t;
   array_length_u16: U32.t;
 }
-
-// let a: struct_four_byte_integer = {
-//     four_byte_integer_value = 0ul
-//   }
 
 val property_struct_type_base: struct_property_type
 let property_struct_type_base: struct_property_type = {
@@ -696,8 +742,45 @@ let property_struct_type_base: struct_property_type = {
       utf8_string_status_code = 0uy;
     };
   };
-  property_type_error_code = max_u8
+  property_type_error = define_struct_property_no_error;
 }
+
+// let property_struct_type_base: struct_property_type = {
+//   one_byte_integer_struct = {
+//     one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+//   };
+//   two_byte_integer_struct = {
+//     two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+//   };
+//   four_byte_integer_struct = {
+//     four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+//   };
+  // utf8_encoded_string_struct = {
+  //   utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+  //   utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+  //   utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+  // };
+//   variable_byte_integer_struct = {
+//     variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+//   };
+//   binary_data_struct = {
+//     binary_length = b.binary_data_struct.binary_length;
+//     binary_value = b.binary_data_struct.binary_value;
+//   };
+//   utf8_string_pair_struct = {
+//     utf8_string_pair_key = {
+//       utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+//       utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+//       utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+//     };
+//     utf8_string_pair_value = {
+//       utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+//       utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+//       utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+//     };
+//   };
+//   property_type_error = define_struct_property_no_error;
+// } in property_struct_type_base
 
 val property_struct_base: struct_property
 let property_struct_base: struct_property = {

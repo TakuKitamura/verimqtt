@@ -698,7 +698,7 @@ let parse_property_two_byte_integer packet_data property_start_index =
         utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
       };
     };
-    property_type_error_code = 0uy;
+    property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
   
 val parse_property_four_byte_integer: packet_data: (B.buffer U8.t) 
@@ -750,7 +750,7 @@ let parse_property_four_byte_integer packet_data property_start_index =
         utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
       };
     };
-    property_type_error_code = 0uy;
+    property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
 
 val parse_property_one_byte_integer: packet_data: (B.buffer U8.t) 
@@ -798,7 +798,7 @@ let parse_property_one_byte_integer packet_data property_start_index =
         utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
       };
     };
-    property_type_error_code = 0uy;
+    property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
 
 val parse_property_variable_byte_integer: packet_data: (B.buffer U8.t) 
@@ -815,7 +815,6 @@ let parse_property_variable_byte_integer packet_data packet_size property_start_
     variable_byte_integer_value = property_variable_value;
   } in
   let next_start_index: U32.t = variable_length.next_start_index in
-  let is_error: bool = (variable_length.have_error || next_start_index = 0ul) in
   let b: struct_property_type = property_struct_type_base in
   let property_struct_type_base: struct_property_type = {
     one_byte_integer_struct = {
@@ -849,10 +848,10 @@ let parse_property_variable_byte_integer packet_data packet_size property_start_
         utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
       };
     };
-    property_type_error_code = 
+    property_type_error = 
       (
-        if (is_error) then 1uy
-        else 0uy
+        if (variable_length.have_error) then define_struct_property_variable_integer_error
+        else define_struct_property_no_error
       );
   } in property_struct_type_base
 
@@ -864,7 +863,6 @@ val parse_property_binary: packet_data: (B.buffer U8.t)
     (ensures fun h0 r h1 -> true)
 let parse_property_binary packet_data property_length property_start_index =
   push_frame ();
-  // TODO: エラーチェック
   let binary_length_msb_u8: U8.t = packet_data.(U32.add property_start_index 1ul) in
   let binary_length_lsb_u8: U8.t = packet_data.(U32.add property_start_index 2ul) in
   let binary_length: U32.t = get_two_byte_integer_u8_to_u32 binary_length_msb_u8 binary_length_lsb_u8 in
@@ -873,8 +871,6 @@ let parse_property_binary packet_data property_length property_start_index =
   pop_frame ();
   let payload_struct: struct_payload = 
     get_payload packet_data payload_start_index payload_end_index in
-  print_buffer_u8 payload_struct.payload payload_struct.
-  payload_length;
   let binary_data_struct: struct_binary_data = {
     binary_length = uint32_to_uint16 payload_struct.payload_length;
     binary_value = payload_struct.payload;
@@ -911,7 +907,7 @@ let parse_property_binary packet_data property_length property_start_index =
         utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
       };
     };
-    property_type_error_code = 0uy;
+    property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
 
 val u8_array_to_u16_array: u8_array: (B.buffer U8.t)
@@ -1208,12 +1204,57 @@ let parse_property_utf8_encoded_string packet_data packet_size property_start_in
               utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
             };
           };
-          property_type_error_code = utf8_encoded_string_struct.utf8_string_status_code;
+          property_type_error = 
+            (
+              if (utf8_encoded_string_struct.utf8_string_status_code = 0uy) then
+                (
+                  define_struct_property_no_error
+                )
+              else
+                (
+                  define_struct_property_utf8_encoded_string_error
+                )
+            );
         } in property_struct_type_base
       )
     else
       (
-        b
+        let property_struct_type_base: struct_property_type = {
+          one_byte_integer_struct = {
+            one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+          };
+          two_byte_integer_struct = {
+            two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+          };
+          four_byte_integer_struct = {
+            four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+          };
+          utf8_encoded_string_struct = {
+            utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+            utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+            utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+          };
+          variable_byte_integer_struct = {
+            variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+          };
+          binary_data_struct = {
+            binary_length = b.binary_data_struct.binary_length;
+            binary_value = b.binary_data_struct.binary_value;
+          };
+          utf8_string_pair_struct = {
+            utf8_string_pair_key = {
+              utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+              utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+              utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+            };
+            utf8_string_pair_value = {
+              utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+              utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+              utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+            };
+          };
+          property_type_error = define_struct_property_utf8_encoded_string_error;
+        } in property_struct_type_base
       )
   )
 
@@ -1273,19 +1314,54 @@ let parse_property_utf8_encoded_string_pair packet_data packet_size property_sta
           binary_value = b.binary_data_struct.binary_value;
         };
         utf8_string_pair_struct = utf8_string_pair;
-        property_type_error_code = 
+        property_type_error = 
           (
             if (utf8_string_pair_key.utf8_string_status_code = 1uy||
              utf8_string_pair_value.utf8_string_status_code = 1uy) then
-              1uy
+              define_struct_property_utf8_encoded_string_pair_error
             else
-              0uy
+              define_struct_property_no_error
           );
       } in property_struct_type_base
     )
   else
     (
-      b
+        let property_struct_type_base: struct_property_type = {
+          one_byte_integer_struct = {
+            one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
+          };
+          two_byte_integer_struct = {
+            two_byte_integer_value = b.two_byte_integer_struct.two_byte_integer_value;
+          };
+          four_byte_integer_struct = {
+            four_byte_integer_value = b.four_byte_integer_struct.four_byte_integer_value;
+          };
+          utf8_encoded_string_struct = {
+            utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
+            utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
+            utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+          };
+          variable_byte_integer_struct = {
+            variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
+          };
+          binary_data_struct = {
+            binary_length = b.binary_data_struct.binary_length;
+            binary_value = b.binary_data_struct.binary_value;
+          };
+          utf8_string_pair_struct = {
+            utf8_string_pair_key = {
+              utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
+              utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
+              utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+            };
+            utf8_string_pair_value = {
+              utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
+              utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
+              utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+            };
+          };
+          property_type_error = define_struct_property_utf8_encoded_string_pair_error;
+        } in property_struct_type_base
     )
 
 val parse_property: packet_data: (B.buffer U8.t) 
@@ -1304,14 +1380,17 @@ let parse_property packet_data packet_size property_length property_start_index 
   let property_type_struct: struct_property_type = (
     if property_type_id = 1uy then // One Byte Integer
       (
+        // return 0
         parse_property_one_byte_integer packet_data property_start_index
       )
     else if property_type_id = 2uy then // Two Byte Integer
       (
+        // return 0
         parse_property_two_byte_integer packet_data property_start_index
       )
     else if property_type_id = 3uy then // Four Byte Integer
       (
+        // return 0
         parse_property_four_byte_integer packet_data property_start_index
       )
     else if property_type_id = 4uy then // UTF-8 Encoded String

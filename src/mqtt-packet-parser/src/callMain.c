@@ -108,62 +108,70 @@ int main(int argc, char *argv[]) {
 
  
     if (data.property.property_type_id != 255) {
-        printf("data.property.payload_start_index = %u\n", data.property.payload_start_index);
-        printf("data.property.property_id = %u\n", data.property.property_id);
-        printf("data.property.property_type_id = %u\n", data.property.property_type_id);
+        if (data.property.property_type_struct.property_type_error.property_error_code == 0) {
+            printf("data.property.payload_start_index = %u\n", data.property.payload_start_index);
+            printf("data.property.property_id = %u\n", data.property.property_id);
+            printf("data.property.property_type_id = %u\n", data.property.property_type_id);
 
-        if (data.property.property_type_id == 1) {
-            printf("data.property.property_type_struct.one_byte_integer_struct.one_byte_integer_value = %u\n", data.property.property_type_struct.one_byte_integer_struct);
-        } else if (data.property.property_type_id == 2) {
-             printf("data.property.property_type_struct.two_byte_integer_struct.two_byte_integer_value = %u\n", data.property.property_type_struct.two_byte_integer_struct);           
-        } else if (data.property.property_type_id == 3) {
-             printf("data.property.property_type_struct.four_byte_integer_struct.four_byte_integer_value = %u\n", data.property.property_type_struct.four_byte_integer_struct);  
-        } else if (data.property.property_type_id == 4) {
-            printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length = %u\n", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
-            printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value = \n [");
-            for (int i=0; i < data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length; i++) {
-                printf("0x%02X", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value[i] & 0x000000FF);
-                if (i + 1 == data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length) 
-                    puts("]");
-                else
-                    printf(", ");
-            }
-        } else if (data.property.property_type_id == 5) {
-            printf("data.property.property_type_struct.variable_byte_integer_struct.variable_integer_value = %u\n", data.property.property_type_struct.variable_byte_integer_struct);  
-        } else if (data.property.property_type_id == 6) {
-            printf("data.property.property_type_struct.binary_data_struct.binary_length = %u\n", data.property.property_type_struct.binary_data_struct.binary_length);
-            printf("data.property.property_type_struct.binary_data_struct.binary_value = \n [");
-            for (int i=0; i < data.property.property_type_struct.binary_data_struct.binary_length; i++) {
-                printf("0x%02X", data.property.property_type_struct.binary_data_struct.binary_value[i] & 0x000000FF);
-                if (i + 1 == data.property.property_type_struct.binary_data_struct.binary_length) 
-                    puts("]");
-                else
-                    printf(", ");
-            }
-        } else if (data.property.property_type_id == 7) {
-            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
-            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
-            for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
-                printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value[i] & 0x000000FF);
-                if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length) 
-                    puts("]");
-                else
-                    printf(", ");
-            }
+            if (data.property.property_type_id == 1) {
+                printf("data.property.property_type_struct.one_byte_integer_struct.one_byte_integer_value = %u\n", data.property.property_type_struct.one_byte_integer_struct);
+            } else if (data.property.property_type_id == 2) {
+                printf("data.property.property_type_struct.two_byte_integer_struct.two_byte_integer_value = %u\n", data.property.property_type_struct.two_byte_integer_struct);           
+            } else if (data.property.property_type_id == 3) {
+                printf("data.property.property_type_struct.four_byte_integer_struct.four_byte_integer_value = %u\n", data.property.property_type_struct.four_byte_integer_struct);  
+            } else if (data.property.property_type_id == 4) {
+                printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length = %u\n", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
+                printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value = \n [");
+                for (int i=0; i < data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length; i++) {
+                    printf("0x%02X", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value[i] & 0x000000FF);
+                    if (i + 1 == data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
+            } else if (data.property.property_type_id == 5) {
+                printf("data.property.property_type_struct.variable_byte_integer_struct.variable_integer_value = %u\n", data.property.property_type_struct.variable_byte_integer_struct);  
+            } else if (data.property.property_type_id == 6) {
+                printf("data.property.property_type_struct.binary_data_struct.binary_length = %u\n", data.property.property_type_struct.binary_data_struct.binary_length);
+                printf("data.property.property_type_struct.binary_data_struct.binary_value = \n [");
+                for (int i=0; i < data.property.property_type_struct.binary_data_struct.binary_length; i++) {
+                    printf("0x%02X", data.property.property_type_struct.binary_data_struct.binary_value[i] & 0x000000FF);
+                    if (i + 1 == data.property.property_type_struct.binary_data_struct.binary_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
+            } else if (data.property.property_type_id == 7) {
+                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
+                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
+                for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
+                    printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value[i] & 0x000000FF);
+                    if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
 
-            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
-            printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value = \n [");
-            for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length; i++) {
-                printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value[i] & 0x000000FF);
-                if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length) 
-                    puts("]");
-                else
-                    printf(", ");
-            }
-            
+                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
+                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value = \n [");
+                for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length; i++) {
+                    printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value[i] & 0x000000FF);
+                    if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
+                
 
+            }
+            puts("");
+        } else {
+            puts("property error");
+            printf("property error code = %u\n", data.property.property_type_struct.property_type_error.property_error_code);
+            printf("property error code name = %s\n", data.property.property_type_struct.property_type_error.property_error_code_name);
         }
-        puts("");
+    } else {
+        puts("property id is invalid");
     }
 
     printf("data.error.code=%u\n", data.error.code);
