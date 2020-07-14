@@ -231,14 +231,21 @@ let define_struct_connect_property_authentication_data: struct_connect_property 
     connect_property_name = !$"Authentication Data";
   }
 
+type struct_utf8_string = {
+  utf8_string_length: U16.t;
+  utf8_string_value: B.buffer U8.t;
+  utf8_string_status_code: U8.t;
+}
+
 // 3.1.2.3 Connect Flags
 type struct_connect = {
   protocol_name: C.String.t;
   protocol_version: U8.t;
   flags: struct_connect_flags;
-  keep_alive: U32.t;
-  connect_topic_length: U32.t;
-  connect_property: struct_connect_property;
+  keep_alive: U16.t;
+  connect_id: struct_utf8_string;
+  // connect_topic_length: U32.t;
+  // connect_property: struct_connect_property;
 }  
 
 type type_topic_name_restrict =
@@ -532,6 +539,7 @@ let define_error_protocol_name_invalid_code: type_error_code = 12uy
 let define_error_protocol_version_invalid_code: type_error_code = 13uy
 let define_error_connect_flag_invalid_code: type_error_code = 14uy
 let define_error_property_error_code: type_error_code = 15uy
+let define_error_connect_id_invalid_code: type_error_code = 16uy
 
 type type_error_code_restrict =
   (v:
@@ -551,7 +559,8 @@ type type_error_code_restrict =
       v = define_error_protocol_name_invalid_code ||
       v = define_error_protocol_version_invalid_code ||
       v = define_error_connect_flag_invalid_code ||
-      v = define_error_property_error_code
+      v = define_error_property_error_code ||
+      v = define_error_connect_id_invalid_code
     }
   )
 
@@ -573,6 +582,7 @@ let define_error_protocol_name_invalid: type_error_message = !$"protocol name is
 let define_error_protocol_version_invalid: type_error_message = !$"protocol version is invalid."
 let define_error_connect_flag_invalid: type_error_message = !$"connect flag is invalid."
 let define_error_property_invalid: type_error_message = !$"property is invalid."
+let define_error_connect_id_invalid: type_error_message = !$"connect id is invalid."
 let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
@@ -593,7 +603,8 @@ type type_error_message_restrict =
       v = define_error_protocol_name_invalid ||
       v = define_error_protocol_version_invalid ||
       v = define_error_connect_flag_invalid ||
-      v = define_error_property_invalid
+      v = define_error_property_invalid ||
+      v = define_error_connect_id_invalid
     }
   )
 
@@ -602,15 +613,9 @@ type struct_error_struct = {
   message: type_error_message_restrict;
 }
 
-type struct_utf8_string = {
-  utf8_string_length: U16.t;
-  utf8_string_value: B.buffer U8.t;
-  utf8_string_status_code: U8.t;
-}
-
 type struct_utf8_string_pair = {
   utf8_string_pair_key: struct_utf8_string;
-  utf8_string_pair_value: struct_utf8_string
+  utf8_string_pair_value: struct_utf8_string;
 }
 
 type struct_binary_data = {
@@ -818,9 +823,9 @@ type struct_connect_parts = {
   connect_remaining_length: type_remaining_length;
   connect_connect_constant: struct_fixed_header_constant;
   connect_connect_flag: U8.t;
-  connect_keep_alive: U32.t;
-  connect_connect_topic_length: U32.t;
-  connect_connect_property_id: U8.t;
+  connect_keep_alive: U16.t;
+  connect_property: struct_property;
+  connect_id: struct_utf8_string;
 }
 
 type struct_disconnect_parts = {
@@ -863,13 +868,13 @@ type struct_publish_packet_seed = {
 }
 
 type struct_connect_packet_seed = {
-  connect_seed_protocol_name_error_status: U8.t;
-  connect_seed_protocol_version_error_status: U8.t;
+  connect_seed_is_valid_protocol_name: bool;
+  connect_seed_is_valid_protocol_version: bool;
   connect_seed_connect_flag: U8.t;
-  connect_seed_keep_alive_msb_u8: U8.t;
-  connect_seed_keep_alive_lsb_u8: U8.t;
-  connect_seed_connect_topic_length: U32.t;
-  connect_seed_connect_property_id: U8.t;
+  connect_seed_keep_alive: U16.t;
+  connect_seed_is_valid_property_length: bool;
+  connect_seed_property: struct_property;
+  connect_seed_connect_id: struct_utf8_string;
 }
 
 type struct_replace_utf8_encoded = {
@@ -880,5 +885,20 @@ type struct_replace_utf8_encoded = {
 type struct_topic_name = {
   topic_name_error_status: U8.t;
   topic_name: type_topic_name_restrict;
+}
+
+type struct_protocol_name = {
+  is_valid_protocol_name: bool;
+  protocol_version_start_index: U32.t;
+}
+
+type struct_protocol_version = {
+  is_valid_protocol_version: bool;
+  connect_flag_start_index: U32.t;
+}
+
+type struct_connect_flag = {
+  connect_flag_value: U8.t;
+  keep_alive_start_index: U32.t;
 }
 

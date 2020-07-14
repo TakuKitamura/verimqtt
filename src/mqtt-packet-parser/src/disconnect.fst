@@ -4,13 +4,15 @@ open C.String
 
 open Const
 open Common
+open FStar.HyperStack.ST
 
 module U8 = FStar.UInt8
+module B = LowStar.Buffer
 
 val assemble_disconnect_struct: s: struct_disconnect_parts
-  -> Pure struct_fixed_header
-    (requires true)
-    (ensures (fun r -> true))
+  -> Stack (r: struct_fixed_header)
+    (requires fun h0 -> true)
+    (ensures fun h0 r h1 -> true)
 let assemble_disconnect_struct s =
     let disconnect_constant: struct_fixed_header_constant = s.disconnect_disconnect_constant in
     {
@@ -35,12 +37,13 @@ let assemble_disconnect_struct s =
           will_flag = max_u8;
           clean_start = max_u8;
         };
-        keep_alive = max_u32;
-        connect_topic_length = 0ul;
-        connect_property = {
-          connect_property_id = max_u8;
-          connect_property_name = !$"";
-        }
+        keep_alive = 0us;
+        connect_id = 
+          {
+            utf8_string_length = 0us;
+            utf8_string_value = B.alloca 0uy 1ul;
+            utf8_string_status_code = 1uy;
+          };
       };
       publish = {
         topic_length = 0ul;
@@ -145,7 +148,9 @@ let assemble_disconnect_struct s =
     }
 
 val disconnect_packet_parse_result: (share_common_data: struct_share_common_data)
-  -> struct_fixed_header
+  -> Stack (r: struct_fixed_header)
+    (requires fun h0 -> true)
+    (ensures fun h0 r h1 -> true)
 let disconnect_packet_parse_result share_common_data =
   let disconnect_constant: struct_fixed_header_constant =
     get_struct_fixed_header_constant_except_publish share_common_data.common_message_type in

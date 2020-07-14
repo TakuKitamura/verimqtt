@@ -68,9 +68,26 @@ int main(int argc, char *argv[]) {
         printf("data.connect.flags.will_flag = 0x%02x\n", data.connect.flags.will_flag);
         printf("data.connect.flags.clean_start = 0x%02x\n", data.connect.flags.clean_start);
         printf("data.connect.keep_alive = 0x%02x\n", data.connect.keep_alive);
-        printf("data.connect.connect_property_length = 0x%02x\n", data.connect.connect_topic_length);
-        printf("data.connect.connect_property.connect_property_id = 0x%02x\n", data.connect.connect_property.connect_property_id);
-        printf("data.connect.connect_property.connect_property_name = %s\n", data.connect.connect_property.connect_property_name);
+
+        if (data.connect.connect_id.utf8_string_status_code == 0) {
+            printf("data.connect.connect_id.utf8_string_length = %u\n", data.connect.connect_id.utf8_string_length);
+            printf("data.connect.connect_id.utf8_string_value = \n [");
+            if (data.connect.connect_id.utf8_string_length > 0) {
+                for (int i=0; i < data.connect.connect_id.utf8_string_length; i++) {
+                    printf("0x%02X", data.connect.connect_id.utf8_string_value[i] & 0x000000FF);
+                    if (i + 1 == data.connect.connect_id.utf8_string_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
+            } else {
+                puts("]");
+            }
+
+        }
+        // printf("data.connect.connect_property_length = 0x%02x\n", data.connect.connect_topic_length);
+        // printf("data.connect.connect_property.connect_property_id = 0x%02x\n", data.connect.connect_property.connect_property_id);
+        // printf("data.connect.connect_property.connect_property_name = %s\n", data.connect.connect_property.connect_property_name);
 
         puts("");
     } else if (data.message_type == 3) {
@@ -171,7 +188,7 @@ int main(int argc, char *argv[]) {
             printf("property error code name = %s\n", data.property.property_type_struct.property_type_error.property_error_code_name);
         }
     } else {
-        puts("property id is invalid");
+        puts("property type id is invalid");
     }
 
     printf("data.error.code=%u\n", data.error.code);

@@ -56,62 +56,63 @@ let struct_fixed_publish dup_flag qos_flag retain_flag = {
 }
 
 val assemble_publish_struct: s: struct_publish_parts
-  -> Pure struct_fixed_header
-    (requires true)
-    (ensures (fun r -> true))
+  -> Stack (r: struct_fixed_header)
+    (requires fun h0 -> true)
+    (ensures fun h0 r h1 -> true)
 let assemble_publish_struct s =
-      let dup_flag: type_dup_flags_restrict = get_dup_flag s.publish_fixed_header_first_one_byte in
-      let qos_flag: type_qos_flags_restrict = get_qos_flag s.publish_fixed_header_first_one_byte in
-      let retain_flag: type_retain_flags_restrict = get_retain_flag s.publish_fixed_header_first_one_byte in
-      let data: struct_fixed_header_constant =
-        struct_fixed_publish dup_flag qos_flag retain_flag in
-        {
-          message_type = data.message_type_constant;
-          message_name = data.message_name_constant;
-          flags = {
-            flag = data.flags_constant.flag;
-            dup_flag = data.flags_constant.dup_flag;
-            qos_flag = data.flags_constant.qos_flag;
-            retain_flag = data.flags_constant.retain_flag;
+  let dup_flag: type_dup_flags_restrict = get_dup_flag s.publish_fixed_header_first_one_byte in
+  let qos_flag: type_qos_flags_restrict = get_qos_flag s.publish_fixed_header_first_one_byte in
+  let retain_flag: type_retain_flags_restrict = get_retain_flag s.publish_fixed_header_first_one_byte in
+  let data: struct_fixed_header_constant =
+    struct_fixed_publish dup_flag qos_flag retain_flag in
+    {
+      message_type = data.message_type_constant;
+      message_name = data.message_name_constant;
+      flags = {
+        flag = data.flags_constant.flag;
+        dup_flag = data.flags_constant.dup_flag;
+        qos_flag = data.flags_constant.qos_flag;
+        retain_flag = data.flags_constant.retain_flag;
+      };
+      remaining_length = s.publish_remaining_length;
+      connect = {
+        protocol_name = !$"";
+        protocol_version = max_u8;
+        flags = {
+          connect_flag = max_u8;
+          user_name = max_u8;
+          password = max_u8;
+          will_retain = max_u8;
+          will_qos = max_u8;
+          will_flag = max_u8;
+          clean_start = max_u8;
+        };
+        keep_alive = 0us;
+        connect_id = 
+          {
+            utf8_string_length = 0us;
+            utf8_string_value = B.alloca 0uy 1ul;
+            utf8_string_status_code = 1uy;
           };
-          remaining_length = s.publish_remaining_length;
-          connect = {
-            protocol_name = !$"";
-            protocol_version = max_u8;
-            flags = {
-              connect_flag = max_u8;
-              user_name = max_u8;
-              password = max_u8;
-              will_retain = max_u8;
-              will_qos = max_u8;
-              will_flag = max_u8;
-              clean_start = max_u8;
-            };
-            keep_alive = max_u32;
-            connect_topic_length = max_u32;
-            connect_property = {
-              connect_property_id = max_u8;
-              connect_property_name = !$""
-            }
-          };
-          publish = {
-            topic_length = s.publish_topic_length;
-            topic_name = s.publish_topic_name;
-            property_length = s.publish_property_length;
-            property_id = s.publish_property_id;
-            payload = s.publish_payload;
-            payload_length = s.publish_payload_length;
-          };
-          disconnect = {
-            disconnect_reason_code = max_u8;
-            disconnect_reason_code_name = !$"";
-          };
-          property = s.publish_property;
-          error = {
-            code = define_no_error_code;
-            message = define_no_error;
-          };
-        }
+      };
+      publish = {
+        topic_length = s.publish_topic_length;
+        topic_name = s.publish_topic_name;
+        property_length = s.publish_property_length;
+        property_id = s.publish_property_id;
+        payload = s.publish_payload;
+        payload_length = s.publish_payload_length;
+      };
+      disconnect = {
+        disconnect_reason_code = max_u8;
+        disconnect_reason_code_name = !$"";
+      };
+      property = s.publish_property;
+      error = {
+        code = define_no_error_code;
+        message = define_no_error;
+      };
+    }
 
 // TODO: topic-name のエラー条件を追加する
 // TODO: UTF-8 の 制約を追加する
