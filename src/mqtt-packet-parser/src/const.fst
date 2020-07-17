@@ -235,6 +235,7 @@ type struct_utf8_string = {
   utf8_string_length: U16.t;
   utf8_string_value: B.buffer U8.t;
   utf8_string_status_code: U8.t;
+  utf8_next_start_index: U32.t;
 }
 
 // 3.1.2.3 Connect Flags
@@ -621,6 +622,7 @@ type struct_utf8_string_pair = {
 type struct_binary_data = {
   binary_length: U16.t;
   binary_value: B.buffer U8.t;
+  binary_next_start_index: U32.t;
 }
 
 type struct_one_byte_integer = {
@@ -727,6 +729,7 @@ let property_struct_type_base: struct_property_type = {
     utf8_string_length = 0us;
     utf8_string_value = B.alloca 0uy 1ul;
     utf8_string_status_code = 0uy;
+    utf8_next_start_index = 0ul;
   };
   variable_byte_integer_struct = {
     variable_byte_integer_value = 0ul;
@@ -734,17 +737,20 @@ let property_struct_type_base: struct_property_type = {
   binary_data_struct = {
     binary_length = 0us;
     binary_value = B.alloca 0uy 1ul;
+    binary_next_start_index = 0ul;
   };
   utf8_string_pair_struct = {
     utf8_string_pair_key = {
       utf8_string_length = 0us;
       utf8_string_value = B.alloca 0uy 1ul;
       utf8_string_status_code = 0uy;
+      utf8_next_start_index = 0ul;
     };
     utf8_string_pair_value = {
       utf8_string_length = 0us;
       utf8_string_value = B.alloca 0uy 1ul;
       utf8_string_status_code = 0uy;
+      utf8_next_start_index = 0ul;
     };
   };
   property_type_error = define_struct_property_no_error;
@@ -764,6 +770,7 @@ let property_struct_type_base: struct_property_type = {
   //   utf8_string_length = b.utf8_encoded_string_struct.utf8_string_length;
   //   utf8_string_value = b.utf8_encoded_string_struct.utf8_string_value;
   //   utf8_string_status_code = b.utf8_encoded_string_struct.utf8_string_status_code;
+  //   utf8_next_start_index = b.utf8_encoded_string_struct.utf8_next_start_index;
   // };
 //   variable_byte_integer_struct = {
 //     variable_byte_integer_value = b.variable_byte_integer_struct.variable_byte_integer_value;
@@ -777,11 +784,13 @@ let property_struct_type_base: struct_property_type = {
 //       utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length;
 //       utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value;
 //       utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code;
+//   utf8_next_start_index = b.utf8_encoded_string_struct.utf8_next_start_index;
 //     };
 //     utf8_string_pair_value = {
 //       utf8_string_length = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length;
 //       utf8_string_value = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value;
 //       utf8_string_status_code = b.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code;
+//   utf8_next_start_index = b.utf8_encoded_string_struct.utf8_next_start_index;
 //     };
 //   };
 //   property_type_error = define_struct_property_no_error;
@@ -900,5 +909,12 @@ type struct_protocol_version = {
 type struct_connect_flag = {
   connect_flag_value: U8.t;
   keep_alive_start_index: U32.t;
+}
+
+type struct_connect_will = {
+  connect_will_property: struct_property;
+  connect_will_topic_name: struct_utf8_string;
+  connect_will_payload: struct_binary_data;
+  user_name_or_password_next_start_index: U32.t;
 }
 

@@ -93,6 +93,7 @@ let assemble_publish_struct s =
             utf8_string_length = 0us;
             utf8_string_value = B.alloca 0uy 1ul;
             utf8_string_status_code = 1uy;
+            utf8_next_start_index = 0ul;
           };
       };
       publish = {
@@ -197,14 +198,11 @@ let publish_packet_parser packet_data packet_size next_start_index =
     get_topic_name packet_data (U32.add next_start_index 2ul) topic_length in
   let topic_name_error_status: U8.t = topic_name_struct.topic_name_error_status in
 
-  let variable_length: struct_variable_length = 
-    get_variable_byte 
-      packet_data packet_size (U32.add (U32.add next_start_index 2ul) topic_length) in
-  let property_length: type_remaining_length = 
-    variable_length.variable_length_value in
-  let property_start_index: U32.t = variable_length.next_start_index in
+  // TODO: propertyが存在しない場合の処理
+  let property_start_index: U32.t = 
+    (U32.add (U32.add next_start_index 2ul) topic_length) in
   let property_struct: struct_property = 
-    parse_property packet_data packet_size property_length property_start_index in
+    parse_property packet_data packet_size property_start_index in
   let property_id = property_struct.property_id in
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let paylaod_end_index: U32.t = U32.sub packet_size 1ul in
@@ -221,13 +219,14 @@ let publish_packet_parser packet_data packet_size next_start_index =
       0uy
     ) in
   pop_frame ();
+  
 
   let publish_packet_seed: struct_publish_packet_seed = {
     publish_seed_topic_length = topic_length;
     publish_seed_topic_name = topic_name_struct.topic_name;
     publish_seed_topic_name_error_status = topic_name_error_status;
     publish_seed_is_searching_property_length = false;
-    publish_seed_property_length = property_length;
+    publish_seed_property_length = 0ul;
     publish_seed_payload = 
       payload_uint8_to_c_string payload_struct.payload min_packet_size max_packet_size packet_size;
     publish_seed_payload_length = payload_struct.payload_length;

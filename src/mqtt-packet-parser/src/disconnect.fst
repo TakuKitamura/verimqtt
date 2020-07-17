@@ -43,6 +43,7 @@ let assemble_disconnect_struct s =
             utf8_string_length = 0us;
             utf8_string_value = B.alloca 0uy 1ul;
             utf8_string_status_code = 1uy;
+            utf8_next_start_index = 0ul;
           };
       };
       publish = {

@@ -162,20 +162,105 @@ let connect_packet_parser packet_data packet_size next_start_index =
     get_two_byte_integer_u8_to_u16
       packet_data.(connect_flag_struct.keep_alive_start_index)
       packet_data.(U32.(connect_flag_struct.keep_alive_start_index +^ 1ul)) in
-  let variable_integer_start_index: U32.t =
+  let property_start_index: U32.t = 
     U32.(connect_flag_struct.keep_alive_start_index +^ 2ul) in
-  let variable_length: struct_variable_length = 
-    get_variable_byte 
-      packet_data packet_size variable_integer_start_index in
-  let property_length: type_remaining_length = 
-    variable_length.variable_length_value in
-  let property_start_index: U32.t = variable_length.next_start_index in
   let property_struct: struct_property = 
-    parse_property packet_data packet_size property_length property_start_index in
+    parse_property packet_data packet_size property_start_index in
   let property_type_id = property_struct.property_type_id in
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let connect_id: struct_utf8_string = 
     get_utf8_encoded_string packet_data payload_start_index in
+  let connect_flag:U8.t = connect_flag_struct.connect_flag_value in
+  let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
+  let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
+  let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
+  let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
+  let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
+  let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
+  let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
+  let will_or_user_name_or_password_start_index: U32.t = 
+    U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id.utf8_string_length)) in
+  let connect_will_struct: struct_connect_will =
+    (
+      if (will_flag = 1ul) then
+        (
+          // TODO: エラーチェック
+          let will_property_start_index: U32.t = will_or_user_name_or_password_start_index in
+          let property_struct: struct_property = 
+            parse_property packet_data packet_size will_property_start_index in
+          let will_topic_name_struct: struct_utf8_string = 
+            get_utf8_encoded_string packet_data property_struct.payload_start_index in
+          let will_payload_struct: struct_binary_data = 
+            get_binary packet_data will_topic_name_struct.utf8_next_start_index in
+          let connect_will_struct: struct_connect_will = 
+            {
+              connect_will_property = property_struct;
+              connect_will_topic_name = will_topic_name_struct;
+              connect_will_payload = will_payload_struct;
+              user_name_or_password_next_start_index = will_payload_struct.binary_next_start_index;
+            } in connect_will_struct
+        )
+      else
+        (
+          let connect_will_struct: struct_connect_will =
+            {
+              connect_will_property = property_struct_base;
+              connect_will_topic_name = 
+                {
+                  utf8_string_length = 0us;
+                  utf8_string_value = B.alloca 0uy 1ul;
+                  utf8_string_status_code = 1uy;
+                  utf8_next_start_index = 0ul;
+                };
+              connect_will_payload = 
+                {
+                  binary_length = 0us;
+                  binary_value = B.alloca 0uy 1ul;
+                  binary_next_start_index = 0ul;
+                };
+              user_name_or_password_next_start_index = 0ul;
+            } in connect_will_struct
+        )
+    ) in
+
+  let user_name_struct: struct_utf8_string = 
+    (
+      if (user_name_flag = 1ul) then
+        (
+          let user_name_struct: struct_utf8_string = 
+            get_utf8_encoded_string packet_data connect_will_struct.user_name_or_password_next_start_index
+          in user_name_struct
+        )
+      else
+        (
+          let user_name_struct: struct_utf8_string = 
+            {
+              utf8_string_length = 0us;
+              utf8_string_value = B.alloca 0uy 1ul;
+              utf8_string_status_code = 1uy;
+              utf8_next_start_index = 0ul;
+            } in user_name_struct  
+        )
+    ) in
+  let password_struct: struct_binary_data =
+    (
+      if (password_flag = 1ul) then
+        (
+          let password_struct: struct_binary_data =
+            get_binary packet_data user_name_struct.utf8_next_start_index in
+          password_struct 
+        )
+      else
+        (
+          let password_struct: struct_binary_data =
+            {
+              binary_length = 0us;
+              binary_value = B.alloca 0uy 1ul;
+              binary_next_start_index = 0ul;
+            } 
+            in password_struct  
+        )
+    ) in
   pop_frame ();
 
   let connect_packet_seed: struct_connect_packet_seed = {
@@ -183,7 +268,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
     connect_seed_is_valid_protocol_version = protocol_version_struct.is_valid_protocol_version;
     connect_seed_connect_flag = connect_flag_struct.connect_flag_value;
     connect_seed_keep_alive = keep_alive;
-    connect_seed_is_valid_property_length = not variable_length.have_error;
+    connect_seed_is_valid_property_length = true;
     connect_seed_property = property_struct;
     connect_seed_connect_id = connect_id;
   } in connect_packet_seed
@@ -205,12 +290,6 @@ let connect_packet_parse_result share_common_data =
   let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
   let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
   let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
-
-  // let connect_property_id: U8.t = connect_packet_seed.connect_seed_connect_property_id in
-  // let keep_alive_msb_u32: U32.t = 
-  //   uint8_to_uint32 connect_packet_seed.connect_seed_keep_alive_msb_u8  in
-  // let keep_alive_lsb_u32: U32.t = 
-  //   uint8_to_uint32 connect_packet_seed.connect_seed_keep_alive_lsb_u8 in 
   let keep_alive: U16.t = connect_packet_seed.connect_seed_keep_alive in
 
   let have_error: bool =
