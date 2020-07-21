@@ -360,6 +360,37 @@ let error_struct_fixed_header error_struct = {
           utf8_string_status_code = 1uy;
           utf8_next_start_index = 0ul;
         };
+    will =
+      {
+        connect_will_property = property_struct_base;
+        connect_will_topic_name = 
+          {
+            utf8_string_length = 0us;
+            utf8_string_value = B.alloca 0uy 1ul;
+            utf8_string_status_code = 1uy;
+            utf8_next_start_index = 0ul;
+          };
+        connect_will_payload = 
+          {
+            binary_length = 0us;
+            binary_value = B.alloca 0uy 1ul;
+            binary_next_start_index = 0ul;
+          };
+        user_name_or_password_next_start_index = 0ul;
+      };
+    user_name =
+      {
+        utf8_string_length = 0us;
+        utf8_string_value = B.alloca 0uy 1ul;
+        utf8_string_status_code = 1uy;
+        utf8_next_start_index = 0ul;
+      };
+    password =
+      {
+        binary_length = 0us;
+        binary_value = B.alloca 0uy 1ul;
+        binary_next_start_index = 0ul;
+      };
     };
     publish = {
       topic_length = 0ul;

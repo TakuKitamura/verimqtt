@@ -85,9 +85,6 @@ int main(int argc, char *argv[]) {
             }
 
         }
-        // printf("data.connect.connect_property_length = 0x%02x\n", data.connect.connect_topic_length);
-        // printf("data.connect.connect_property.connect_property_id = 0x%02x\n", data.connect.connect_property.connect_property_id);
-        // printf("data.connect.connect_property.connect_property_name = %s\n", data.connect.connect_property.connect_property_name);
 
         puts("");
     } else if (data.message_type == 3) {

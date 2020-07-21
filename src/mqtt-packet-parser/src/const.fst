@@ -156,14 +156,14 @@ type struct_fixed_header_constant = {
 }
 
 type struct_connect_flags = {
-      connect_flag: U8.t;
-      user_name: U8.t;
-      password: U8.t;
-      will_retain: U8.t;
-      will_qos: U8.t;
-      will_flag: U8.t;
-      clean_start: U8.t;
-  }
+  connect_flag: U8.t;
+  user_name: U8.t;
+  password: U8.t;
+  will_retain: U8.t;
+  will_qos: U8.t;
+  will_flag: U8.t;
+  clean_start: U8.t;
+}
 
 type struct_connect_property = {
     connect_property_id: U8.t;
@@ -240,17 +240,6 @@ type struct_utf8_string = {
   utf8_string_status_code: U8.t;
   utf8_next_start_index: U32.t;
 }
-
-// 3.1.2.3 Connect Flags
-type struct_connect = {
-  protocol_name: C.String.t;
-  protocol_version: U8.t;
-  flags: struct_connect_flags;
-  keep_alive: U16.t;
-  connect_id: struct_utf8_string;
-  // connect_topic_length: U32.t;
-  // connect_property: struct_connect_property;
-}  
 
 type type_topic_name_restrict =
   (
@@ -816,18 +805,6 @@ type struct_disconnect = {
   disconnect_reason: struct_disconnect_reason;
 }
 
-type struct_fixed_header = {
-  message_type: type_mqtt_control_packets_restrict;
-  message_name: type_message_name_restrict;
-  flags: struct_flags;
-  remaining_length: type_remaining_length;
-  connect: struct_connect;
-  publish: struct_variable_header_publish;
-  disconnect: struct_disconnect;
-  property: struct_property;
-  error: struct_error_struct;
-}
-
 type struct_publish_parts = {
   publish_remaining_length: type_remaining_length;
   publish_flag: type_flag_restrict;
@@ -844,13 +821,45 @@ type struct_publish_parts = {
   publish_property: struct_property;
 }
 
+type struct_connect_will = {
+  connect_will_property: struct_property;
+  connect_will_topic_name: struct_utf8_string;
+  connect_will_payload: struct_binary_data;
+  user_name_or_password_next_start_index: U32.t;
+}
+
+// 3.1.2.3 Connect Flags
+type struct_connect = {
+  protocol_name: C.String.t;
+  protocol_version: U8.t;
+  flags: struct_connect_flags;
+  keep_alive: U16.t;
+  connect_id: struct_utf8_string;
+  will: struct_connect_will;
+  user_name: struct_utf8_string;
+  password: struct_binary_data;
+
+  // connect_topic_length: U32.t;
+  // connect_property: struct_connect_property;
+}  
+
+type struct_fixed_header = {
+  message_type: type_mqtt_control_packets_restrict;
+  message_name: type_message_name_restrict;
+  flags: struct_flags;
+  remaining_length: type_remaining_length;
+  connect: struct_connect;
+  publish: struct_variable_header_publish;
+  disconnect: struct_disconnect;
+  property: struct_property;
+  error: struct_error_struct;
+}
+
 type struct_connect_parts = {
   connect_remaining_length: type_remaining_length;
   connect_connect_constant: struct_fixed_header_constant;
-  connect_connect_flag: U8.t;
-  connect_keep_alive: U16.t;
+  connect_struct: struct_connect;
   connect_property: struct_property;
-  connect_id: struct_utf8_string;
 }
 
 type struct_disconnect_parts = {
@@ -905,6 +914,10 @@ type struct_connect_packet_seed = {
   connect_seed_is_valid_property_length: bool;
   connect_seed_property: struct_property;
   connect_seed_connect_id: struct_utf8_string;
+  connect_seed_will_struct: struct_connect_will;
+  connect_seed_user_name_struct: struct_utf8_string;
+  connect_seed_password_struct: struct_binary_data;
+
 }
 
 type struct_replace_utf8_encoded = {
@@ -930,13 +943,6 @@ type struct_protocol_version = {
 type struct_connect_flag = {
   connect_flag_value: U8.t;
   keep_alive_start_index: U32.t;
-}
-
-type struct_connect_will = {
-  connect_will_property: struct_property;
-  connect_will_topic_name: struct_utf8_string;
-  connect_will_payload: struct_binary_data;
-  user_name_or_password_next_start_index: U32.t;
 }
 
 type struct_disconnect_packet_seed = {

@@ -22,14 +22,6 @@ val assemble_connect_struct: s: struct_connect_parts
     (ensures (fun r -> true))
 let assemble_connect_struct s =
   let connect_constant: struct_fixed_header_constant = s.connect_connect_constant in
-  let connect_flag: U8.t = s.connect_connect_flag in
-  let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
-  let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
-  let will_retain_flag: U8.t = slice_byte connect_flag 2uy 3uy in
-  let will_qos_flag: U8.t = slice_byte connect_flag 3uy 5uy in
-  let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
-  let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
-  let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
   {
     message_type = connect_constant.message_type_constant;
     message_name = connect_constant.message_name_constant;
@@ -40,22 +32,7 @@ let assemble_connect_struct s =
       retain_flag = connect_constant.flags_constant.retain_flag;
     };
     remaining_length = s.connect_remaining_length;
-    connect = 
-        {
-          protocol_name = !$"MQTT";
-          protocol_version = 5uy;
-          flags = {
-            connect_flag = connect_flag;
-            user_name = user_name_flag;
-            password = password_flag;
-            will_retain = will_retain_flag;
-            will_qos = will_qos_flag;
-            will_flag = will_flag;
-            clean_start = clean_start_flag;
-          };
-          keep_alive = s.connect_keep_alive;
-          connect_id = s.connect_id;
-        };
+    connect = s.connect_struct;
     publish = {
       topic_length = 0ul;
       topic_name = !$"";
@@ -269,6 +246,9 @@ let connect_packet_parser packet_data packet_size next_start_index =
     connect_seed_is_valid_property_length = true;
     connect_seed_property = property_struct;
     connect_seed_connect_id = connect_id;
+    connect_seed_will_struct = connect_will_struct;
+    connect_seed_user_name_struct = user_name_struct;
+    connect_seed_password_struct = password_struct;
   } in connect_packet_seed
 
 val connect_packet_parse_result: (share_common_data: struct_share_common_data)
@@ -290,6 +270,7 @@ let connect_packet_parse_result share_common_data =
   let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
   let keep_alive: U16.t = connect_packet_seed.connect_seed_keep_alive in
 
+  // TODO: エラー処理
   let have_error: bool =
     (not connect_packet_seed.connect_seed_is_valid_protocol_name) ||
     (not connect_packet_seed.connect_seed_is_valid_protocol_version) ||
@@ -336,14 +317,32 @@ let connect_packet_parse_result share_common_data =
     )
   else
     (
+      let connect_struct :struct_connect = 
+        {
+          protocol_name = !$"MQTT";
+          protocol_version = 5uy;
+          flags = {
+            connect_flag = connect_flag;
+            user_name = user_name_flag;
+            password = password_flag;
+            will_retain = will_retain_flag;
+            will_qos = will_qos_flag;
+            will_flag = will_flag;
+            clean_start = clean_start_flag;
+          };
+          keep_alive = keep_alive;
+          connect_id = connect_packet_seed.connect_seed_connect_id;
+          will = connect_packet_seed.connect_seed_will_struct;
+          user_name = connect_packet_seed.connect_seed_user_name_struct;
+          password = connect_packet_seed.connect_seed_password_struct;
+        } in
+
       let ed_fixed_header_parts:
         struct_connect_parts = {
           connect_remaining_length = share_common_data.common_remaining_length;
           connect_connect_constant = connect_constant;
-          connect_connect_flag = connect_flag;
-          connect_keep_alive = keep_alive;
+          connect_struct = connect_struct;
           connect_property = connect_packet_seed.connect_seed_property;
-          connect_id = connect_packet_seed.connect_seed_connect_id;
       } in
       assemble_connect_struct ed_fixed_header_parts            
     )
