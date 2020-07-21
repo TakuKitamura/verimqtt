@@ -166,9 +166,6 @@ let get_message_type message_type_bits =
   else
     message_type_bits
 
-val is_valid_flag: s:struct_fixed_header_constant -> flag: type_flag_restrict -> bool
-let is_valid_flag s flag = U8.eq s.flags_constant.flag flag
-
 val get_struct_fixed_header_constant_except_publish :
   (message_type: type_mqtt_control_packets_restrict)
   -> struct_fixed_header_constant
@@ -368,13 +365,16 @@ let error_struct_fixed_header error_struct = {
       topic_length = 0ul;
       topic_name = !$"";
       property_length = 0ul;
+      packet_identifier = max_u16;
       payload = !$"";
       payload_length = 0ul;
       property_id = max_u8;
     };
     disconnect = {
-      disconnect_reason_code = max_u8;
-      disconnect_reason_code_name = !$"";
+      disconnect_reason = {
+        disconnect_reason_code = max_u8;
+        disconnect_reason_code_name = !$"";
+      };
     };
     property = property_struct_base;
     error = error_struct;
@@ -510,12 +510,16 @@ let share_common_data_check packet_data packet_size =
   let first_one_byte: U8.t = packet_data.(0ul) in
   let message_type_bits: U8.t = slice_byte first_one_byte 0uy 4uy in
   let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
+  let flag: U8.t = get_flag message_type first_one_byte in
 
   let variable_length: struct_variable_length = get_variable_byte packet_data packet_size 1ul in
   let remaining_length: type_remaining_length = variable_length.variable_length_value in
 
   let next_start_index: U32.t = variable_length.next_start_index in
-  let is_share_error: bool = (variable_length.have_error) || (U8.eq message_type max_u8) in
+  let is_share_error: bool = 
+    (variable_length.have_error) ||
+    (U8.eq message_type max_u8) ||
+    (U8.eq flag max_u8) in
   if (is_share_error) then
     (
       let error_struct: struct_error_struct =
@@ -525,10 +529,15 @@ let share_common_data_check packet_data packet_size =
               code = define_error_remaining_length_invalid_code;
               message = define_error_remaining_length_invalid;
             }
-          else // if (U8.eq message_type max_u8) then
+          else if (U8.eq message_type max_u8) then
             {
               code = define_error_message_type_invalid_code;
               message = define_error_message_type_invalid;
+            }
+          else // U8.eq flag max_u8
+            {
+             code = define_error_flag_invalid_code;
+             message = define_error_flag_invalid;
             }
         ) in 
         let error = error_struct_fixed_header error_struct in
@@ -540,9 +549,9 @@ let share_common_data_check packet_data packet_size =
             common_packet_data = packet_data;
             common_packet_size = packet_size;
             common_message_type = max_u8;
+            common_flag = max_u8;
             common_remaining_length = max_u32;
             common_next_start_index = max_u32;
-            common_first_one_byte = max_u8;
           };
         } in share_common_data_check
     )
@@ -561,9 +570,9 @@ let share_common_data_check packet_data packet_size =
             common_packet_data = packet_data;
             common_packet_size = packet_size;
             common_message_type = message_type;
+            common_flag = flag;
             common_remaining_length = remaining_length;
             common_next_start_index = next_start_index;
-            common_first_one_byte = first_one_byte;
           } in
         let share_common_data_check: struct_share_common_data_check =
         {

@@ -10,6 +10,9 @@ open C.String
 val max_u8: U8.t
 let max_u8 = 255uy
 
+val max_u16: U16.t
+let max_u16 = 65535us
+
 val max_u32: U32.t
 let max_u32 = 4294967295ul
 
@@ -269,6 +272,7 @@ type type_payload_offset = payload_offset: U32.t{U32.v payload_offset < U32.v ma
 type struct_variable_header_publish = {
   topic_length: type_topic_length_restrict;
   topic_name: type_topic_name_restrict;
+  packet_identifier: U16.t;
   property_length: type_property_length;
   payload: type_payload_restrict;
   payload_length: U32.t;
@@ -541,6 +545,7 @@ let define_error_protocol_version_invalid_code: type_error_code = 13uy
 let define_error_connect_flag_invalid_code: type_error_code = 14uy
 let define_error_property_error_code: type_error_code = 15uy
 let define_error_connect_id_invalid_code: type_error_code = 16uy
+let define_error_disconnect_reason_invalid_code: type_error_code = 17uy
 
 type type_error_code_restrict =
   (v:
@@ -561,7 +566,8 @@ type type_error_code_restrict =
       v = define_error_protocol_version_invalid_code ||
       v = define_error_connect_flag_invalid_code ||
       v = define_error_property_error_code ||
-      v = define_error_connect_id_invalid_code
+      v = define_error_connect_id_invalid_code ||
+      v = define_error_disconnect_reason_invalid_code
     }
   )
 
@@ -584,6 +590,7 @@ let define_error_protocol_version_invalid: type_error_message = !$"protocol vers
 let define_error_connect_flag_invalid: type_error_message = !$"connect flag is invalid."
 let define_error_property_invalid: type_error_message = !$"property is invalid."
 let define_error_connect_id_invalid: type_error_message = !$"connect id is invalid."
+let define_error_disconnect_reason_invalid: type_error_message = !$"disconnect reason is invalid."
 let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
@@ -605,7 +612,8 @@ type type_error_message_restrict =
       v = define_error_protocol_version_invalid ||
       v = define_error_connect_flag_invalid ||
       v = define_error_property_invalid ||
-      v = define_error_connect_id_invalid
+      v = define_error_connect_id_invalid ||
+      v = define_error_disconnect_reason_invalid
     }
   )
 
@@ -804,6 +812,10 @@ let property_struct_base: struct_property = {
   payload_start_index = 0ul;
 }
 
+type struct_disconnect = {
+  disconnect_reason: struct_disconnect_reason;
+}
+
 type struct_fixed_header = {
   message_type: type_mqtt_control_packets_restrict;
   message_name: type_message_name_restrict;
@@ -811,16 +823,20 @@ type struct_fixed_header = {
   remaining_length: type_remaining_length;
   connect: struct_connect;
   publish: struct_variable_header_publish;
-  disconnect: struct_disconnect_reason;
+  disconnect: struct_disconnect;
   property: struct_property;
   error: struct_error_struct;
 }
 
 type struct_publish_parts = {
   publish_remaining_length: type_remaining_length;
-  publish_fixed_header_first_one_byte: U8.t;
+  publish_flag: type_flag_restrict;
+  publish_dup_flag: type_dup_flags_restrict;
+  publish_qos_flag: type_qos_flags_restrict;
+  publish_retain_flag: type_retain_flags_restrict;
   publish_topic_name: type_topic_name_restrict;
   publish_topic_length: type_topic_length_restrict;
+  publish_packet_identifier: U16.t;
   publish_property_length: type_property_length;
   publish_payload: type_payload_restrict;
   publish_payload_length: U32.t;
@@ -840,6 +856,8 @@ type struct_connect_parts = {
 type struct_disconnect_parts = {
   disconnect_remaining_length: type_remaining_length;
   disconnect_disconnect_constant: struct_fixed_header_constant;
+  disconnect_struct: struct_disconnect;
+  property: struct_property;
 }
 
 type struct_variable_length = {
@@ -847,14 +865,13 @@ type struct_variable_length = {
   variable_length_value: U32.t;
   next_start_index: U32.t;
 }
-
 type struct_share_common_data = {
   common_packet_data: B.buffer U8.t;
   common_packet_size: type_packet_size;
   common_message_type: type_mqtt_control_packets_restrict;
+  common_flag: type_flag_restrict;
   common_remaining_length: type_remaining_length;
   common_next_start_index: U32.t;
-  common_first_one_byte: U8.t;
 }
 
 type struct_share_common_data_check = {
@@ -864,9 +881,13 @@ type struct_share_common_data_check = {
 }
 
 type struct_publish_packet_seed = {
+  publish_seed_dup_flag: type_dup_flags_restrict;
+  publish_seed_qos_flag: type_qos_flags_restrict;
+  publish_seed_retain_flag: type_retain_flags_restrict;
   publish_seed_topic_length: type_topic_length_restrict;
   publish_seed_topic_name: type_topic_name_restrict;
   publish_seed_topic_name_error_status: U8.t;
+  publish_seed_packet_identifier: U16.t;
   publish_seed_is_searching_property_length: bool;
   publish_seed_property_length: type_property_length;
   publish_seed_payload: type_payload_restrict;
@@ -918,3 +939,12 @@ type struct_connect_will = {
   user_name_or_password_next_start_index: U32.t;
 }
 
+type struct_disconnect_packet_seed = {
+  disconnect_seed_reason: struct_disconnect_reason;
+  disconnect_seed_property: struct_property;
+}
+
+type struct_packet_identifier = {
+  packet_identifier_value: U16.t;
+  property_start_to_offset: U32.t;
+}

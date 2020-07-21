@@ -60,11 +60,17 @@ let assemble_connect_struct s =
       topic_length = 0ul;
       topic_name = !$"";
       property_length = 0ul;
+      packet_identifier = max_u16;
       payload = !$"";
       payload_length = 0ul;
       property_id = max_u8;
     };
-    disconnect = define_struct_disconnect_error;
+    disconnect = {
+      disconnect_reason = {
+        disconnect_reason_code = max_u8;
+        disconnect_reason_code_name = !$"";
+      };
+    };
     property = s.connect_property;
     error = {
       code = define_no_error_code;
@@ -139,19 +145,12 @@ let get_connect_flag packet_data next_start_index =
 
 val connect_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> next_start_index:U32.t
+  -> next_start_index: U32.t
   -> Stack (connect_packet_seed: struct_connect_packet_seed)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let connect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
-  let ptr_is_break: B.buffer bool = B.alloca false 1ul in
-  let ptr_protocol_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_protocol_version_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_connect_flag: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_keep_alive: B.buffer U8.t = B.alloca 0uy 2ul in
-  let ptr_connect_topic_length: B.buffer U32.t = B.alloca 0ul 1ul in
-  let ptr_connect_property_id: B.buffer U8.t = B.alloca 0uy 1ul in
   let protocol_name_struct: struct_protocol_name = 
     is_valid_protocol_name packet_data next_start_index in
   let protocol_version_struct: struct_protocol_version =
@@ -166,7 +165,6 @@ let connect_packet_parser packet_data packet_size next_start_index =
     U32.(connect_flag_struct.keep_alive_start_index +^ 2ul) in
   let property_struct: struct_property = 
     parse_property packet_data packet_size property_start_index in
-  let property_type_id = property_struct.property_type_id in
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let connect_id: struct_utf8_string = 
     get_utf8_encoded_string packet_data payload_start_index in
@@ -326,7 +324,7 @@ let connect_packet_parse_result share_common_data =
             }
           else if (U8.gt connect_packet_seed.connect_seed_property.property_type_struct.property_type_error.property_error_code 0uy) then
             {
-              code = define_error_connect_id_invalid_code;
+              code = define_error_property_error_code;
               message = connect_packet_seed.connect_seed_property.property_type_struct.property_type_error.property_error_code_name;
             }
           else // if (U8.gt connect_packet_seed.connect_id.utf8_string_status_code 0uy)
