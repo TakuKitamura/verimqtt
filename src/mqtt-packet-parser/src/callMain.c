@@ -99,18 +99,15 @@ int main(int argc, char *argv[]) {
                 printf(", ");
         }
 
-        printf("data.publish.property_length = %u\n", data.publish.property_length);
         printf("data.publish.payload =\n [");
-        for (int i=0; i < data.publish.payload_length; i++) {
-            printf("0x%02X", data.publish.payload[i] & 0x000000FF);
-            if (i + 1 == data.publish.payload_length) 
+        for (int i=0; i < data.publish.payload.payload_length; i++) {
+            printf("0x%02X", data.publish.payload.payload_value[i] & 0x000000FF);
+            if (i + 1 == data.publish.payload.payload_length) 
                 puts("]");
             else
                 printf(", ");
         }
-        printf("data.publish.payload_length = %u\n", data.publish.payload_length);
-
-        printf("data.publish.property_id = %u\n", data.publish.property_id);
+        printf("data.publish.payload_length = %u\n", data.publish.payload.payload_length);
 
         puts("");
     } else if (data.message_type == 14) {

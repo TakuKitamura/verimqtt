@@ -134,10 +134,10 @@ let assemble_publish_struct s =
         topic_length = s.publish_topic_length;
         topic_name = s.publish_topic_name;
         packet_identifier = s.publish_packet_identifier;
-        property_length = s.publish_property_length;
-        property_id = s.publish_property_id;
+        // property_length = s.publish_property_length;
+        // property_id = s.publish_property_id;
         payload = s.publish_payload;
-        payload_length = s.publish_payload_length;
+        // payload_length = s.publish_payload_length;
       };
       disconnect = {
         disconnect_reason = {
@@ -296,12 +296,11 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
     publish_seed_topic_name_error_status = topic_name_error_status;
     publish_seed_packet_identifier = packet_identifier_struct.packet_identifier_value;
     publish_seed_is_searching_property_length = false;
-    publish_seed_property_length = 0ul;
-    publish_seed_payload = 
-      payload_uint8_to_c_string payload_struct.payload min_packet_size max_packet_size packet_size;
-    publish_seed_payload_length = payload_struct.payload_length;
+    // publish_seed_property_length = 0ul;
+    publish_seed_payload = payload_struct;
+    // publish_seed_payload_length = payload_struct.payload_length;
     publish_seed_payload_error_status = payload_error_status;
-    publish_seed_property_id = property_id;
+    // publish_seed_property_id = property_id;
     publish_seed_property = property_struct;
   } in publish_packet_seed
 
@@ -387,10 +386,10 @@ let publish_packet_parse_result share_common_data =
           publish_topic_length = publish_packet_seed.publish_seed_topic_length;
           publish_topic_name = publish_packet_seed.publish_seed_topic_name;
           publish_packet_identifier = publish_packet_seed.publish_seed_packet_identifier;
-          publish_property_length = publish_packet_seed.publish_seed_property_length;
+          // publish_property_length = publish_packet_seed.publish_seed_property_length;
           publish_payload = publish_packet_seed.publish_seed_payload;
-          publish_payload_length = publish_packet_seed.publish_seed_payload_length;
-          publish_property_id = publish_packet_seed.publish_seed_property_id;
+          // publish_payload_length = publish_packet_seed.publish_seed_payload_length;
+          // publish_property_id = publish_packet_seed.publish_seed_property_id;
           publish_property = publish_packet_seed.publish_seed_property;
       } in
       assemble_publish_struct ed_fixed_header_parts

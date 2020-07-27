@@ -78,13 +78,18 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
   pop_frame ();
   remaining_length
 
+#set-options "--z3rlimit 30 --max_ifuel 0"
 
 val get_variable_byte: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> now_index:U32.t
+  -> now_index: U32.t{U32.v packet_size > U32.v now_index}
   -> Stack (variable_length: struct_variable_length)
-    (requires fun h0 -> B.live h0 packet_data)
-    (ensures fun h0 r h1 -> true)
+    (requires fun (h0: HS.mem) -> 
+    B.live h0 packet_data /\
+    B.length packet_data <= U32.v max_request_size /\
+    zero_terminated_buffer_u8 h0 packet_data /\
+    (B.length packet_data - 1) = U32.v packet_size)
+    (ensures fun (h0: HS.mem) (r: struct_variable_length) (h1: HS.mem) -> true)
 let get_variable_byte packet_data packet_size now_index =
   push_frame ();
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
@@ -99,53 +104,57 @@ let get_variable_byte packet_data packet_size now_index =
       else
         U32.add now_index 4ul
     ) in
-  let inv h (i: nat) = B.live h packet_data /\ 
-  B.live h ptr_for_decoding_packets /\
-  B.live h ptr_remaining_length /\
-  B.live h ptr_byte_length in
-  let body (i): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
+  let inv (h: HS.mem) (i:nat) =
+    B.live h packet_data /\
+    B.live h ptr_for_decoding_packets /\
+    B.live h ptr_remaining_length /\
+    B.live h ptr_byte_length /\
+    B.live h ptr_next_start_index in
+  let body (i: U32.t{U32.v now_index <= U32.v i /\ U32.v i < U32.v loop_last}): Stack unit 
+    (requires (fun (h: HS.mem) -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true)) =
-      if (ptr_byte_length.(0ul) = 0uy) then
-        (
-          let j = U32.sub i now_index in
-          ptr_for_decoding_packets.(j) <- packet_data.(i);
-          let is_end_byte: bool =
+    if (ptr_byte_length.(0ul) = 0uy) then
+      (
+        let j: U32.t = U32.sub i now_index in
+        let one_byte: U8.t = B.index packet_data i in
+        ptr_for_decoding_packets.(j) <- one_byte;
+        let is_end_byte: bool =
+          (
+            if (U32.eq j 0ul && U8.lte one_byte 0x7Fuy) ||
+              (U32.gte j 1ul && U8.gte one_byte 0x01uy && U8.lte one_byte 0x7Fuy)
+              then
+              true
+            else
+              false
+          ) in
+          if (is_end_byte) then
             (
-              if (U32.eq j 0ul && U8.lte packet_data.(i) 0x7Fuy) ||
-                (U32.gte j 1ul && U8.gte packet_data.(i) 0x01uy && U8.lte packet_data.(i) 0x7Fuy)
-                then
-                true
-              else
-                false
-            ) in
-            if (is_end_byte) then
-              (
-                let bytes_length_u8: U8.t = uint32_to_uint8(U32.add j 1ul) in
-                let untrust_remaining_length: type_remaining_length =
-                  decodeing_variable_bytes ptr_for_decoding_packets bytes_length_u8 in
-                let byte_length: U32.t = U32.add j 1ul in
-                let valid_remaining_length: bool = 
-                  (
-                    if (U32.eq now_index 1ul) then
-                      U32.eq (U32.sub packet_size 1ul) (U32.add untrust_remaining_length i)
-                    else 
-                      true
-                  ) in
-                if valid_remaining_length then (
-                  ptr_remaining_length.(0ul) <- untrust_remaining_length;
-                  ptr_byte_length.(0ul) <- bytes_length_u8;
-                  ptr_next_start_index.(0ul) <- U32.add i 1ul
-                )           
-              )
-        )
+              let bytes_length_u8: U8.t = uint32_to_uint8(U32.add j 1ul) in
+              let untrust_remaining_length: type_remaining_length =
+                decodeing_variable_bytes ptr_for_decoding_packets bytes_length_u8 in
+              let byte_length: U32.t = U32.add j 1ul in
+              let valid_remaining_length: bool = 
+                (
+                  if (U32.eq now_index 1ul) then
+                    U32.eq 
+                      (U32.sub packet_size 1ul)
+                      (U32.add untrust_remaining_length i)
+                  else 
+                    true
+                ) in
+              if valid_remaining_length then (
+                ptr_remaining_length.(0ul) <- untrust_remaining_length;
+                ptr_byte_length.(0ul) <- bytes_length_u8;
+                ptr_next_start_index.(0ul) <- U32.add i 1ul
+              )           
+            )
+      )
   in
   C.Loops.for now_index loop_last inv body;
   let remaining_length = ptr_remaining_length.(0ul) in
   let byte_length = ptr_byte_length.(0ul) in
   let next_start_index = ptr_next_start_index.(0ul) in
   pop_frame ();
-
   if (byte_length = 0uy) then
     {
       have_error = true;
@@ -330,7 +339,11 @@ val error_struct_fixed_header:
   -> Stack (r: struct_fixed_header)
   (requires fun h0 -> true)
   (ensures fun h0 r h1 -> true)
-let error_struct_fixed_header error_struct = {
+let error_struct_fixed_header error_struct = 
+push_frame ();
+let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+pop_frame ();
+{
     message_type = max_u8;
     message_name = !$"";
     flags = {
@@ -356,7 +369,7 @@ let error_struct_fixed_header error_struct = {
       connect_id = 
         {
           utf8_string_length = 0us;
-          utf8_string_value = B.alloca 0uy 1ul;
+          utf8_string_value = empty_buffer;
           utf8_string_status_code = 1uy;
           utf8_next_start_index = 0ul;
         };
@@ -366,14 +379,14 @@ let error_struct_fixed_header error_struct = {
         connect_will_topic_name = 
           {
             utf8_string_length = 0us;
-            utf8_string_value = B.alloca 0uy 1ul;
+            utf8_string_value = empty_buffer;
             utf8_string_status_code = 1uy;
             utf8_next_start_index = 0ul;
           };
         connect_will_payload = 
           {
             binary_length = 0us;
-            binary_value = B.alloca 0uy 1ul;
+            binary_value = empty_buffer;
             binary_next_start_index = 0ul;
           };
         user_name_or_password_next_start_index = 0ul;
@@ -381,25 +394,29 @@ let error_struct_fixed_header error_struct = {
     user_name =
       {
         utf8_string_length = 0us;
-        utf8_string_value = B.alloca 0uy 1ul;
+        utf8_string_value = empty_buffer;
         utf8_string_status_code = 1uy;
         utf8_next_start_index = 0ul;
       };
     password =
       {
         binary_length = 0us;
-        binary_value = B.alloca 0uy 1ul;
+        binary_value = empty_buffer;
         binary_next_start_index = 0ul;
       };
     };
     publish = {
       topic_length = 0ul;
       topic_name = !$"";
-      property_length = 0ul;
+      // property_length = 0ul;
       packet_identifier = max_u16;
-      payload = !$"";
-      payload_length = 0ul;
-      property_id = max_u8;
+      payload = {
+        is_valid_payload = false;
+        payload_value = empty_buffer;
+        payload_length = 0ul;
+      };
+      // payload_length = 0ul;
+      // property_id = max_u8;
     };
     disconnect = {
       disconnect_reason = {
@@ -538,6 +555,7 @@ val share_common_data_check: packet_data: (B.buffer U8.t)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
 let share_common_data_check packet_data packet_size =
+  push_frame ();
   let first_one_byte: U8.t = packet_data.(0ul) in
   let message_type_bits: U8.t = slice_byte first_one_byte 0uy 4uy in
   let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
@@ -551,6 +569,7 @@ let share_common_data_check packet_data packet_size =
     (variable_length.have_error) ||
     (U8.eq message_type max_u8) ||
     (U8.eq flag max_u8) in
+  pop_frame ();
   if (is_share_error) then
     (
       let error_struct: struct_error_struct =
@@ -691,7 +710,7 @@ let get_payload packet_data payload_start_index payload_end_index =
 
   let payload :struct_payload = {
     is_valid_payload = true;
-    payload = ptr_payload_u8;
+    payload_value = ptr_payload_u8;
     payload_length = payload_length;
   } in payload
 
@@ -933,7 +952,7 @@ let get_binary packet_data binary_start_index =
     get_payload packet_data payload_start_index payload_end_index in
   let binary_data_struct: struct_binary_data = {
     binary_length = uint32_to_uint16 payload_struct.payload_length;
-    binary_value = payload_struct.payload;
+    binary_value = payload_struct.payload_value;
     binary_next_start_index = U32.add payload_end_index 1ul;
   } in binary_data_struct
   

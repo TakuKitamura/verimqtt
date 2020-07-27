@@ -1,0 +1,47 @@
+```
+common.fst(115,34-115,65): (Error 58) Expected a ghost expression; got an expression "let _ = LowStar.BufferOps.op_Array_Access packet_data i in
+```
+
+packet_data.(i) を演算子に含めるときは, 変数を作成してからにする.
+let one_byte = packet_data.(i) ...
+
+```
+common.fst(97,16-97,27): (Error 19) assertion failed; The solver found a (partial) counterexample, try to spell your proof in more detail or increase fuel/ifuel (see also FStar.UInt32.fst(81,12-81,32))
+```
+
+UInt32 の範囲外の演算を行っているのでそれを修正する.
+
+```
+common.fst(106,32-106,41): (Error 189) Expected expression of type "Prims.int"; got expression "now_index" of type "now_index: FStar.UInt32.t{FStar.UInt32.v packet_size >= FStar.UInt32.v now_index}" (see also common.fst(88,46-88,55))
+```
+
+例えば, >= を使うのではなく gt を使う
+
+```
+common.fst(107,30-107,39): (Error 12) Expected type "i: FStar.UInt32.t{FStar.UInt32.gt i now_index}"; but "FStar.UInt32.v i" has type "FStar.UInt.uint_t FStar.UInt32.n"
+```
+
+U32.v(i) とすると方が変わるので, U32.v をなくす
+
+```
+common.fst(107,30-107,31): (Error 189) Expected expression of type "Prims.nat"; got expression "i" of type "i: FStar.UInt32.t{FStar.UInt32.gt i now_index}" (see also common.fst(106,12-106,13))
+```
+
+inv の引数i は natにする.
+そして, U32.t 型が必要な場合は (U32.v i) とすると nat を uint32.t 型にキャストできる.
+
+```
+common.fst(113,40-113,42): (Error 19) assertion failed; The solver found a (partial) counterexample, try to spell your proof in more detail or increase fuel/ifuel (see also /Users/kitamurataku/work/fstar/ulib/LowStar.Monotonic.Buffer.fsti(1830,2-1830,20))
+```
+
+push_frame, pop_frame を追加したらパスした
+
+```
+common.fst(117,31-117,36): (Error 19) assertion failed; The solver found a (partial) counterexample, try to spell your proof in more detail or increase fuel/ifuel (see also LowStar.Monotonic.Buffer.fsti(1828,47-1828,65))
+```
+
+packet_data.(i) の検証が通らなかった.
+B.length packet_data <= U32.v max_request_size /\
+      zero_terminated_buffer_u8 h packet_data /\
+      (B.length packet_data - 1) = U32.v packet_size) を追加したら通った.
+これは, main.fst で記述してあるが, 他の関数で利用する際は再度記述が必要そうであった

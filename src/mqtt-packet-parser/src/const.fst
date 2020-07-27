@@ -258,15 +258,7 @@ type type_payload_restrict =
 
 type type_payload_offset = payload_offset: U32.t{U32.v payload_offset < U32.v max_packet_size}
 
-type struct_variable_header_publish = {
-  topic_length: type_topic_length_restrict;
-  topic_name: type_topic_name_restrict;
-  packet_identifier: U16.t;
-  property_length: type_property_length;
-  payload: type_payload_restrict;
-  payload_length: U32.t;
-  property_id: U8.t;
-}
+
 
 type type_disconnect_reason_code = U8.t
 let define_disconnect_reason_code_normal_disconnection: type_disconnect_reason_code = 0uy
@@ -702,8 +694,18 @@ type struct_property = {
 
 type struct_payload = {
   is_valid_payload: bool;
-  payload: B.buffer U8.t;
+  payload_value: B.buffer U8.t;
   payload_length: U32.t;
+}
+
+type struct_variable_header_publish = {
+  topic_length: type_topic_length_restrict;
+  topic_name: type_topic_name_restrict;
+  packet_identifier: U16.t;
+  // property_length: type_property_length;
+  payload: struct_payload;
+  // payload_length: U32.t;
+  // property_id: U8.t;
 }
 
 type struct_array_u16 = {
@@ -814,10 +816,10 @@ type struct_publish_parts = {
   publish_topic_name: type_topic_name_restrict;
   publish_topic_length: type_topic_length_restrict;
   publish_packet_identifier: U16.t;
-  publish_property_length: type_property_length;
-  publish_payload: type_payload_restrict;
-  publish_payload_length: U32.t;
-  publish_property_id: U8.t;
+  // publish_property_length: type_property_length;
+  publish_payload: struct_payload;
+  // publish_payload_length: U32.t;
+  // publish_property_id: U8.t;
   publish_property: struct_property;
 }
 
@@ -898,11 +900,11 @@ type struct_publish_packet_seed = {
   publish_seed_topic_name_error_status: U8.t;
   publish_seed_packet_identifier: U16.t;
   publish_seed_is_searching_property_length: bool;
-  publish_seed_property_length: type_property_length;
-  publish_seed_payload: type_payload_restrict;
-  publish_seed_payload_length: U32.t;
+  // publish_seed_property_length: type_property_length;
+  publish_seed_payload: struct_payload;
+  // publish_seed_payload_length: U32.t;
   publish_seed_payload_error_status: U8.t;
-  publish_seed_property_id: U8.t;
+  // publish_seed_property_id: U8.t;
   publish_seed_property: struct_property;
 }
 

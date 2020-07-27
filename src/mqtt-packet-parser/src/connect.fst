@@ -17,9 +17,9 @@ open Debug_FFI
 
 
 val assemble_connect_struct: s: struct_connect_parts
-  -> Pure struct_fixed_header
-    (requires true)
-    (ensures (fun r -> true))
+  -> Stack (r: struct_fixed_header)
+    (requires fun h0 -> true)
+    (ensures fun h0 r h1 -> true)
 let assemble_connect_struct s =
   let connect_constant: struct_fixed_header_constant = s.connect_connect_constant in
   {
@@ -36,11 +36,15 @@ let assemble_connect_struct s =
     publish = {
       topic_length = 0ul;
       topic_name = !$"";
-      property_length = 0ul;
+      // property_length = 0ul;
       packet_identifier = max_u16;
-      payload = !$"";
-      payload_length = 0ul;
-      property_id = max_u8;
+      payload = {
+        is_valid_payload = false;
+        payload_value = B.alloca 0uy 1ul;
+        payload_length = 0ul;
+      };
+      // payload_length = 0ul;
+      // property_id = max_u8;
     };
     disconnect = {
       disconnect_reason = {

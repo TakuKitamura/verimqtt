@@ -84,10 +84,14 @@ let assemble_disconnect_struct s =
         topic_length = 0ul;
         topic_name = !$"";
         packet_identifier = max_u16;
-        property_length = 0ul;
-        payload = !$"";
-        payload_length = 0ul;
-        property_id = max_u8;
+        // property_length = 0ul;
+        payload = {
+          is_valid_payload = false;
+          payload_value = B.alloca 0uy 1ul;
+          payload_length = 0ul;
+        };
+        // payload_length = 0ul;
+        // property_id = max_u8;
       };
       disconnect = s.disconnect_struct;
       property = s.property;
