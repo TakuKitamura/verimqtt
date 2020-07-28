@@ -45,3 +45,17 @@ B.length packet_data <= U32.v max_request_size /\
       zero_terminated_buffer_u8 h packet_data /\
       (B.length packet_data - 1) = U32.v packet_size) を追加したら通った.
 これは, main.fst で記述してあるが, 他の関数で利用する際は再度記述が必要そうであった
+
+```
+let ptr_return_data: B.buffer U8.t = B.alloca 0uy data_size in
+```
+data_sizeは0より大きくないとだめなので, 0より大きいことを示す
+
+```
+offset
+```
+U32.v i <= B.length packet_data を示せばよかった
+
+```
+common.fst(1192,18-1192,19): (Error 189) Expected expression of type "LowStar.Monotonic.Buffer.mbuffer (*?u392*) _ (*?u393*) _ (*?u394*) _"; got expression "i" of type "FStar.UInt32.t" (see also common.fst(1114,8-1114,9))
+```

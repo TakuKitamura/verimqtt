@@ -78,17 +78,14 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
   pop_frame ();
   remaining_length
 
-#set-options "--z3rlimit 30 --max_ifuel 0"
+#set-options "--z3rlimit 100 --max_ifuel 0"
 
+// TODO: 全体的な見直し
 val get_variable_byte: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> now_index: U32.t{U32.v packet_size > U32.v now_index}
   -> Stack (variable_length: struct_variable_length)
-    (requires fun (h0: HS.mem) -> 
-    B.live h0 packet_data /\
-    B.length packet_data <= U32.v max_request_size /\
-    zero_terminated_buffer_u8 h0 packet_data /\
-    (B.length packet_data - 1) = U32.v packet_size)
+    (requires fun (h0: HS.mem) -> logic_packet_data h0 packet_data packet_size)
     (ensures fun (h0: HS.mem) (r: struct_variable_length) (h1: HS.mem) -> true)
 let get_variable_byte packet_data packet_size now_index =
   push_frame ();
@@ -133,6 +130,7 @@ let get_variable_byte packet_data packet_size now_index =
               let untrust_remaining_length: type_remaining_length =
                 decodeing_variable_bytes ptr_for_decoding_packets bytes_length_u8 in
               let byte_length: U32.t = U32.add j 1ul in
+              // TODO: valid_remaining_length の判断の確認
               let valid_remaining_length: bool = 
                 (
                   if (U32.eq now_index 1ul) then
@@ -151,9 +149,9 @@ let get_variable_byte packet_data packet_size now_index =
       )
   in
   C.Loops.for now_index loop_last inv body;
-  let remaining_length = ptr_remaining_length.(0ul) in
-  let byte_length = ptr_byte_length.(0ul) in
-  let next_start_index = ptr_next_start_index.(0ul) in
+  let remaining_length: type_remaining_length = ptr_remaining_length.(0ul) in
+  let byte_length: U8.t = ptr_byte_length.(0ul) in
+  let next_start_index: U32.t = ptr_next_start_index.(0ul) in
   pop_frame ();
   if (byte_length = 0uy) then
     {
@@ -498,61 +496,61 @@ let get_flag message_type fixed_header_first_one_byte =
             v
         )
 
-val replace_utf8_encoded: data: (B.buffer U8.t) 
-  -> data_size: U32.t 
-  -> Stack (r: struct_replace_utf8_encoded)
-    (requires fun h0 -> B.live h0 data)
-    (ensures fun h0 r h1 -> true)
-let replace_utf8_encoded data data_size =
-  push_frame ();
-  let ptr_search_counter: B.buffer U8.t = B.alloca 0uy 1ul in
-  let ptr_return_data: B.buffer U8.t = B.alloca 0uy data_size in
-  let ptr_counter: B.buffer U32.t = B.alloca 0ul data_size in
-  let inv h (i: nat) = B.live h data /\ 
-  B.live h ptr_search_counter in
-  let body (i): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
-    (ensures (fun _ _ _ -> true)) =
-    (
-      let one_byte: U8.t = data.(i) in
-      let search_count = ptr_search_counter.(0ul) in
-      ptr_return_data.(U32.sub i ptr_counter.(0ul)) <- one_byte;
-      if (U8.eq search_count 0uy && U8.eq one_byte 0xEFuy) then
-        (
-          ptr_search_counter.(0ul) <- 1uy
-        )
-      else if (U8.eq search_count 1uy &&  U8.eq one_byte 0xBBuy) then
-        (
-          ptr_search_counter.(0ul) <- 2uy
-        )
-      else if (U8.eq search_count 2uy &&  U8.eq one_byte 0xBFuy) then
-        (
-          // ptr_search_counter.(0ul) <- 3uy
-          ptr_return_data.(U32.sub i 2ul) <- 0xFEuy;
-          ptr_return_data.(U32.sub i 1ul) <- 0xFFuy;
-          ptr_return_data.(i) <- 0x00uy;
-          ptr_counter.(0ul) <- U32.add ptr_counter.(0ul) 1ul;
-          ptr_search_counter.(0ul) <- 0uy
-        )
-      else
-        (
-          ptr_search_counter.(0ul) <- 0uy
-        )
-    )
-  in
-  C.Loops.for 0ul data_size inv body;
-  let bom_data: B.buffer U8.t = ptr_return_data in
-  let bom_count: U32.t = ptr_counter.(0ul) in
-  pop_frame ();
-  let replace_utf8_encoded: struct_replace_utf8_encoded = {
-    replace_bom = bom_data;
-    bom_count = bom_count;
-  } in replace_utf8_encoded
+// val replace_utf8_encoded: data: (B.buffer U8.t) 
+//   -> data_size: U32.t{U32.v data_size > 0}
+//   -> Stack (r: struct_replace_utf8_encoded)
+//     (requires fun h0 -> B.live h0 data)
+//     (ensures fun h0 r h1 -> true)
+// let replace_utf8_encoded data data_size =
+//   push_frame ();
+//   let ptr_search_counter: B.buffer U8.t = B.alloca 0uy 1ul in
+//   let ptr_return_data: B.buffer U8.t = B.alloca 0uy data_size in
+//   let ptr_counter: B.buffer U32.t = B.alloca 0ul data_size in
+//   let inv h (i: nat) = B.live h data /\ 
+//   B.live h ptr_search_counter in
+//   let body (i): Stack unit
+//     (requires (fun h -> inv h (U32.v i)))
+//     (ensures (fun _ _ _ -> true)) =
+//     (
+//       let one_byte: U8.t = data.(i) in
+//       let search_count = ptr_search_counter.(0ul) in
+//       ptr_return_data.(U32.sub i ptr_counter.(0ul)) <- one_byte;
+//       if (U8.eq search_count 0uy && U8.eq one_byte 0xEFuy) then
+//         (
+//           ptr_search_counter.(0ul) <- 1uy
+//         )
+//       else if (U8.eq search_count 1uy &&  U8.eq one_byte 0xBBuy) then
+//         (
+//           ptr_search_counter.(0ul) <- 2uy
+//         )
+//       else if (U8.eq search_count 2uy &&  U8.eq one_byte 0xBFuy) then
+//         (
+//           // ptr_search_counter.(0ul) <- 3uy
+//           ptr_return_data.(U32.sub i 2ul) <- 0xFEuy;
+//           ptr_return_data.(U32.sub i 1ul) <- 0xFFuy;
+//           ptr_return_data.(i) <- 0x00uy;
+//           ptr_counter.(0ul) <- U32.add ptr_counter.(0ul) 1ul;
+//           ptr_search_counter.(0ul) <- 0uy
+//         )
+//       else
+//         (
+//           ptr_search_counter.(0ul) <- 0uy
+//         )
+//     )
+//   in
+//   C.Loops.for 0ul data_size inv body;
+//   let bom_data: B.buffer U8.t = ptr_return_data in
+//   let bom_count: U32.t = ptr_counter.(0ul) in
+//   pop_frame ();
+//   let replace_utf8_encoded: struct_replace_utf8_encoded = {
+//     replace_bom = bom_data;
+//     bom_count = bom_count;
+//   } in replace_utf8_encoded
 
 val share_common_data_check: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> Stack (share_common_data_check: struct_share_common_data_check)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
 let share_common_data_check packet_data packet_size =
   push_frame ();
@@ -696,17 +694,22 @@ let get_four_byte_integer mmsb_u8 msb_u8 lsb_u8 llsb_u8 =
       (U32.logor (U32.shift_left lsb_u32 8ul) llsb_u32) 
   in four_byte_integer 
    
-// TODO: Payloadはnull終端である必要はないので関数呼び出し側は注意する
 val get_payload: packet_data: (B.buffer U8.t) 
-  -> payload_start_index: U32.t
-  -> packet_end_index: U32.t
+  -> packet_size: type_packet_size 
+  -> payload_start_index: type_payload_offset
+  -> payload_end_index: U32.t
   -> Stack (payload: struct_payload)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v payload_end_index >= U32.v payload_start_index /\
+    U32.v payload_end_index - U32.v payload_start_index + 1 <= U32.v max_u32 /\
+    U32.v payload_start_index < U32.v max_packet_size /\
+    U32.v payload_start_index <= B.length packet_data)
     (ensures fun h0 r h1 -> true)
-let get_payload packet_data payload_start_index payload_end_index =
+let get_payload packet_data packet_size payload_start_index payload_end_index =
   let payload_length: U32.t = U32.(payload_end_index -^ payload_start_index +^ 1ul) in
-  let payload_offset: type_payload_offset = payload_start_index in
-  let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_offset in
+  // let payload_offset: type_payload_offset = payload_start_index in
+  let ptr_payload_u8: B.buffer U8.t = B.offset packet_data payload_start_index in
 
   let payload :struct_payload = {
     is_valid_payload = true;
@@ -715,11 +718,14 @@ let get_payload packet_data payload_start_index payload_end_index =
   } in payload
 
 val parse_property_two_byte_integer: packet_data: (B.buffer U8.t) 
-  -> property_value_start_index: U32.t
+  -> packet_size: type_packet_size 
+  -> property_value_start_index: type_packet_data_index
   -> Stack (property_struct_type_base: struct_property_type)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v property_value_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
-let parse_property_two_byte_integer packet_data property_value_start_index =
+let parse_property_two_byte_integer packet_data packet_size property_value_start_index =
   push_frame ();
   let msb_u8: U8.t = packet_data.(property_value_start_index) in
   let lsb_u8: U8.t = packet_data.(U32.add property_value_start_index 1ul) in
@@ -769,11 +775,14 @@ let parse_property_two_byte_integer packet_data property_value_start_index =
   } in property_struct_type_base
   
 val parse_property_four_byte_integer: packet_data: (B.buffer U8.t) 
-  -> property_value_start_index: U32.t
+  -> packet_size: type_packet_size 
+  -> property_value_start_index: type_packet_data_index
   -> Stack (property_struct_type_base: struct_property_type)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v property_value_start_index < (B.length packet_data - 3))
     (ensures fun h0 r h1 -> true)
-let parse_property_four_byte_integer packet_data property_value_start_index =
+let parse_property_four_byte_integer packet_data packet_size property_value_start_index =
   push_frame ();
   let mmsb_u8: U8.t = packet_data.(property_value_start_index) in
   let msb_u8: U8.t = packet_data.(U32.add property_value_start_index 1ul) in
@@ -825,11 +834,14 @@ let parse_property_four_byte_integer packet_data property_value_start_index =
   } in property_struct_type_base
 
 val parse_property_one_byte_integer: packet_data: (B.buffer U8.t) 
-  -> property_value_start_index: U32.t
+  -> packet_size: type_packet_size 
+  -> property_value_start_index: type_packet_data_index
   -> Stack (property_struct_type_base: struct_property_type)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 ->
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v property_value_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
-let parse_property_one_byte_integer packet_data property_value_start_index =
+let parse_property_one_byte_integer packet_data packet_size property_value_start_index =
   push_frame ();
   let one_byte_integer: U8.t = packet_data.(property_value_start_index) in
   pop_frame ();
@@ -879,9 +891,11 @@ let parse_property_one_byte_integer packet_data property_value_start_index =
 
 val parse_property_variable_byte_integer: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
-  -> property_value_start_index: U32.t
+  -> property_value_start_index: type_packet_data_index
   -> Stack (property_struct_type_base: struct_property_type)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v packet_size > U32.v property_value_start_index)
     (ensures fun h0 r h1 -> true)
 let parse_property_variable_byte_integer packet_data packet_size property_value_start_index =
   let variable_length: struct_variable_length = 
@@ -936,20 +950,25 @@ let parse_property_variable_byte_integer packet_data packet_size property_value_
   } in property_struct_type_base
 
 val get_binary: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
   -> binary_start_index: U32.t
   -> Stack (binary_data_struct: struct_binary_data)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v binary_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
-let get_binary packet_data binary_start_index =
+let get_binary packet_data packet_size binary_start_index =
   push_frame ();
   let binary_length_msb_u8: U8.t = packet_data.(binary_start_index) in
   let binary_length_lsb_u8: U8.t = packet_data.(U32.add binary_start_index 1ul) in
   let binary_length: U32.t = get_two_byte_integer_u8_to_u32 binary_length_msb_u8 binary_length_lsb_u8 in
   let payload_start_index: U32.t = U32.add binary_start_index 2ul in
-  let payload_end_index: U32.t = U32.add payload_start_index (U32.sub binary_length 1ul) in
+  // TODO: 実装の見直し
+  let for_end_index_offset: U32.t = U32.sub binary_length 1ul in
+  let payload_end_index: U32.t = U32.add payload_start_index for_end_index_offset in
   pop_frame ();
   let payload_struct: struct_payload = 
-    get_payload packet_data payload_start_index payload_end_index in
+    get_payload packet_data packet_size payload_start_index payload_end_index in
   let binary_data_struct: struct_binary_data = {
     binary_length = uint32_to_uint16 payload_struct.payload_length;
     binary_value = payload_struct.payload_value;
@@ -958,11 +977,12 @@ let get_binary packet_data binary_start_index =
   
 
 val parse_property_binary: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
   -> property_value_start_index: U32.t
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
-let parse_property_binary packet_data property_value_start_index =
+let parse_property_binary packet_data packet_size property_value_start_index =
   push_frame ();
   // let binary_length_msb_u8: U8.t = packet_data.(property_value_start_index) in
   // let binary_length_lsb_u8: U8.t = packet_data.(U32.add property_value_start_index 1ul) in
@@ -973,7 +993,7 @@ let parse_property_binary packet_data property_value_start_index =
   // let payload_struct: struct_payload = 
   //   get_payload packet_data payload_start_index payload_end_index in
   let binary_data_struct: struct_binary_data = 
-    get_binary packet_data property_value_start_index in
+    get_binary packet_data packet_size property_value_start_index in
   let b: struct_property_type = property_struct_type_base in
   let property_struct_type_base: struct_property_type = {
     one_byte_integer_struct = {
@@ -1012,100 +1032,108 @@ let parse_property_binary packet_data property_value_start_index =
     property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
 
-val u8_array_to_u16_array: u8_array: (B.buffer U8.t)
-  -> u8_array_length: U32.t
-  -> u8_array_start_index: U32.t
-  -> Stack (u16_array: struct_array_u16)
-    (requires fun h0 -> B.live h0 u8_array)
-    (ensures fun h0 r h1 -> true)
-let u8_array_to_u16_array u8_array u8_array_length u8_array_start_index =
-  push_frame ();
-  let array_length_u16: U32.t  = 
-    (
-      if U32.eq (U32.rem u8_array_length 2ul) 0ul then
-        (
-          U32.div u8_array_length 2ul
-        )
-      else
-        (
-          U32.div (U32.add u8_array_length 1ul) 2ul
-        )
-    ) in 
-  let u16_array: B.buffer U16.t = B.alloca 0us array_length_u16 in
-  let ptr_counter: B.buffer U32.t = B.alloca 0ul 1ul in
-  let inv h (i: nat) = B.live h u8_array /\
-  B.live h ptr_counter in
-  let body (i): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
-    (ensures (fun _ _ _ -> true)) =
-    (
-      let counter: U32.t = ptr_counter.(0ul) in
-      if U32.eq (U32.rem (U32.sub i u8_array_start_index) 2ul) 1ul then
-        (
-          let two_byte_integer: U16.t = 
-            get_two_byte_integer_u8_to_u16 u8_array.(U32.sub i 1ul) u8_array.(i) in
-          u16_array.(counter) <- two_byte_integer;
+// val u8_array_to_u16_array: u8_array: (B.buffer U8.t)
+//   -> u8_array_length: U32.t
+//   -> u8_array_start_index: U32.t
+//   -> Stack (u16_array: struct_array_u16)
+//     (requires fun h0 -> B.live h0 u8_array)
+//     (ensures fun h0 r h1 -> true)
+// let u8_array_to_u16_array u8_array u8_array_length u8_array_start_index =
+//   push_frame ();
+//   let array_length_u16: U32.t  = 
+//     (
+//       if U32.eq (U32.rem u8_array_length 2ul) 0ul then
+//         (
+//           U32.div u8_array_length 2ul
+//         )
+//       else
+//         (
+//           U32.div (U32.add u8_array_length 1ul) 2ul
+//         )
+//     ) in 
+//   let u16_array: B.buffer U16.t = B.alloca 0us array_length_u16 in
+//   let ptr_counter: B.buffer U32.t = B.alloca 0ul 1ul in
+//   let inv h (i: nat) = B.live h u8_array /\
+//   B.live h ptr_counter in
+//   let body (i): Stack unit
+//     (requires (fun h -> inv h (U32.v i)))
+//     (ensures (fun _ _ _ -> true)) =
+//     (
+//       let counter: U32.t = ptr_counter.(0ul) in
+//       if U32.eq (U32.rem (U32.sub i u8_array_start_index) 2ul) 1ul then
+//         (
+//           let two_byte_integer: U16.t = 
+//             get_two_byte_integer_u8_to_u16 u8_array.(U32.sub i 1ul) u8_array.(i) in
+//           u16_array.(counter) <- two_byte_integer;
 
-          ptr_counter.(0ul) <- U32.add counter 1ul
-        )
-      else
-        (
-          if U32.eq i (U32.sub u8_array_length 1ul) then
-            (
-              let u8_integer: U8.t = u8_array.(i) in
-              let u16_integer: U16.t = uint8_to_uint16 u8_integer in
+//           ptr_counter.(0ul) <- U32.add counter 1ul
+//         )
+//       else
+//         (
+//           if U32.eq i (U32.sub u8_array_length 1ul) then
+//             (
+//               let u8_integer: U8.t = u8_array.(i) in
+//               let u16_integer: U16.t = uint8_to_uint16 u8_integer in
 
-              u16_array.(counter) <- u16_integer
-            )
-        )
-    )
-    in
-    C.Loops.for u8_array_start_index (U32.add u8_array_start_index u8_array_length) inv body;
-  pop_frame();
-  {
-   array_u16 = u16_array;
-   array_length_u16 = array_length_u16;
-  }
+//               u16_array.(counter) <- u16_integer
+//             )
+//         )
+//     )
+//     in
+//     C.Loops.for u8_array_start_index (U32.add u8_array_start_index u8_array_length) inv body;
+//   pop_frame();
+//   {
+//    array_u16 = u16_array;
+//    array_length_u16 = array_length_u16;
+//   }
 
 val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t) 
-  -> utf8_encoded_string_start_index: U32.t
+  -> packet_size: type_packet_size 
+  -> utf8_encoded_string_start_index: type_packet_data_index
   -> utf8_encoded_string_length: U16.t
   -> Stack (utf8_encoded_string_struct: struct_utf8_string)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
-let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf8_encoded_string_length =
+let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_index utf8_encoded_string_length =
   push_frame ();
   let utf8_encoded_string_entity_start_index: U32.t = 
     U32.add utf8_encoded_string_start_index 2ul in
   let utf8_encoded_string_end_index: U32.t = 
     U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) in
 
-  let is_malformed_utf8: B.buffer bool = B.alloca false 1ul in
-  let codelen: B.buffer U8.t = B.alloca 0uy 1ul in
-  let codepoint: B.buffer U16.t = B.alloca 0us 1ul in
-  let i: B.buffer U32.t = B.alloca utf8_encoded_string_entity_start_index 1ul in
+  let ptr_is_malformed_utf8: B.buffer bool = B.alloca false 1ul in
+  let ptr_codelen: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_codepoint: B.buffer U16.t = B.alloca 0us 1ul in
+  let ptr_i: B.buffer U32.t = B.alloca utf8_encoded_string_entity_start_index 1ul in
 
   // if(len < 0 || len > 65536) return MOSQ_ERR_INVAL;
 
-  let inv h (counter: nat) = B.live h packet_data in
+  let inv h (counter: nat) = 
+    B.live h packet_data /\
+    B.live h ptr_is_malformed_utf8 /\
+    B.live h ptr_codelen /\
+    B.live h ptr_codepoint /\
+    B.live h ptr_i in
   let body (counter): Stack unit
     (requires (fun h -> inv h (U32.v counter)))
     (ensures (fun _ _ _ -> true)) =
-    if (U32.gte i.(0ul) (U32.add utf8_encoded_string_end_index 1ul) || is_malformed_utf8.(0ul)) then
+    let i: U32.t = ptr_i.(0ul) in
+    let is_malformed_utf8: bool = ptr_is_malformed_utf8.(0ul) in
+    if (U32.gte i (U32.add utf8_encoded_string_end_index 1ul) || is_malformed_utf8) then
       ()
     else
       (
-        let one_byte: U8.t = packet_data.(i.(0ul)) in
+        let one_byte: U8.t = packet_data.(i) in
 
         if (U8.eq one_byte 0uy) then
           (
             print_string "a\n";
-            is_malformed_utf8.(0ul) <- true
+            ptr_is_malformed_utf8.(0ul) <- true
           )
         else if (U8.lte one_byte 0x7fuy) then
           (
-            codelen.(0ul) <- 1uy;
-            codepoint.(0ul) <- uint8_to_uint16 one_byte
+            ptr_codelen.(0ul) <- 1uy;
+            ptr_codepoint.(0ul) <- uint8_to_uint16 one_byte
           )
         else if(U8.eq (U8.logand one_byte 0xE0uy) 0xC0uy) then
           (
@@ -1114,19 +1142,19 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
               (
                 // Invalid bytes */
                 print_string "b\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               )
             else
               (
-                codelen.(0ul) <- 2uy;
-                codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x1Fuy)
+                ptr_codelen.(0ul) <- 2uy;
+                ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x1Fuy)
               )
           )
         else if(U8.eq (U8.logand one_byte 0xF0uy) 0xE0uy) then
           (
             // 1110xxxx - 3 byte sequence */
-            codelen.(0ul) <- 3uy;
-            codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x0Fuy)
+            ptr_codelen.(0ul) <- 3uy;
+            ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x0Fuy)
           )
         else if(U8.eq (U8.logand one_byte 0xF8uy) 0xF0uy) then
           (
@@ -1135,30 +1163,30 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
               (
                 // Invalid, this would produce values > 0x10FFFF. */
                 print_string "c\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               )
             else
               (
-                codelen.(0ul) <- 4uy;
-                codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x07uy)
+                ptr_codelen.(0ul) <- 4uy;
+                ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x07uy)
               )
           )
         else
           (
             // Unexpected continuation byte. */
             print_string "d\n";
-            is_malformed_utf8.(0ul) <- true
+            ptr_is_malformed_utf8.(0ul) <- true
           );
 
         // Reconstruct full code point */
-        let codelen_u8: U8.t = codelen.(0ul) in
+        let codelen_u8: U8.t = ptr_codelen.(0ul) in
         let codelen_u32: U32.t = uint8_to_uint32 codelen_u8 in
 
-        if (U32.eq i.(0ul) U32.((U32.add utf8_encoded_string_end_index 1ul) -^ codelen_u32 +^ 1ul)) then
+        if (U32.eq i U32.((U32.add utf8_encoded_string_end_index 1ul) -^ codelen_u32 +^ 1ul)) then
           (
             // Not enough data */
             print_string "e\n";
-            is_malformed_utf8.(0ul) <- true
+            ptr_is_malformed_utf8.(0ul) <- true
           )
         else
           (
@@ -1168,76 +1196,77 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
               (ensures (fun _ _ _ -> true)) =
                 (
                   // i+= 1
-                  i.(0ul) <- U32.add i.(0ul) 1ul;
-
-                  let next_one_byte: U8.t = packet_data.(i.(0ul)) in
+                  ptr_i.(0ul) <- U32.add ptr_i.(0ul) 1ul;
+                  let ii: U32.t = ptr_i.(0ul) in
+                  let next_one_byte: U8.t = packet_data.(ii) in
                   // print_bool next_one_byte;
                   // print_hex_u16 (U16.logand next_one_byte 0xC0us);
                   if (not (U8.eq (U8.logand next_one_byte 0xC0uy) 0x80uy)) then
                     (
                       // Not a continuation byte */
                       print_string "f\n";
-                      is_malformed_utf8.(0ul) <- true
+                      ptr_is_malformed_utf8.(0ul) <- true
                     )
                   else
                     (
                       let next_one_byte_u16: U16.t = uint8_to_uint16 next_one_byte in
-                      codepoint.(0ul) 
-                        <- U16.logor (U16.shift_left codepoint.(0ul) 6ul) (U16.logand next_one_byte_u16 0x3Fus)
+                      ptr_codepoint.(0ul) 
+                        <- U16.logor (U16.shift_left ptr_codepoint.(0ul) 6ul) (U16.logand next_one_byte_u16 0x3Fus)
                     )
                 ) in
-            let last_u8: U8.t = (U8.sub codelen.(0ul) 1uy) in
+            let last_u8: U8.t = (U8.sub codelen_u8 1uy) in
 
             let last_u32: U32.t = uint8_to_uint32 last_u8 in
             C.Loops.for 0ul last_u32 inv2 body2;
 
+            let codepoint: U16.t = ptr_codepoint.(0ul) in
             
             // Check for UTF-16 high/low surrogates */
-            if (U16.gte codepoint.(0ul) 0xD800us && U16.lte codepoint.(0ul) 0xDFFFus) then
+            if (U16.gte codepoint 0xD800us && U16.lte codepoint 0xDFFFus) then
               (
                 print_string "g\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               );
 
             // Check for overlong or out of range encodings */
             // Checking codelen == 2 isn't necessary here, because it is already
             //  * covered above in the C0 and C1 checks.
-            //  * if(codelen == 2 && codepoint.(0ul) < 0x0080){
+            //  * if(codelen == 2 && ptr_codepoint.(0ul) < 0x0080){
             //  *	 return MOSQ_ERR_MALFORMED_UTF8;
             //  * }else
             // */
-            let codepoint_u16: U16.t = codepoint.(0ul) in
+            let codepoint_u16: U16.t = codepoint in
             let codepoint_u32: U32.t = uint16_to_uint32 codepoint_u16 in
-            if (U8.eq codelen.(0ul) 3uy && U16.lt codepoint.(0ul) 0x0800us) then
+            if (U8.eq codelen_u8 3uy && U16.lt codepoint 0x0800us) then
               (
                 print_string "h\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               )
-            else if(U8.eq codelen.(0ul) 4uy && ( U32.lt codepoint_u32 0x10000ul || U32.gt codepoint_u32 0x10FFFFul)) then
+            else if(U8.eq codelen_u8 4uy && ( U32.lt codepoint_u32 0x10000ul || U32.gt codepoint_u32 0x10FFFFul)) then
               (
                 print_string "i\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               );
             // Check for non-characters */
-            if (U16.gte codepoint.(0ul) 0xFDD0us && U16.lte codepoint.(0ul) 0xFDEFus) then
+            if (U16.gte codepoint 0xFDD0us && U16.lte codepoint 0xFDEFus) then
               (
                 print_string "j\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               );
-            if(U16.eq (U16.logand codepoint.(0ul) 0xFFFFus) 0xFFFEus || U16.eq (U16.logand codepoint.(0ul) 0xFFFFus) 0xFFFFus) then
+            if(U16.eq (U16.logand codepoint 0xFFFFus) 0xFFFEus || U16.eq (U16.logand codepoint 0xFFFFus) 0xFFFFus) then
               (
                 print_string "k\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               );
             // Check for control characters */
-            if (U16.lte codepoint.(0ul) 0x001Fus || (U16.gte codepoint.(0ul) 0x007Fus && U16.lte codepoint.(0ul) 0x009Fus)) then
+            if (U16.lte codepoint 0x001Fus || (U16.gte codepoint 0x007Fus && U16.lte codepoint 0x009Fus)) then
               (
                 print_string "l\n";
-                is_malformed_utf8.(0ul) <- true
+                ptr_is_malformed_utf8.(0ul) <- true
               )
           );
-          i.(0ul) <- U32.add i.(0ul) 1ul
-          // is_malformed_utf8.(0ul) <- true
+          ptr_i.(0ul) <- U32.add ptr_i.(0ul) 1ul
+          // ptr_is_malformed_utf8.(0ul) <- true
       )
   in
   let utf8_encoded_string_entity_end_index: U32.t = (U32.add utf8_encoded_string_end_index 1ul) in
@@ -1248,7 +1277,7 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
     utf8_string_value = utf8_value;
     utf8_string_status_code =
       (
-        if (is_malformed_utf8.(0ul)) then
+        if (ptr_is_malformed_utf8.(0ul)) then
           1uy
         else
           0uy
@@ -1260,31 +1289,35 @@ let is_valid_utf8_encoded_string packet_data utf8_encoded_string_start_index utf
 
 
 val get_utf8_encoded_string: packet_data: (B.buffer U8.t) 
-  -> utf8_encoded_string_start_index: U32.t
+  -> packet_size: type_packet_size 
+  -> utf8_encoded_string_start_index: type_packet_data_index
   -> Stack (utf8_string_struct: struct_utf8_string)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v utf8_encoded_string_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
-let get_utf8_encoded_string packet_data utf8_encoded_string_start_index =
+let get_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_index =
   push_frame ();
   let msb_u8: U8.t = packet_data.(utf8_encoded_string_start_index) in
   let lsb_u8: U8.t = packet_data.(U32.add utf8_encoded_string_start_index 1ul) in
   pop_frame ();
   let two_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 msb_u8 lsb_u8 in
   let utf8_encoded_string_struct: struct_utf8_string = 
-  is_valid_utf8_encoded_string packet_data 
+  is_valid_utf8_encoded_string packet_data packet_size
     utf8_encoded_string_start_index two_byte_integer in
   utf8_encoded_string_struct
 
 val parse_property_utf8_encoded_string: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
   -> property_value_start_index: U32.t
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
-let parse_property_utf8_encoded_string packet_data property_value_start_index =
+let parse_property_utf8_encoded_string packet_data packet_size property_value_start_index =
   push_frame ();
   let b: struct_property_type = property_struct_type_base in
   let utf8_encoded_string_struct: struct_utf8_string = 
-    get_utf8_encoded_string packet_data property_value_start_index in
+    get_utf8_encoded_string packet_data packet_size property_value_start_index in
   let property_struct_type_base: struct_property_type = {
     one_byte_integer_struct = {
       one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
@@ -1332,11 +1365,12 @@ let parse_property_utf8_encoded_string packet_data property_value_start_index =
   } in property_struct_type_base
 
 val get_utf8_encoded_string_pair: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
   -> utf8_encoded_string_pair_start_index: U32.t
   -> Stack (utf8_string_pair_struct: struct_utf8_string_pair)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
-let get_utf8_encoded_string_pair packet_data utf8_encoded_string_pair_start_index =
+let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pair_start_index =
   push_frame ();
   let fisrt_msb_u8: U8.t = packet_data.(utf8_encoded_string_pair_start_index) in
   let first_lsb_u8: U8.t = packet_data.(U32.add utf8_encoded_string_pair_start_index 1ul) in
@@ -1347,10 +1381,10 @@ let get_utf8_encoded_string_pair packet_data utf8_encoded_string_pair_start_inde
     packet_data.( U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul )) in
   let second_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 second_msb_u8 second_lsb_u8 in
   let utf8_string_pair_key: struct_utf8_string = 
-    is_valid_utf8_encoded_string packet_data 
+    is_valid_utf8_encoded_string packet_data packet_size
       utf8_encoded_string_pair_start_index fist_byte_integer in
   let utf8_string_pair_value: struct_utf8_string =
-    is_valid_utf8_encoded_string packet_data 
+    is_valid_utf8_encoded_string packet_data packet_size
       U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul) second_byte_integer in
   let utf8_string_pair_struct: struct_utf8_string_pair = {
     utf8_string_pair_key = utf8_string_pair_key;
@@ -1358,14 +1392,15 @@ let get_utf8_encoded_string_pair packet_data utf8_encoded_string_pair_start_inde
   } in utf8_string_pair_struct
 
 val parse_property_utf8_encoded_string_pair: packet_data: (B.buffer U8.t)  
+  -> packet_size: type_packet_size 
   -> property_value_start_index: U32.t
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> B.live h0 packet_data)
     (ensures fun h0 r h1 -> true)
-let parse_property_utf8_encoded_string_pair packet_data property_value_start_index =
+let parse_property_utf8_encoded_string_pair packet_data packet_size property_value_start_index =
   push_frame ();
   let utf8_encoded_string_pair_struct: struct_utf8_string_pair = 
-    get_utf8_encoded_string_pair packet_data property_value_start_index in
+    get_utf8_encoded_string_pair packet_data packet_size property_value_start_index in
   let b: struct_property_type = property_struct_type_base in
   let property_struct_type_base: struct_property_type = {
     one_byte_integer_struct = {
@@ -1425,22 +1460,22 @@ let parse_property packet_data packet_size property_start_index =
     if property_type_id = 1uy then // One Byte Integer
       (
         // return 0
-        parse_property_one_byte_integer packet_data property_value_start_index
+        parse_property_one_byte_integer packet_data packet_size property_value_start_index
       )
     else if property_type_id = 2uy then // Two Byte Integer
       (
         // return 0
-        parse_property_two_byte_integer packet_data property_value_start_index
+        parse_property_two_byte_integer packet_data packet_size property_value_start_index
       )
     else if property_type_id = 3uy then // Four Byte Integer
       (
         // return 0
-        parse_property_four_byte_integer packet_data property_value_start_index
+        parse_property_four_byte_integer packet_data packet_size property_value_start_index
       )
     else if property_type_id = 4uy then // UTF-8 Encoded String
       (
         parse_property_utf8_encoded_string
-          packet_data property_value_start_index
+          packet_data packet_size property_value_start_index
       )
     else if property_type_id = 5uy then // Variable Byte Integer
       (
@@ -1448,12 +1483,12 @@ let parse_property packet_data packet_size property_start_index =
       )
     else if property_type_id = 6uy then // Binary Data
       (
-        parse_property_binary packet_data property_value_start_index
+        parse_property_binary packet_data packet_size property_value_start_index
       )
     else if property_type_id = 7uy then // UTF-8 String Pair
       (
         parse_property_utf8_encoded_string_pair
-          packet_data property_value_start_index
+          packet_data packet_size property_value_start_index
       )
     else 
       (

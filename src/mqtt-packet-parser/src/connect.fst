@@ -170,7 +170,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
           let will_topic_name_struct: struct_utf8_string = 
             get_utf8_encoded_string packet_data property_struct.payload_start_index in
           let will_payload_struct: struct_binary_data = 
-            get_binary packet_data will_topic_name_struct.utf8_next_start_index in
+            get_binary packet_data packet_size will_topic_name_struct.utf8_next_start_index in
           let connect_will_struct: struct_connect_will = 
             {
               connect_will_property = property_struct;
@@ -226,7 +226,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
       if (password_flag = 1ul) then
         (
           let password_struct: struct_binary_data =
-            get_binary packet_data user_name_struct.utf8_next_start_index in
+            get_binary packet_data packet_size user_name_struct.utf8_next_start_index in
           password_struct 
         )
       else

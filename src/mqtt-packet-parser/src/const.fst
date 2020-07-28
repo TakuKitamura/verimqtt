@@ -4,8 +4,10 @@ module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
+module HS = FStar.HyperStack
 
 open C.String
+open FFI
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -34,6 +36,8 @@ let max_payload_size = 268435455ul
 type type_packet_size =
   packet_size:
     U32.t{U32.v packet_size >= U32.v min_packet_size && U32.v packet_size <= U32.v max_packet_size}
+
+type type_packet_data_index = index: U32.t{U32.v index < U32.v max_packet_size}
 
 type type_mqtt_control_packets = U8.t
 let define_mqtt_control_packet_CONNECT : type_mqtt_control_packets = 1uy
@@ -873,7 +877,7 @@ type struct_disconnect_parts = {
 
 type struct_variable_length = {
   have_error: bool;
-  variable_length_value: U32.t;
+  variable_length_value: type_remaining_length;
   next_start_index: U32.t;
 }
 type struct_share_common_data = {
@@ -956,3 +960,14 @@ type struct_packet_identifier = {
   packet_identifier_value: U16.t;
   property_start_to_offset: U32.t;
 }
+
+// val packet_data_check:
+//   h: HS.mem -> 
+//   packet_data: (B.buffer U8.t) -> 
+//   packet_size: type_packet_size ->
+logic type logic_packet_data 
+  (h: HS.mem) (packet_data: B.buffer U8.t) (packet_size: type_packet_size) = 
+    B.live h packet_data /\
+    B.length packet_data <= U32.v max_request_size /\
+    zero_terminated_buffer_u8 h packet_data /\
+    (B.length packet_data - 1) = U32.v packet_size 

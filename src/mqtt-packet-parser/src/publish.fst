@@ -273,7 +273,7 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let paylaod_end_index: U32.t = U32.sub packet_size 1ul in
   let payload_struct: struct_payload = 
-    get_payload packet_data payload_start_index paylaod_end_index in
+    get_payload packet_data packet_size payload_start_index paylaod_end_index in
     
   let payload_error_status = 
   if (payload_struct.is_valid_payload = false) then
