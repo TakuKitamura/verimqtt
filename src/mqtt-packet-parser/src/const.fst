@@ -238,7 +238,7 @@ let define_struct_connect_property_authentication_data: struct_connect_property 
     connect_property_name = !$"Authentication Data";
   }
 
-type struct_utf8_string = {
+noeq type struct_utf8_string = {
   utf8_string_length: U16.t;
   utf8_string_value: B.buffer U8.t;
   utf8_string_status_code: U8.t;
@@ -607,12 +607,12 @@ type struct_error_struct = {
   message: type_error_message_restrict;
 }
 
-type struct_utf8_string_pair = {
+noeq type struct_utf8_string_pair = {
   utf8_string_pair_key: struct_utf8_string;
   utf8_string_pair_value: struct_utf8_string;
 }
 
-type struct_binary_data = {
+noeq type struct_binary_data = {
   binary_length: U16.t;
   binary_value: B.buffer U8.t;
   binary_next_start_index: U32.t;
@@ -678,7 +678,7 @@ let define_struct_property_utf8_encoded_string_pair_error: struct_property_error
     property_error_code_name = !$"a utf8 encoded string pair property is invalid";
   }
 
-type struct_property_type = {
+noeq type struct_property_type = {
   one_byte_integer_struct: struct_one_byte_integer;
   two_byte_integer_struct: struct_two_byte_integer;
   four_byte_integer_struct: struct_four_byte_integer;
@@ -689,20 +689,20 @@ type struct_property_type = {
   property_type_error: struct_property_error;
 }
 
-type struct_property = {
+noeq type struct_property = {
   property_id: U8.t;
   property_type_id: U8.t;
   property_type_struct: struct_property_type;
   payload_start_index: U32.t;
 }
 
-type struct_payload = {
+noeq type struct_payload = {
   is_valid_payload: bool;
   payload_value: B.buffer U8.t;
   payload_length: U32.t;
 }
 
-type struct_variable_header_publish = {
+noeq type struct_variable_header_publish = {
   topic_length: type_topic_length_restrict;
   topic_name: type_topic_name_restrict;
   packet_identifier: U16.t;
@@ -712,7 +712,7 @@ type struct_variable_header_publish = {
   // property_id: U8.t;
 }
 
-type struct_array_u16 = {
+noeq type struct_array_u16 = {
   array_u16: B.buffer U16.t;
   array_length_u16: U32.t;
 }
@@ -811,7 +811,7 @@ type struct_disconnect = {
   disconnect_reason: struct_disconnect_reason;
 }
 
-type struct_publish_parts = {
+noeq type struct_publish_parts = {
   publish_remaining_length: type_remaining_length;
   publish_flag: type_flag_restrict;
   publish_dup_flag: type_dup_flags_restrict;
@@ -827,7 +827,7 @@ type struct_publish_parts = {
   publish_property: struct_property;
 }
 
-type struct_connect_will = {
+noeq type struct_connect_will = {
   connect_will_property: struct_property;
   connect_will_topic_name: struct_utf8_string;
   connect_will_payload: struct_binary_data;
@@ -835,7 +835,7 @@ type struct_connect_will = {
 }
 
 // 3.1.2.3 Connect Flags
-type struct_connect = {
+noeq type struct_connect = {
   protocol_name: C.String.t;
   protocol_version: U8.t;
   flags: struct_connect_flags;
@@ -861,14 +861,14 @@ type struct_fixed_header = {
   error: struct_error_struct;
 }
 
-type struct_connect_parts = {
+noeq type struct_connect_parts = {
   connect_remaining_length: type_remaining_length;
   connect_connect_constant: struct_fixed_header_constant;
   connect_struct: struct_connect;
   connect_property: struct_property;
 }
 
-type struct_disconnect_parts = {
+noeq type struct_disconnect_parts = {
   disconnect_remaining_length: type_remaining_length;
   disconnect_disconnect_constant: struct_fixed_header_constant;
   disconnect_struct: struct_disconnect;
@@ -880,7 +880,8 @@ type struct_variable_length = {
   variable_length_value: type_remaining_length;
   next_start_index: U32.t;
 }
-type struct_share_common_data = {
+
+noeq type struct_share_common_data = {
   common_packet_data: B.buffer U8.t;
   common_packet_size: type_packet_size;
   common_message_type: type_mqtt_control_packets_restrict;
@@ -889,13 +890,13 @@ type struct_share_common_data = {
   common_next_start_index: U32.t;
 }
 
-type struct_share_common_data_check = {
+noeq type struct_share_common_data_check = {
   share_common_data_have_error: bool;
   share_common_data_error: struct_fixed_header;
   share_common_data: struct_share_common_data;
 }
 
-type struct_publish_packet_seed = {
+noeq type struct_publish_packet_seed = {
   publish_seed_dup_flag: type_dup_flags_restrict;
   publish_seed_qos_flag: type_qos_flags_restrict;
   publish_seed_retain_flag: type_retain_flags_restrict;
@@ -912,7 +913,7 @@ type struct_publish_packet_seed = {
   publish_seed_property: struct_property;
 }
 
-type struct_connect_packet_seed = {
+noeq type struct_connect_packet_seed = {
   connect_seed_is_valid_protocol_name: bool;
   connect_seed_is_valid_protocol_version: bool;
   connect_seed_connect_flag: U8.t;
@@ -926,7 +927,7 @@ type struct_connect_packet_seed = {
 
 }
 
-type struct_replace_utf8_encoded = {
+noeq type struct_replace_utf8_encoded = {
   replace_bom: B.buffer U8.t;
   bom_count: U32.t;
 }
@@ -951,7 +952,7 @@ type struct_connect_flag = {
   keep_alive_start_index: U32.t;
 }
 
-type struct_disconnect_packet_seed = {
+noeq type struct_disconnect_packet_seed = {
   disconnect_seed_reason: struct_disconnect_reason;
   disconnect_seed_property: struct_property;
 }

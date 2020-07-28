@@ -21,6 +21,9 @@ val assemble_connect_struct: s: struct_connect_parts
     (requires fun h0 -> true)
     (ensures fun h0 r h1 -> true)
 let assemble_connect_struct s =
+  push_frame ();
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  pop_frame ();
   let connect_constant: struct_fixed_header_constant = s.connect_connect_constant in
   {
     message_type = connect_constant.message_type_constant;
@@ -40,7 +43,7 @@ let assemble_connect_struct s =
       packet_identifier = max_u16;
       payload = {
         is_valid_payload = false;
-        payload_value = B.alloca 0uy 1ul;
+        payload_value = empty_buffer;
         payload_length = 0ul;
       };
       // payload_length = 0ul;
@@ -60,43 +63,56 @@ let assemble_connect_struct s =
   }
 
 val is_valid_protocol_name: packet_data: (B.buffer U8.t) 
-  -> next_start_index:U32.t
+  -> packet_size: type_packet_size 
+  -> next_start_index: type_packet_data_index
   -> Stack (protocoll_name_struct: struct_protocol_name)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v next_start_index < (B.length packet_data - 6))
     (ensures fun h0 r h1 -> true)
-let is_valid_protocol_name packet_data next_start_index = 
-  (
-    if (
-        (not (U8.eq packet_data.(U32.(next_start_index +^ 0ul)) 0x00uy)) ||
-        (not (U8.eq packet_data.(U32.(next_start_index +^ 1ul)) 0x04uy)) ||
-        (not (U8.eq packet_data.(U32.(next_start_index +^ 2ul)) 0x4Duy)) ||
-        (not (U8.eq packet_data.(U32.(next_start_index +^ 3ul)) 0x51uy)) ||
-        (not (U8.eq packet_data.(U32.(next_start_index +^ 4ul)) 0x54uy)) ||
-        (not (U8.eq packet_data.(U32.(next_start_index +^ 5ul)) 0x54uy))
-      ) then
-      (
-        let protocoll_name_struct: struct_protocol_name = {
-          is_valid_protocol_name = false;
-          protocol_version_start_index = 0ul;
-        } in protocoll_name_struct
-      )
-    else 
-      (
-        let protocoll_name_struct: struct_protocol_name = {
-          is_valid_protocol_name = true;
-          protocol_version_start_index = U32.(next_start_index +^ 6ul);
-        } in protocoll_name_struct 
-      )
-  )
+let is_valid_protocol_name packet_data packet_size next_start_index = 
+  push_frame ();
+  let first_byte: U8.t = packet_data.(U32.(next_start_index +^ 0ul)) in
+  let second_byte: U8.t = packet_data.(U32.(next_start_index +^ 1ul)) in
+  let third_byte: U8.t = packet_data.(U32.(next_start_index +^ 2ul)) in
+  let fourth_byte: U8.t = packet_data.(U32.(next_start_index +^ 3ul)) in
+  let fifth_byte: U8.t = packet_data.(U32.(next_start_index +^ 4ul)) in
+  let sixth_byte: U8.t = packet_data.(U32.(next_start_index +^ 5ul)) in
+  pop_frame ();
+  if (
+      (not (U8.eq first_byte 0x00uy)) ||
+      (not (U8.eq second_byte 0x04uy)) ||
+      (not (U8.eq third_byte 0x4Duy)) ||
+      (not (U8.eq fourth_byte 0x51uy)) ||
+      (not (U8.eq fifth_byte 0x54uy)) ||
+      (not (U8.eq sixth_byte 0x54uy))
+    ) then
+    (
+      let protocoll_name_struct: struct_protocol_name = {
+        is_valid_protocol_name = false;
+        protocol_version_start_index = 0ul;
+      } in protocoll_name_struct
+    )
+  else 
+    (
+      let protocoll_name_struct: struct_protocol_name = {
+        is_valid_protocol_name = true;
+        protocol_version_start_index = U32.(next_start_index +^ 6ul);
+      } in protocoll_name_struct 
+    )
 
 val is_valid_protocol_version: packet_data: (B.buffer U8.t) 
-  -> next_start_index:U32.t
+  -> packet_size: type_packet_size 
+  -> next_start_index: type_packet_data_index
   -> Stack (protocoll_version_struct: struct_protocol_version)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v next_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
-let is_valid_protocol_version packet_data next_start_index = 
+let is_valid_protocol_version packet_data packet_size next_start_index = 
   (
-    if (not (U8.eq packet_data.(next_start_index) 0x05uy)) then
+    let protocol_version: U8.t = packet_data.(next_start_index) in
+    if (not (U8.eq protocol_version 0x05uy)) then
       (
         let protocol_version_struct: struct_protocol_version = {
           is_valid_protocol_version = false;
@@ -113,11 +129,14 @@ let is_valid_protocol_version packet_data next_start_index =
   )
 
 val get_connect_flag: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
   -> next_start_index:U32.t
   -> Stack (connect_flag_struct: struct_connect_flag)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v next_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
-let get_connect_flag packet_data next_start_index = 
+let get_connect_flag packet_data packet_size next_start_index = 
   let connect_flag: U8.t = packet_data.(next_start_index) in
   let connect_flag_struct: struct_connect_flag = {
     connect_flag_value = connect_flag;
@@ -128,16 +147,16 @@ val connect_packet_parser: packet_data: (B.buffer U8.t)
   -> packet_size: type_packet_size 
   -> next_start_index: U32.t
   -> Stack (connect_packet_seed: struct_connect_packet_seed)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
 let connect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
   let protocol_name_struct: struct_protocol_name = 
-    is_valid_protocol_name packet_data next_start_index in
+    is_valid_protocol_name packet_data packet_size next_start_index in
   let protocol_version_struct: struct_protocol_version =
-    is_valid_protocol_version packet_data protocol_name_struct.protocol_version_start_index in
+    is_valid_protocol_version packet_data packet_size protocol_name_struct.protocol_version_start_index in
   let connect_flag_struct: struct_connect_flag = 
-    get_connect_flag packet_data protocol_version_struct.connect_flag_start_index in
+    get_connect_flag packet_data packet_size protocol_version_struct.connect_flag_start_index in
   let keep_alive: U16.t = 
     get_two_byte_integer_u8_to_u16
       packet_data.(connect_flag_struct.keep_alive_start_index)

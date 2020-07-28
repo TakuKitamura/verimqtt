@@ -723,7 +723,7 @@ val parse_property_two_byte_integer: packet_data: (B.buffer U8.t)
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v property_value_start_index < (B.length packet_data - 1))
+    U32.v property_value_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let parse_property_two_byte_integer packet_data packet_size property_value_start_index =
   push_frame ();
@@ -780,7 +780,7 @@ val parse_property_four_byte_integer: packet_data: (B.buffer U8.t)
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v property_value_start_index < (B.length packet_data - 3))
+    U32.v property_value_start_index < (B.length packet_data - 4))
     (ensures fun h0 r h1 -> true)
 let parse_property_four_byte_integer packet_data packet_size property_value_start_index =
   push_frame ();
@@ -955,7 +955,7 @@ val get_binary: packet_data: (B.buffer U8.t)
   -> Stack (binary_data_struct: struct_binary_data)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v binary_start_index < (B.length packet_data - 1))
+    U32.v binary_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let get_binary packet_data packet_size binary_start_index =
   push_frame ();
@@ -1294,7 +1294,7 @@ val get_utf8_encoded_string: packet_data: (B.buffer U8.t)
   -> Stack (utf8_string_struct: struct_utf8_string)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v utf8_encoded_string_start_index < (B.length packet_data - 1))
+    U32.v utf8_encoded_string_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let get_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_index =
   push_frame ();
@@ -1309,15 +1309,18 @@ let get_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_in
 
 val parse_property_utf8_encoded_string: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> property_value_start_index: U32.t
+  -> property_value_start_index: type_packet_data_index
   -> Stack (property_struct_type_base: struct_property_type)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v property_value_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
 let parse_property_utf8_encoded_string packet_data packet_size property_value_start_index =
   push_frame ();
   let b: struct_property_type = property_struct_type_base in
   let utf8_encoded_string_struct: struct_utf8_string = 
     get_utf8_encoded_string packet_data packet_size property_value_start_index in
+  pop_frame ();
   let property_struct_type_base: struct_property_type = {
     one_byte_integer_struct = {
       one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
@@ -1366,9 +1369,11 @@ let parse_property_utf8_encoded_string packet_data packet_size property_value_st
 
 val get_utf8_encoded_string_pair: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> utf8_encoded_string_pair_start_index: U32.t
+  -> utf8_encoded_string_pair_start_index: type_packet_data_index
   -> Stack (utf8_string_pair_struct: struct_utf8_string_pair)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v utf8_encoded_string_pair_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pair_start_index =
   push_frame ();
@@ -1393,15 +1398,16 @@ let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pai
 
 val parse_property_utf8_encoded_string_pair: packet_data: (B.buffer U8.t)  
   -> packet_size: type_packet_size 
-  -> property_value_start_index: U32.t
+  -> property_value_start_index: type_packet_data_index
   -> Stack (property_struct_type_base: struct_property_type)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
 let parse_property_utf8_encoded_string_pair packet_data packet_size property_value_start_index =
   push_frame ();
   let utf8_encoded_string_pair_struct: struct_utf8_string_pair = 
     get_utf8_encoded_string_pair packet_data packet_size property_value_start_index in
   let b: struct_property_type = property_struct_type_base in
+  pop_frame ();
   let property_struct_type_base: struct_property_type = {
     one_byte_integer_struct = {
       one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;
@@ -1439,9 +1445,11 @@ let parse_property_utf8_encoded_string_pair packet_data packet_size property_val
 
 val parse_property: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
-  -> property_start_index: U32.t
+  -> property_start_index: type_packet_data_index
   -> Stack (property: struct_property)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v property_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
 let parse_property packet_data packet_size property_start_index =
   push_frame ();
