@@ -7,7 +7,10 @@ module B = LowStar.Buffer
 module HS = FStar.HyperStack
 
 open C.String
+open FStar.HyperStack.ST
 open FFI
+
+#set-options "--z3rlimit 10"
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -717,8 +720,12 @@ noeq type struct_array_u16 = {
   array_length_u16: U32.t;
 }
 
-val property_struct_type_base: struct_property_type
-let property_struct_type_base: struct_property_type = {
+val property_struct_type_base: (property_type: struct_property_type)
+let property_struct_type_base: struct_property_type = 
+push_frame ();
+let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+pop_frame ();
+{
   one_byte_integer_struct = {
     one_byte_integer_value = 0uy;
   };
@@ -730,7 +737,7 @@ let property_struct_type_base: struct_property_type = {
   };
   utf8_encoded_string_struct = {
     utf8_string_length = 0us;
-    utf8_string_value = B.alloca 0uy 1ul;
+    utf8_string_value = empty_buffer;
     utf8_string_status_code = 0uy;
     utf8_next_start_index = 0ul;
   };
@@ -739,19 +746,19 @@ let property_struct_type_base: struct_property_type = {
   };
   binary_data_struct = {
     binary_length = 0us;
-    binary_value = B.alloca 0uy 1ul;
+    binary_value = empty_buffer;
     binary_next_start_index = 0ul;
   };
   utf8_string_pair_struct = {
     utf8_string_pair_key = {
       utf8_string_length = 0us;
-      utf8_string_value = B.alloca 0uy 1ul;
+      utf8_string_value = empty_buffer;
       utf8_string_status_code = 0uy;
       utf8_next_start_index = 0ul;
     };
     utf8_string_pair_value = {
       utf8_string_length = 0us;
-      utf8_string_value = B.alloca 0uy 1ul;
+      utf8_string_value = empty_buffer;
       utf8_string_status_code = 0uy;
       utf8_next_start_index = 0ul;
     };
@@ -849,7 +856,7 @@ noeq type struct_connect = {
   // connect_property: struct_connect_property;
 }  
 
-type struct_fixed_header = {
+noeq type struct_fixed_header = {
   message_type: type_mqtt_control_packets_restrict;
   message_name: type_message_name_restrict;
   flags: struct_flags;

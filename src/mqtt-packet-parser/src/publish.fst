@@ -4,6 +4,7 @@ module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
+module HS = FStar.HyperStack
 
 open C.String
 open LowStar.BufferOps
@@ -15,6 +16,8 @@ open Const
 open Common
 open FFI
 open Debug_FFI
+
+#set-options "--z3rlimit 10"
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
@@ -65,6 +68,9 @@ let assemble_publish_struct s =
   // let dup_flag: type_dup_flags_restrict = get_dup_flag s.publish_fixed_header_first_one_byte in
   // let qos_flag: type_qos_flags_restrict = get_qos_flag s.publish_fixed_header_first_one_byte in
   // let retain_flag: type_retain_flags_restrict = get_retain_flag s.publish_fixed_header_first_one_byte in
+  push_frame ();
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  pop_frame ();
   let data: struct_fixed_header_constant =
     struct_fixed_publish 
       s.publish_flag s.publish_dup_flag s.publish_qos_flag s.publish_retain_flag in
@@ -94,7 +100,7 @@ let assemble_publish_struct s =
         connect_id = 
           {
             utf8_string_length = 0us;
-            utf8_string_value = B.alloca 0uy 1ul;
+            utf8_string_value = empty_buffer;
             utf8_string_status_code = 1uy;
             utf8_next_start_index = 0ul;
           };
@@ -104,14 +110,14 @@ let assemble_publish_struct s =
             connect_will_topic_name = 
               {
                 utf8_string_length = 0us;
-                utf8_string_value = B.alloca 0uy 1ul;
+                utf8_string_value = empty_buffer;
                 utf8_string_status_code = 1uy;
                 utf8_next_start_index = 0ul;
               };
             connect_will_payload = 
               {
                 binary_length = 0us;
-                binary_value = B.alloca 0uy 1ul;
+                binary_value = empty_buffer;
                 binary_next_start_index = 0ul;
               };
             user_name_or_password_next_start_index = 0ul;
@@ -119,14 +125,14 @@ let assemble_publish_struct s =
         user_name =
           {
             utf8_string_length = 0us;
-            utf8_string_value = B.alloca 0uy 1ul;
+            utf8_string_value = empty_buffer;
             utf8_string_status_code = 1uy;
             utf8_next_start_index = 0ul;
           };
         password =
           {
             binary_length = 0us;
-            binary_value = B.alloca 0uy 1ul;
+            binary_value = empty_buffer;
             binary_next_start_index = 0ul;
           };
       };
@@ -155,24 +161,28 @@ let assemble_publish_struct s =
 // TODO: topic-name のエラー条件を追加する
 // TODO: UTF-8 の 制約を追加する
 val get_topic_name: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
   -> topic_name_start_index: U32.t
   -> topic_length: U32.t
   -> Stack (topic_name: struct_topic_name)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v topic_name_start_index + U32.v topic_length <= U32.v max_u32)
     (ensures fun h0 r h1 -> true)
-let get_topic_name packet_data topic_name_start_index topic_length =
+let get_topic_name packet_data packet_size topic_name_start_index topic_length =
   push_frame ();
   let ptr_counter: B.buffer U32.t = B.alloca 0ul 1ul in
   let ptr_topic_name_u8: B.buffer U8.t = B.alloca 0uy 65536ul in
   let ptr_topic_name: B.buffer type_topic_name_restrict = B.alloca !$"" 1ul in
   let ptr_topic_name_error_status: B.buffer U8.t = B.alloca 0uy 1ul in
-  let inv h (i: nat) = B.live h packet_data /\
+  let inv (h: HS.mem) (i:nat) = B.live h packet_data /\
   B.live h ptr_counter /\
   B.live h ptr_topic_name_u8 /\
   B.live h ptr_topic_name /\
   B.live h ptr_topic_name_error_status in
-  let body (i): Stack unit
-    (requires (fun h -> inv h (U32.v i)))
+  let last: U32.t = U32.add topic_length topic_name_start_index in
+  let body (i: U32.t{U32.v topic_name_start_index <= U32.v i /\ U32.v i < U32.v last}): Stack unit
+    (requires (fun (h: HS.mem) -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true)) =
     (
       let one_byte: U8.t = packet_data.(i) in 
@@ -206,7 +216,6 @@ let get_topic_name packet_data topic_name_start_index topic_length =
           ptr_counter.(0ul) <- U32.add ptr_counter.(0ul) 1ul
     )
   in
-  let last: U32.t = U32.add topic_length topic_name_start_index in
   C.Loops.for topic_name_start_index last inv body;
   let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
   let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
@@ -220,7 +229,9 @@ val publish_packet_parser: packet_data: (B.buffer U8.t)
   -> common_flag: type_flag_restrict
   -> next_start_index:U32.t
   -> Stack (publish_packet_seed: struct_publish_packet_seed)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v next_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let publish_packet_parser packet_data packet_size common_flag next_start_index =
   push_frame();
@@ -237,7 +248,7 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
     U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
   
   let topic_name_struct: struct_topic_name = 
-    get_topic_name packet_data (U32.add next_start_index 2ul) topic_length in
+    get_topic_name packet_data packet_size (U32.add next_start_index 2ul) topic_length in
   let topic_name_error_status: U8.t = topic_name_struct.topic_name_error_status in
 
   let packet_identifier_struct: struct_packet_identifier = 

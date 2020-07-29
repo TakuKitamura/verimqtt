@@ -17,6 +17,8 @@ open Const
 open FFI
 open Debug_FFI
 
+#set-options "--z3rlimit 10"
+
 val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
 let most_significant_four_bit_to_zero i =
     if (U8.(i >=^ 128uy)) then
@@ -77,8 +79,6 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
     ptr_for_remaining_length.(0ul) in
   pop_frame ();
   remaining_length
-
-#set-options "--z3rlimit 100 --max_ifuel 0"
 
 // TODO: 全体的な見直し
 val get_variable_byte: packet_data: (B.buffer U8.t) 

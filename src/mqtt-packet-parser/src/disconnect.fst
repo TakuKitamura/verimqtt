@@ -12,94 +12,99 @@ module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
 
+#set-options "--z3rlimit 10"
+
 val assemble_disconnect_struct: s: struct_disconnect_parts
   -> Stack (r: struct_fixed_header)
     (requires fun h0 -> true)
     (ensures fun h0 r h1 -> true)
 let assemble_disconnect_struct s =
-    let disconnect_constant: struct_fixed_header_constant = s.disconnect_disconnect_constant in
-    {
-      message_type = disconnect_constant.message_type_constant;
-      message_name = disconnect_constant.message_name_constant;
+  push_frame ();
+  let disconnect_constant: struct_fixed_header_constant = s.disconnect_disconnect_constant in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  pop_frame ();
+  {
+    message_type = disconnect_constant.message_type_constant;
+    message_name = disconnect_constant.message_name_constant;
+    flags = {
+      flag = disconnect_constant.flags_constant.flag;
+      dup_flag = disconnect_constant.flags_constant.dup_flag;
+      qos_flag = disconnect_constant.flags_constant.qos_flag;
+      retain_flag = disconnect_constant.flags_constant.retain_flag;
+    };
+    remaining_length = s.disconnect_remaining_length;
+    connect = {
+      protocol_name = !$"";
+      protocol_version = max_u8;
       flags = {
-        flag = disconnect_constant.flags_constant.flag;
-        dup_flag = disconnect_constant.flags_constant.dup_flag;
-        qos_flag = disconnect_constant.flags_constant.qos_flag;
-        retain_flag = disconnect_constant.flags_constant.retain_flag;
+        connect_flag = max_u8;
+        user_name = max_u8;
+        password = max_u8;
+        will_retain = max_u8;
+        will_qos = max_u8;
+        will_flag = max_u8;
+        clean_start = max_u8;
       };
-      remaining_length = s.disconnect_remaining_length;
-      connect = {
-        protocol_name = !$"";
-        protocol_version = max_u8;
-        flags = {
-          connect_flag = max_u8;
-          user_name = max_u8;
-          password = max_u8;
-          will_retain = max_u8;
-          will_qos = max_u8;
-          will_flag = max_u8;
-          clean_start = max_u8;
+      keep_alive = 0us;
+      connect_id = 
+        {
+          utf8_string_length = 0us;
+          utf8_string_value = empty_buffer;
+          utf8_string_status_code = 1uy;
+          utf8_next_start_index = 0ul;
         };
-        keep_alive = 0us;
-        connect_id = 
-          {
-            utf8_string_length = 0us;
-            utf8_string_value = B.alloca 0uy 1ul;
-            utf8_string_status_code = 1uy;
-            utf8_next_start_index = 0ul;
-          };
-        will =
-          {
-            connect_will_property = property_struct_base;
-            connect_will_topic_name = 
-              {
-                utf8_string_length = 0us;
-                utf8_string_value = B.alloca 0uy 1ul;
-                utf8_string_status_code = 1uy;
-                utf8_next_start_index = 0ul;
-              };
-            connect_will_payload = 
-              {
-                binary_length = 0us;
-                binary_value = B.alloca 0uy 1ul;
-                binary_next_start_index = 0ul;
-              };
-            user_name_or_password_next_start_index = 0ul;
-          };
-          user_name =
+      will =
+        {
+          connect_will_property = property_struct_base;
+          connect_will_topic_name = 
             {
               utf8_string_length = 0us;
-              utf8_string_value = B.alloca 0uy 1ul;
+              utf8_string_value = empty_buffer;
               utf8_string_status_code = 1uy;
               utf8_next_start_index = 0ul;
             };
-          password =
+          connect_will_payload = 
             {
               binary_length = 0us;
-              binary_value = B.alloca 0uy 1ul;
+              binary_value = empty_buffer;
               binary_next_start_index = 0ul;
             };
-      };
-      publish = {
-        topic_length = 0ul;
-        topic_name = !$"";
-        packet_identifier = max_u16;
-        // property_length = 0ul;
-        payload = {
-          is_valid_payload = false;
-          payload_value = B.alloca 0uy 1ul;
-          payload_length = 0ul;
+          user_name_or_password_next_start_index = 0ul;
         };
-        // payload_length = 0ul;
-        // property_id = max_u8;
+        user_name =
+          {
+            utf8_string_length = 0us;
+            utf8_string_value = empty_buffer;
+            utf8_string_status_code = 1uy;
+            utf8_next_start_index = 0ul;
+          };
+        password =
+          {
+            binary_length = 0us;
+            binary_value = empty_buffer;
+            binary_next_start_index = 0ul;
+          };
+    };
+    publish = {
+      topic_length = 0ul;
+      topic_name = !$"";
+      packet_identifier = max_u16;
+      // property_length = 0ul;
+      payload = {
+        is_valid_payload = false;
+        payload_value = empty_buffer;
+        payload_length = 0ul;
       };
-      disconnect = s.disconnect_struct;
-      property = s.property;
-      error = {
-        code = define_no_error_code;
-        message = define_no_error;
-      };
-    }
+      // payload_length = 0ul;
+      // property_id = max_u8;
+    };
+    disconnect = s.disconnect_struct;
+    property = s.property;
+    error = {
+      code = define_no_error_code;
+      message = define_no_error;
+    };
+  }
 
 val get_disconnect_reason: reason_code: type_disconnect_reason_code 
   -> Stack (disconnect_reason_struct: struct_disconnect_reason)
@@ -172,16 +177,17 @@ let get_disconnect_reason reason_code =
 
 val disconnect_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> next_start_index:U32.t
+  -> next_start_index: type_packet_data_index
   -> Stack (disconnect_packet_seed: struct_disconnect_packet_seed)
-    (requires fun h0 -> B.live h0 packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v next_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let disconnect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
-  let reason_code_start_index: U32.t = next_start_index in
-  let reason_code: type_disconnect_reason_code = packet_data.(reason_code_start_index) in
+  let reason_code: type_disconnect_reason_code = packet_data.(next_start_index) in
   let disconnect_reason_struct: struct_disconnect_reason = get_disconnect_reason reason_code in
-  let property_start_index: U32.t = U32.add reason_code_start_index 1ul in
+  let property_start_index: type_packet_data_index = U32.add next_start_index 1ul in
   let property_struct: struct_property = 
     parse_property packet_data packet_size property_start_index in
   pop_frame ();

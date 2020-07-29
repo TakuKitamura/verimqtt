@@ -15,6 +15,7 @@ open Const
 open Common
 open Debug_FFI
 
+#set-options "--z3rlimit 10"
 
 val assemble_connect_struct: s: struct_connect_parts
   -> Stack (r: struct_fixed_header)
@@ -130,7 +131,7 @@ let is_valid_protocol_version packet_data packet_size next_start_index =
 
 val get_connect_flag: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
-  -> next_start_index:U32.t
+  -> next_start_index: type_packet_data_index
   -> Stack (connect_flag_struct: struct_connect_flag)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
@@ -145,7 +146,7 @@ let get_connect_flag packet_data packet_size next_start_index =
 
 val connect_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> next_start_index: U32.t
+  -> next_start_index: type_packet_data_index
   -> Stack (connect_packet_seed: struct_connect_packet_seed)
     (requires fun h0 -> logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
@@ -167,7 +168,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
     parse_property packet_data packet_size property_start_index in
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let connect_id: struct_utf8_string = 
-    get_utf8_encoded_string packet_data payload_start_index in
+    get_utf8_encoded_string packet_data packet_size payload_start_index in
   let connect_flag:U8.t = connect_flag_struct.connect_flag_value in
   let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
   let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
@@ -180,14 +181,14 @@ let connect_packet_parser packet_data packet_size next_start_index =
     U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id.utf8_string_length)) in
   let connect_will_struct: struct_connect_will =
     (
-      if (will_flag = 1ul) then
+      if (will_flag = 1uy) then
         (
           // TODO: エラーチェック
           let will_property_start_index: U32.t = will_or_user_name_or_password_start_index in
           let property_struct: struct_property = 
             parse_property packet_data packet_size will_property_start_index in
           let will_topic_name_struct: struct_utf8_string = 
-            get_utf8_encoded_string packet_data property_struct.payload_start_index in
+            get_utf8_encoded_string packet_data packet_size property_struct.payload_start_index in
           let will_payload_struct: struct_binary_data = 
             get_binary packet_data packet_size will_topic_name_struct.utf8_next_start_index in
           let connect_will_struct: struct_connect_will = 
@@ -223,10 +224,10 @@ let connect_packet_parser packet_data packet_size next_start_index =
 
   let user_name_struct: struct_utf8_string = 
     (
-      if (user_name_flag = 1ul) then
+      if (user_name_flag = 1uy) then
         (
           let user_name_struct: struct_utf8_string = 
-            get_utf8_encoded_string packet_data connect_will_struct.user_name_or_password_next_start_index
+            get_utf8_encoded_string packet_data packet_size connect_will_struct.user_name_or_password_next_start_index
           in user_name_struct
         )
       else
@@ -242,7 +243,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
     ) in
   let password_struct: struct_binary_data =
     (
-      if (password_flag = 1ul) then
+      if (password_flag = 1uy) then
         (
           let password_struct: struct_binary_data =
             get_binary packet_data packet_size user_name_struct.utf8_next_start_index in
