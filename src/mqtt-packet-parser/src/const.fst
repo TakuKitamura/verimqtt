@@ -10,7 +10,7 @@ open C.String
 open FStar.HyperStack.ST
 open FFI
 
-#set-options "--z3rlimit 10"
+#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -100,7 +100,7 @@ type type_mqtt_control_packets_restrict =
   v:type_mqtt_control_packets{U8.v v >= 1 && U8.v v <= 15 || U8.eq v max_u8}
 
 type type_remaining_length =
-  (remaining_length: U32.t{U32.v remaining_length <= U32.v (U32.sub max_packet_size 5ul) || U32.eq remaining_length max_u32})
+  (remaining_length: U32.t{U32.v remaining_length <= U32.v (U32.sub max_packet_size 5ul)})
 
 type type_flag_restrict =
   flag: U8.t{
@@ -245,7 +245,7 @@ noeq type struct_utf8_string = {
   utf8_string_length: U16.t;
   utf8_string_value: B.buffer U8.t;
   utf8_string_status_code: U8.t;
-  utf8_next_start_index: U32.t;
+  utf8_next_start_index: type_packet_data_index;
 }
 
 type type_topic_name_restrict =
@@ -583,26 +583,27 @@ let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
   (v:
-    type_error_message{
-      v = define_no_error ||
-      v = define_error_remaining_length_invalid ||
-      v = define_error_message_type_invalid ||
-      v = define_error_flag_invalid ||
-      v = define_error_dup_flag_invalid ||
-      v = define_error_qos_flag_invalid ||
-      v = define_error_retain_flag_invalid ||
-      v = define_error_topic_length_invalid ||
-      v = define_error_topic_name_dont_zero_terminated ||
-      v = define_error_topic_name_have_inavlid_character ||
-      v = define_error_property_length_invalid ||
-      v = define_error_payload_invalid ||
-      v = define_error_protocol_name_invalid ||
-      v = define_error_protocol_version_invalid ||
-      v = define_error_connect_flag_invalid ||
-      v = define_error_property_invalid ||
-      v = define_error_connect_id_invalid ||
-      v = define_error_disconnect_reason_invalid
-    }
+    type_error_message // TODO: いずれ制約をかける
+    // {
+    //   v = define_no_error ||
+    //   v = define_error_remaining_length_invalid ||
+    //   v = define_error_message_type_invalid ||
+    //   v = define_error_flag_invalid ||
+    //   v = define_error_dup_flag_invalid ||
+    //   v = define_error_qos_flag_invalid ||
+    //   v = define_error_retain_flag_invalid ||
+    //   v = define_error_topic_length_invalid ||
+    //   v = define_error_topic_name_dont_zero_terminated ||
+    //   v = define_error_topic_name_have_inavlid_character ||
+    //   v = define_error_property_length_invalid ||
+    //   v = define_error_payload_invalid ||
+    //   v = define_error_protocol_name_invalid ||
+    //   v = define_error_protocol_version_invalid ||
+    //   v = define_error_connect_flag_invalid ||
+    //   v = define_error_property_invalid ||
+    //   v = define_error_connect_id_invalid ||
+    //   v = define_error_disconnect_reason_invalid
+    // }
   )
 
 type struct_error_struct = {
@@ -618,7 +619,7 @@ noeq type struct_utf8_string_pair = {
 noeq type struct_binary_data = {
   binary_length: U16.t;
   binary_value: B.buffer U8.t;
-  binary_next_start_index: U32.t;
+  binary_next_start_index: type_packet_data_index;
 }
 
 type struct_one_byte_integer = {
@@ -696,7 +697,7 @@ noeq type struct_property = {
   property_id: U8.t;
   property_type_id: U8.t;
   property_type_struct: struct_property_type;
-  payload_start_index: U32.t;
+  payload_start_index: type_packet_data_index;
 }
 
 noeq type struct_payload = {
@@ -838,7 +839,7 @@ noeq type struct_connect_will = {
   connect_will_property: struct_property;
   connect_will_topic_name: struct_utf8_string;
   connect_will_payload: struct_binary_data;
-  user_name_or_password_next_start_index: U32.t;
+  user_name_or_password_next_start_index: type_packet_data_index;
 }
 
 // 3.1.2.3 Connect Flags
@@ -885,7 +886,7 @@ noeq type struct_disconnect_parts = {
 type struct_variable_length = {
   have_error: bool;
   variable_length_value: type_remaining_length;
-  next_start_index: U32.t;
+  next_start_index: type_packet_data_index;
 }
 
 noeq type struct_share_common_data = {
@@ -894,7 +895,7 @@ noeq type struct_share_common_data = {
   common_message_type: type_mqtt_control_packets_restrict;
   common_flag: type_flag_restrict;
   common_remaining_length: type_remaining_length;
-  common_next_start_index: U32.t;
+  common_next_start_index: type_packet_data_index;
 }
 
 noeq type struct_share_common_data_check = {
@@ -946,17 +947,17 @@ type struct_topic_name = {
 
 type struct_protocol_name = {
   is_valid_protocol_name: bool;
-  protocol_version_start_index: U32.t;
+  protocol_version_start_index: type_packet_data_index;
 }
 
 type struct_protocol_version = {
   is_valid_protocol_version: bool;
-  connect_flag_start_index: U32.t;
+  connect_flag_start_index: type_packet_data_index;
 }
 
 type struct_connect_flag = {
   connect_flag_value: U8.t;
-  keep_alive_start_index: U32.t;
+  keep_alive_start_index: type_packet_data_index;
 }
 
 noeq type struct_disconnect_packet_seed = {

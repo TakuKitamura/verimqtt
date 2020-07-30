@@ -12,7 +12,7 @@ module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
 
-#set-options "--z3rlimit 10"
+#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
 
 val assemble_disconnect_struct: s: struct_disconnect_parts
   -> Stack (r: struct_fixed_header)
@@ -199,7 +199,9 @@ let disconnect_packet_parser packet_data packet_size next_start_index =
 
 val disconnect_packet_parse_result: (share_common_data: struct_share_common_data)
   -> Stack (r: struct_fixed_header)
-    (requires fun h0 -> true)
+    (requires fun h0 -> 
+    logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
+    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let disconnect_packet_parse_result share_common_data =
   // Reason Code, Property ともに省略

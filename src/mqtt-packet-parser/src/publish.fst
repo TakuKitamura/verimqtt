@@ -17,7 +17,7 @@ open Common
 open FFI
 open Debug_FFI
 
-#set-options "--z3rlimit 10"
+#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
@@ -231,7 +231,7 @@ val publish_packet_parser: packet_data: (B.buffer U8.t)
   -> Stack (publish_packet_seed: struct_publish_packet_seed)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v next_start_index < (B.length packet_data - 2))
+    U32.v next_start_index < (B.length packet_data - 3))
     (ensures fun h0 r h1 -> true)
 let publish_packet_parser packet_data packet_size common_flag next_start_index =
   push_frame();
@@ -317,7 +317,9 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
 
 val publish_packet_parse_result: (share_common_data: struct_share_common_data)
   -> Stack (r: struct_fixed_header)
-    (requires fun h0 -> B.live h0 share_common_data.common_packet_data)
+    (requires fun h0 -> 
+    logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
+    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 3))
     (ensures fun h0 r h1 -> true)
 let publish_packet_parse_result share_common_data =
   let publish_packet_seed: struct_publish_packet_seed = 
