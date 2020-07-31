@@ -10,7 +10,7 @@ open C.String
 open FStar.HyperStack.ST
 open FFI
 
-#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -35,6 +35,8 @@ let min_request_size = 0ul
 
 val max_payload_size: U32.t
 let max_payload_size = 268435455ul
+
+type range_zero_to_max_u8_u32 = v: U32.t{U32.v v <= 255}
 
 type type_packet_size =
   packet_size:
@@ -617,6 +619,7 @@ noeq type struct_utf8_string_pair = {
 }
 
 noeq type struct_binary_data = {
+  is_valid_binary_data: bool;
   binary_length: U16.t;
   binary_value: B.buffer U8.t;
   binary_next_start_index: type_packet_data_index;
@@ -746,6 +749,7 @@ pop_frame ();
     variable_byte_integer_value = 0ul;
   };
   binary_data_struct = {
+    is_valid_binary_data = false;
     binary_length = 0us;
     binary_value = empty_buffer;
     binary_next_start_index = 0ul;

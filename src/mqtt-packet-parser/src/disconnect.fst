@@ -12,7 +12,7 @@ module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
 
-#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val assemble_disconnect_struct: s: struct_disconnect_parts
   -> Stack (r: struct_fixed_header)
@@ -65,6 +65,7 @@ let assemble_disconnect_struct s =
             };
           connect_will_payload = 
             {
+              is_valid_binary_data = false;
               binary_length = 0us;
               binary_value = empty_buffer;
               binary_next_start_index = 0ul;
@@ -80,6 +81,7 @@ let assemble_disconnect_struct s =
           };
         password =
           {
+            is_valid_binary_data = false;
             binary_length = 0us;
             binary_value = empty_buffer;
             binary_next_start_index = 0ul;

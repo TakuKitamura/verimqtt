@@ -1,0 +1,1 @@
+make verify 2>&1 | grep "(Error" | gsed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\n\n/g'

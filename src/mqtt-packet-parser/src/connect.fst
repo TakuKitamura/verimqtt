@@ -15,7 +15,7 @@ open Const
 open Common
 open Debug_FFI
 
-#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val assemble_connect_struct: s: struct_connect_parts
   -> Stack (r: struct_fixed_header)
@@ -215,6 +215,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
                 };
               connect_will_payload = 
                 {
+                  is_valid_binary_data = false;
                   binary_length = 0us;
                   binary_value = B.alloca 0uy 1ul;
                   binary_next_start_index = 0ul;
@@ -255,6 +256,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
         (
           let password_struct: struct_binary_data =
             {
+              is_valid_binary_data = false;
               binary_length = 0us;
               binary_value = B.alloca 0uy 1ul;
               binary_next_start_index = 0ul;

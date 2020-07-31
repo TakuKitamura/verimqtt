@@ -17,7 +17,7 @@ open Common
 open FFI
 open Debug_FFI
 
-#set-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
@@ -116,6 +116,7 @@ let assemble_publish_struct s =
               };
             connect_will_payload = 
               {
+                is_valid_binary_data = false;
                 binary_length = 0us;
                 binary_value = empty_buffer;
                 binary_next_start_index = 0ul;
@@ -131,6 +132,7 @@ let assemble_publish_struct s =
           };
         password =
           {
+            is_valid_binary_data = false;
             binary_length = 0us;
             binary_value = empty_buffer;
             binary_next_start_index = 0ul;
