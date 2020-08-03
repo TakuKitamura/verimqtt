@@ -654,6 +654,7 @@ let property_utf8_encoded_string_error_code: type_property_error_code = 1uy
 let property_variable_integer_error_code: type_property_error_code = 2uy
 let property_binary_data_error_code: type_property_error_code = 3uy
 let property_utf8_encoded_string_pair_error_code: type_property_error_code = 4uy
+let property_type_id_error_code: type_property_error_code = 5uy
 
 let define_struct_property_no_error: struct_property_error =
   {
@@ -683,6 +684,12 @@ let define_struct_property_utf8_encoded_string_pair_error: struct_property_error
   {
     property_error_code = property_utf8_encoded_string_pair_error_code;
     property_error_code_name = !$"a utf8 encoded string pair property is invalid";
+  }
+
+let define_struct_property_id_error: struct_property_error = 
+  {
+    property_error_code = property_type_id_error_code;
+    property_error_code_name = !$"property id is invalid";    
   }
 
 noeq type struct_property_type = {
@@ -768,7 +775,7 @@ pop_frame ();
       utf8_next_start_index = 0ul;
     };
   };
-  property_type_error = define_struct_property_no_error;
+  property_type_error = define_struct_property_id_error;
 }
 
 // let property_struct_type_base: struct_property_type = {

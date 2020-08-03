@@ -3,6 +3,7 @@ module Publish
 module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
+module U64 = FStar.UInt64
 module B = LowStar.Buffer
 module HS = FStar.HyperStack
 
@@ -183,11 +184,23 @@ let get_topic_name packet_data packet_size topic_name_start_index topic_length =
   B.live h ptr_topic_name /\
   B.live h ptr_topic_name_error_status in
   let last: U32.t = U32.add topic_length topic_name_start_index in
-  let body (i: U32.t{U32.v topic_name_start_index <= U32.v i /\ U32.v i < U32.v last}): Stack unit
+  let body (i: U32.t{U32.v topic_name_start_index <= U32.v i /\
+              U32.v i < U32.v last}): Stack unit
     (requires (fun (h: HS.mem) -> inv h (U32.v i)))
     (ensures (fun _ _ _ -> true)) =
     (
-      let one_byte: U8.t = packet_data.(i) in 
+      let one_byte: U8.t = 
+        (
+          if (U32.lt i packet_size) then
+            (
+              packet_data.(i)
+            )
+          else
+            (
+              ptr_topic_name_error_status.(0ul) <- 1uy;
+              max_u8
+            )
+        ) in
       if (U8.eq one_byte 0x00uy || U8.eq one_byte 0x23uy || U8.eq one_byte 0x2buy) then
         (
           ptr_topic_name_error_status.(0ul) <- 2uy
@@ -195,13 +208,23 @@ let get_topic_name packet_data packet_size topic_name_start_index topic_length =
       else
         (
           // ptr_topic_name_u8.(U32.sub variable_header_index 2ul) <- one_byte;
-          ptr_topic_name_u8.(ptr_counter.(0ul)) <- one_byte;
+          let counter: U32.t = ptr_counter.(0ul) in
+            (
+              if (U32.lt counter 65536ul) then 
+                (
+                  ptr_topic_name_u8.(counter) <- one_byte
+                )
+              else
+                (
+                  ptr_topic_name_error_status.(0ul) <- 1uy
+                )
+            );
           // 0xEF 0xBB 0xBF は 0xFE 0xFF 置換
-          if (ptr_counter.(0ul) = (U32.(topic_length -^ 1ul))) then
+          if (U32.eq counter (U32.(topic_length -^ 1ul))) then
             (
               let topic_name: type_topic_name_restrict =
                 (
-                  if (ptr_topic_name_u8.(65535ul) = 0uy) then
+                  if (U8.eq ptr_topic_name_u8.(65535ul) 0uy) then
                     // let bom = replace_utf8_encoded ptr_topic_name_u8 65536ul in
                     // TODO: remaining length, ptr_topic_length も -1 対応させる?
                     // ptr_topic_length.(0ul) 
@@ -215,12 +238,31 @@ let get_topic_name packet_data packet_size topic_name_start_index topic_length =
                 ) in ptr_topic_name.(0ul) <- topic_name
             )
           );
-          ptr_counter.(0ul) <- U32.add ptr_counter.(0ul) 1ul
+          let counter: U32.t = ptr_counter.(0ul) in
+          if (U32.lt counter max_u32) then
+            (
+              ptr_counter.(0ul) <- U32.add counter 1ul
+            )
+          else
+            (
+              ptr_topic_name_error_status.(0ul) <- 1uy
+            )
     )
   in
-  C.Loops.for topic_name_start_index last inv body;
+  (
+  if (U32.lte topic_name_start_index last) then
+    (
+      C.Loops.for topic_name_start_index last inv body
+    )
+  else
+    (
+      ptr_topic_name_error_status.(0ul) <- 1uy
+    )
+  );
+
   let topic_name: type_topic_name_restrict = ptr_topic_name.(0ul) in
   let topic_name_error_status: U8.t = ptr_topic_name_error_status.(0ul) in
+  pop_frame ();
   let topic_name: struct_topic_name = {
     topic_name_error_status = topic_name_error_status;
     topic_name = topic_name;
@@ -248,18 +290,38 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
   let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
   let topic_length: U32.t =
     U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
-  
+  // U32.v topic_name_start_index + U32.v topic_length <= U32.v max_u32
+  let topic_name_start_index: type_packet_data_index = U32.add next_start_index 2ul in
   let topic_name_struct: struct_topic_name = 
-    get_topic_name packet_data packet_size (U32.add next_start_index 2ul) topic_length in
+    (
+      let temp: U64.t = U64.add (uint32_to_uint64 topic_name_start_index) (uint32_to_uint64 topic_length) in
+      if (U64.lte temp (uint32_to_uint64 max_u32) &&
+          U32.lte (U32.add topic_name_start_index topic_length) max_u32) then
+        (
+          get_topic_name packet_data packet_size topic_name_start_index topic_length
+        )
+      else
+        (
+          let topic_name: struct_topic_name = {
+            topic_name_error_status = 1uy;
+            topic_name = !$"";
+          } in topic_name
+        )
+    ) in
   let topic_name_error_status: U8.t = topic_name_struct.topic_name_error_status in
-
   let packet_identifier_struct: struct_packet_identifier = 
     (
-      if (U8.gt qos_flag 0uy) then
+      let temp: U64.t = U64.add 
+        (uint32_to_uint64 (U32.add next_start_index 3ul))
+        (uint32_to_uint64 topic_length) in
+      if (U64.lte temp (uint32_to_uint64 max_u32) && U8.gt qos_flag 0uy) then
         (
           let packet_identifier_value: U16.t = 
             get_two_byte_integer_u8_to_u16 
-              packet_data.(U32.add (U32.add next_start_index 2ul) topic_length)
+              packet_data.(
+                U32.add 
+                (U32.add next_start_index 2ul)
+                 topic_length)
               packet_data.(U32.add (U32.add next_start_index 3ul) topic_length) in
             let packet_identifier_struct :struct_packet_identifier = 
               {
@@ -278,16 +340,31 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
     ) in
 
   // TODO: propertyが存在しない場合の処理
-  let property_start_index: U32.t = 
-    U32.(next_start_index +^ 2ul +^ topic_length +^ packet_identifier_struct.property_start_to_offset) in
+  let temp: U64.t = U64.(
+      (uint32_to_uint64 next_start_index) +^
+      2UL +^
+      (uint32_to_uint64 topic_length) +^
+      (uint32_to_uint64 packet_identifier_struct.property_start_to_offset)
+    ) in
+  // TODO: エラー追加
+  let property_start_index: type_packet_data_index = 
+    (
+      if (U64.lt temp (uint32_to_uint64 max_packet_size)) then
+        (
+          U32.(next_start_index +^ 2ul +^ topic_length +^ packet_identifier_struct.property_start_to_offset)
+        )
+      else
+        (
+          0ul
+        )
+    ) in
   let property_struct: struct_property = 
     parse_property packet_data packet_size property_start_index in
   let property_id = property_struct.property_id in
-  let payload_start_index: U32.t = property_struct.payload_start_index in
-  let paylaod_end_index: U32.t = U32.sub packet_size 1ul in
+  let payload_start_index: type_packet_data_index = property_struct.payload_start_index in
+  let paylaod_end_index: type_packet_data_index = U32.sub packet_size 1ul in
   let payload_struct: struct_payload = 
     get_payload packet_data packet_size payload_start_index paylaod_end_index in
-    
   let payload_error_status = 
   if (payload_struct.is_valid_payload = false) then
     (

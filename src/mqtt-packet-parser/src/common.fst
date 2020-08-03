@@ -1081,7 +1081,10 @@ val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t)
   -> utf8_encoded_string_length: U16.t
   -> Stack (utf8_encoded_string_struct: struct_utf8_string)
     (requires fun h0 -> 
-    logic_packet_data h0 packet_data packet_size /\
+    B.live h0 packet_data /\
+    B.length packet_data <= U32.v max_request_size /\
+    zero_terminated_buffer_u8 h0 packet_data /\
+    (B.length packet_data - 1) = U32.v packet_size /\
     U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size /\
     U32.v U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) < U32.v max_packet_size)
     (ensures fun h0 r h1 -> true)
@@ -1097,6 +1100,7 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
   let ptr_codepoint: B.buffer U16.t = B.alloca 0us 1ul in
   let ptr_i: B.buffer type_packet_data_index = 
     B.alloca utf8_encoded_string_entity_start_index 1ul in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
 
   // if(len < 0 || len > 65536) return MOSQ_ERR_INVAL;
 
@@ -1304,14 +1308,33 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
                   0ul
                 ) 
             )      
-
-            
-          // ptr_is_malformed_utf8.(0ul) <- true
       )
   in
-  let utf8_encoded_string_entity_end_index: U32.t = (U32.add utf8_encoded_string_end_index 1ul) in
+  let utf8_encoded_string_entity_end_index: type_packet_data_index = 
+    (
+      if (U32.lt utf8_encoded_string_end_index (U32.sub max_packet_size 1ul)) then
+        (
+          U32.add utf8_encoded_string_end_index 1ul
+        )
+      else
+        (
+          ptr_is_malformed_utf8.(0ul) <- true;
+          utf8_encoded_string_entity_start_index
+        )
+    ) in
   C.Loops.for utf8_encoded_string_entity_start_index utf8_encoded_string_entity_end_index inv body;
-  let utf8_value: B.buffer U8.t = B.offset packet_data utf8_encoded_string_entity_start_index in
+  let utf8_value: B.buffer U8.t =
+    (
+      if (U32.lte utf8_encoded_string_entity_start_index (U32.add packet_size 1ul)) then
+        (
+          B.offset packet_data utf8_encoded_string_entity_start_index
+        )
+      else
+        (
+          ptr_is_malformed_utf8.(0ul) <- true;
+          empty_buffer
+        )
+    ) in
   let utf8_encoded_string_struct: struct_utf8_string = {
     utf8_string_length = utf8_encoded_string_length;
     utf8_string_value = utf8_value;
@@ -1334,18 +1357,34 @@ val get_utf8_encoded_string: packet_data: (B.buffer U8.t)
   -> Stack (utf8_string_struct: struct_utf8_string)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v utf8_encoded_string_start_index < (B.length packet_data - 2))
+    U32.v utf8_encoded_string_start_index < (B.length packet_data - 2) /\
+    U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size)
     (ensures fun h0 r h1 -> true)
 let get_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_index =
   push_frame ();
   let msb_u8: U8.t = packet_data.(utf8_encoded_string_start_index) in
   let lsb_u8: U8.t = packet_data.(U32.add utf8_encoded_string_start_index 1ul) in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   pop_frame ();
-  let two_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 msb_u8 lsb_u8 in
-  let utf8_encoded_string_struct: struct_utf8_string = 
-  is_valid_utf8_encoded_string packet_data packet_size
-    utf8_encoded_string_start_index two_byte_integer in
-  utf8_encoded_string_struct
+  let two_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 msb_u8 lsb_u8 in 
+  if U32.lt U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 two_byte_integer) +^ 1ul) max_packet_size then
+    (
+      let utf8_encoded_string_struct: struct_utf8_string =
+      is_valid_utf8_encoded_string packet_data packet_size
+        utf8_encoded_string_start_index two_byte_integer in
+      utf8_encoded_string_struct 
+    )
+  else
+    (
+     let error_struct: struct_utf8_string = {
+        utf8_string_length = 0us;
+        utf8_string_value = empty_buffer;
+        utf8_string_status_code = 1uy;
+        utf8_next_start_index = 0ul;
+      } in error_struct  
+    )
+    
+
 
 val parse_property_utf8_encoded_string: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
@@ -1353,7 +1392,8 @@ val parse_property_utf8_encoded_string: packet_data: (B.buffer U8.t)
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v property_value_start_index < (B.length packet_data - 2))
+    U32.v property_value_start_index < (B.length packet_data - 2) /\
+    U32.v (U32.add property_value_start_index 2ul) < U32.v max_packet_size)
     (ensures fun h0 r h1 -> true)
 let parse_property_utf8_encoded_string packet_data packet_size property_value_start_index =
   push_frame ();
@@ -1421,22 +1461,61 @@ let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pai
   let fisrt_msb_u8: U8.t = packet_data.(utf8_encoded_string_pair_start_index) in
   let first_lsb_u8: U8.t = packet_data.(U32.add utf8_encoded_string_pair_start_index 1ul) in
   let fist_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 fisrt_msb_u8 first_lsb_u8 in
-  let second_lsb_u8: U8.t = 
-    packet_data.( U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 3ul )) in
+  let ptr_have_error: B.buffer bool = B.alloca false 1ul in
   let second_msb_u8: U8.t =
-    packet_data.( U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul )) in
-  let second_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 second_msb_u8 second_lsb_u8 in
-  let utf8_string_pair_key: struct_utf8_string = 
-    is_valid_utf8_encoded_string packet_data packet_size
-      utf8_encoded_string_pair_start_index fist_byte_integer in
-  let utf8_string_pair_value: struct_utf8_string =
-    is_valid_utf8_encoded_string packet_data packet_size
-      U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul) second_byte_integer in
-  pop_frame ();
-  let utf8_string_pair_struct: struct_utf8_string_pair = {
-    utf8_string_pair_key = utf8_string_pair_key;
-    utf8_string_pair_value = utf8_string_pair_value;
-  } in utf8_string_pair_struct
+    (
+      if (U32.lt U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul ) packet_size) then
+        (
+          packet_data.( U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul )) 
+        )
+      else
+        (
+          ptr_have_error.(0ul) <- true;
+          0uy
+        )
+    ) in
+  let second_lsb_u8: U8.t = 
+    (
+      if (U32.lt U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 3ul ) packet_size) then
+        (
+          packet_data.( U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 3ul )) 
+        )
+      else
+        (
+          ptr_have_error.(0ul) <- true;
+          0uy
+        )
+    ) in
+  if (ptr_have_error.(0ul)) then
+    (
+      let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+      pop_frame ();
+      let error_utf8: struct_utf8_string = {
+        utf8_string_length = 0us;
+        utf8_string_value = empty_buffer;
+        utf8_string_status_code = 1uy;
+        utf8_next_start_index = 0ul;
+      } in 
+      let error_struct: struct_utf8_string_pair = {
+        utf8_string_pair_key = error_utf8;
+        utf8_string_pair_value = error_utf8;
+      } in error_struct
+    )
+  else 
+    (
+      let second_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 second_msb_u8 second_lsb_u8 in
+      let utf8_string_pair_key: struct_utf8_string = 
+        is_valid_utf8_encoded_string packet_data packet_size
+          utf8_encoded_string_pair_start_index fist_byte_integer in
+      let utf8_string_pair_value: struct_utf8_string =
+        is_valid_utf8_encoded_string packet_data packet_size
+          U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul) second_byte_integer in
+      pop_frame ();
+      let utf8_string_pair_struct: struct_utf8_string_pair = {
+        utf8_string_pair_key = utf8_string_pair_key;
+        utf8_string_pair_value = utf8_string_pair_value;
+      } in utf8_string_pair_struct
+    )
 
 val parse_property_utf8_encoded_string_pair: packet_data: (B.buffer U8.t)  
   -> packet_size: type_packet_size 
@@ -1503,12 +1582,22 @@ let parse_property packet_data packet_size property_start_index =
     get_variable_byte packet_data packet_size property_start_index in
   let property_length: type_remaining_length = 
     variable_length.variable_length_value in
-  let property_id_start_index: U32.t = variable_length.next_start_index in
+  let property_id_start_index: type_packet_data_index = variable_length.next_start_index in
 
   let last: U32.t = U32.add property_length property_id_start_index in
-  let property_id: U8.t = packet_data.(property_id_start_index) in
+  let property_id: U8.t = 
+    (
+      if U32.lt property_id_start_index (U32.sub packet_size 1ul) then
+        (
+          packet_data.(property_id_start_index)
+        )
+      else
+        (
+          max_u8
+        )
+    ) in
   let property_type_id: U8.t = get_property_type_id property_id in
-  let property_value_start_index: U32.t = U32.(property_id_start_index +^ 1ul) in
+  let property_value_start_index: type_packet_data_index = U32.(property_id_start_index +^ 1ul) in
   let property_type_struct: struct_property_type = (
     if property_type_id = 1uy then // One Byte Integer
       (
