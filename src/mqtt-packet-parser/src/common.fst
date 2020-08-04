@@ -560,9 +560,11 @@ val share_common_data_check: packet_data: (B.buffer U8.t)
     logic_packet_data h0 packet_data packet_size /\
     0 < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> 
-    logic_packet_data h0 r.share_common_data.common_packet_data r.share_common_data.common_packet_size /\
-    logic_packet_data h1 r.share_common_data.common_packet_data r.share_common_data.common_packet_size /\
-    U32.v r.share_common_data.common_next_start_index < (B.length r.share_common_data.common_packet_data - 3))
+    logic_packet_data h0 r.share_common_data.common_packet_data r.share_common_data.common_packet_size 
+    // /\
+    // logic_packet_data h1 r.share_common_data.common_packet_data r.share_common_data.common_packet_size /\
+    // U32.v r.share_common_data.common_next_start_index < (B.length r.share_common_data.common_packet_data - 3)
+    )
 let share_common_data_check packet_data packet_size =
   push_frame ();
   let first_one_byte: U8.t = packet_data.(0ul) in
@@ -1081,10 +1083,7 @@ val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t)
   -> utf8_encoded_string_length: U16.t
   -> Stack (utf8_encoded_string_struct: struct_utf8_string)
     (requires fun h0 -> 
-    B.live h0 packet_data /\
-    B.length packet_data <= U32.v max_request_size /\
-    zero_terminated_buffer_u8 h0 packet_data /\
-    (B.length packet_data - 1) = U32.v packet_size /\
+    logic_packet_data h0 packet_data packet_size /\
     U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size /\
     U32.v U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) < U32.v max_packet_size)
     (ensures fun h0 r h1 -> true)
@@ -1486,7 +1485,28 @@ let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pai
           0uy
         )
     ) in
-  if (ptr_have_error.(0ul)) then
+  let next_utf8_encoded_string_start_index: type_packet_data_index = 
+    (
+      let temp: U32.t = 
+        U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul) in
+      if (U32.lt temp max_packet_size) then
+        (
+          temp
+        )
+      else
+        (
+          ptr_have_error.(0ul) <- true;
+          0ul
+        )
+    ) 
+    in
+  let second_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 second_msb_u8 second_lsb_u8 in
+  let have_error:bool = ptr_have_error.(0ul) in
+  // U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size
+  // U32.v U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 second_byte_integer) +^ 1ul) < U32.v max_packet_size)
+  if (have_error ||
+      U32.gte (U32.add next_utf8_encoded_string_start_index 2ul) max_packet_size ||
+      U32.gte U32.(next_utf8_encoded_string_start_index +^ (uint16_to_uint32 second_byte_integer) +^ 1ul) max_packet_size) then
     (
       let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
       pop_frame ();
@@ -1503,13 +1523,12 @@ let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pai
     )
   else 
     (
-      let second_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 second_msb_u8 second_lsb_u8 in
       let utf8_string_pair_key: struct_utf8_string = 
         is_valid_utf8_encoded_string packet_data packet_size
           utf8_encoded_string_pair_start_index fist_byte_integer in
       let utf8_string_pair_value: struct_utf8_string =
-        is_valid_utf8_encoded_string packet_data packet_size
-          U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 2ul) second_byte_integer in
+        is_valid_utf8_encoded_string 
+          packet_data packet_size next_utf8_encoded_string_start_index second_byte_integer in
       pop_frame ();
       let utf8_string_pair_struct: struct_utf8_string_pair = {
         utf8_string_pair_key = utf8_string_pair_key;
