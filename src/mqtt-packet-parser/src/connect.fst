@@ -15,7 +15,7 @@ open Const
 open Common
 open Debug_FFI
 
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
 
 val assemble_connect_struct: s: struct_connect_parts
   -> Stack (r: struct_fixed_header)
@@ -156,21 +156,77 @@ let connect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
   let protocol_name_struct: struct_protocol_name = 
     is_valid_protocol_name packet_data packet_size next_start_index in
+    // U32.v next_start_index < (B.length packet_data - 2)
   let protocol_version_struct: struct_protocol_version =
-    is_valid_protocol_version packet_data packet_size protocol_name_struct.protocol_version_start_index in
+    (
+      if (U32.lt protocol_name_struct.protocol_version_start_index (U32.sub packet_size 1ul)) then
+        (
+          is_valid_protocol_version 
+            packet_data packet_size protocol_name_struct.protocol_version_start_index 
+        )
+      else
+        (
+          let protocol_version_struct: struct_protocol_version = {
+            is_valid_protocol_version = false;
+            connect_flag_start_index = 0ul;
+          } in protocol_version_struct
+        ) 
+    ) in
   let connect_flag_struct: struct_connect_flag = 
-    get_connect_flag packet_data packet_size protocol_version_struct.connect_flag_start_index in
+    // U32.v next_start_index < (B.length packet_data - 2)
+    (
+      if (U32.lt protocol_version_struct.connect_flag_start_index (U32.sub packet_size 1ul)) then
+        (
+          get_connect_flag packet_data packet_size protocol_version_struct.connect_flag_start_index
+        )
+      else
+        (
+          let connect_flag: struct_connect_flag = {
+            connect_flag_value = max_u8;
+            keep_alive_start_index = 0ul;
+          } in connect_flag
+        )
+    ) in
+  let ptr_is_valid_keep_alive: B.buffer bool = B.alloca false 1ul in
   let keep_alive: U16.t = 
-    get_two_byte_integer_u8_to_u16
-      packet_data.(connect_flag_struct.keep_alive_start_index)
-      packet_data.(U32.(connect_flag_struct.keep_alive_start_index +^ 1ul)) in
+    let msb_index: U32.t = connect_flag_struct.keep_alive_start_index in
+    let lsb_index: U32.t = U32.(connect_flag_struct.keep_alive_start_index +^ 1ul) in
+      (
+        if (U32.lt msb_index packet_size && U32.lt lsb_index packet_size) then 
+          (
+            ptr_is_valid_keep_alive.(0ul) <- true;
+            get_two_byte_integer_u8_to_u16
+              packet_data.(connect_flag_struct.keep_alive_start_index)
+              packet_data.(U32.(connect_flag_struct.keep_alive_start_index +^ 1ul))
+          )
+        else
+          (
+            0us
+          )
+      ) in
   let property_start_index: U32.t = 
     U32.(connect_flag_struct.keep_alive_start_index +^ 2ul) in
   let property_struct: struct_property = 
     parse_property packet_data packet_size property_start_index in
   let payload_start_index: U32.t = property_struct.payload_start_index in
-  let connect_id: struct_utf8_string = 
-    get_utf8_encoded_string packet_data packet_size payload_start_index in
+  let connect_id: struct_utf8_string =
+    (
+      if (U32.lt payload_start_index (U32.sub packet_size 1ul) &&
+          U32.lt (U32.add payload_start_index 2ul) max_packet_size) then
+        (
+          get_utf8_encoded_string packet_data packet_size payload_start_index
+        ) 
+      else
+        (
+          let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+          let error_struct: struct_utf8_string = {
+              utf8_string_length = 0us;
+              utf8_string_value = empty_buffer;
+              utf8_string_status_code = 1uy;
+              utf8_next_start_index = 0ul;
+            } in error_struct
+        )
+    ) in
   let connect_flag:U8.t = connect_flag_struct.connect_flag_value in
   let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
   let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
@@ -183,10 +239,11 @@ let connect_packet_parser packet_data packet_size next_start_index =
     U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id.utf8_string_length)) in
   let connect_will_struct: struct_connect_will =
     (
-      if (will_flag = 1uy) then
+      if (will_flag = 1uy && U32.lt will_or_user_name_or_password_start_index max_packet_size) then
         (
           // TODO: エラーチェック
-          let will_property_start_index: U32.t = will_or_user_name_or_password_start_index in
+          let will_property_start_index: type_packet_data_index =
+            will_or_user_name_or_password_start_index in
           let property_struct: struct_property = 
             parse_property packet_data packet_size will_property_start_index in
           let will_topic_name_struct: struct_utf8_string = 
@@ -264,12 +321,14 @@ let connect_packet_parser packet_data packet_size next_start_index =
             in password_struct  
         )
     ) in
+  let is_valid_keep_alive: bool = ptr_is_valid_keep_alive.(0ul) in
   pop_frame ();
 
   let connect_packet_seed: struct_connect_packet_seed = {
     connect_seed_is_valid_protocol_name = protocol_name_struct.is_valid_protocol_name;
     connect_seed_is_valid_protocol_version = protocol_version_struct.is_valid_protocol_version;
     connect_seed_connect_flag = connect_flag_struct.connect_flag_value;
+    connect_seed_is_valid_keep_alive = is_valid_keep_alive;
     connect_seed_keep_alive = keep_alive;
     connect_seed_is_valid_property_length = true;
     connect_seed_property = property_struct;
@@ -305,6 +364,7 @@ let connect_packet_parse_result share_common_data =
     (not connect_packet_seed.connect_seed_is_valid_protocol_name) ||
     (not connect_packet_seed.connect_seed_is_valid_protocol_version) ||
     (not (U8.eq resreved_flag 0uy)) ||
+    (not connect_packet_seed.connect_seed_is_valid_keep_alive) ||
     (not connect_packet_seed.connect_seed_is_valid_property_length) ||
     (U8.gt connect_packet_seed.connect_seed_property.property_type_struct.property_type_error.property_error_code 0uy) ||
     (U8.gt connect_packet_seed.connect_seed_connect_id.utf8_string_status_code 0uy)
@@ -327,6 +387,11 @@ let connect_packet_parse_result share_common_data =
             {
               code = define_error_connect_flag_invalid_code;
               message = define_error_connect_flag_invalid;
+            }
+          else if (not connect_packet_seed.connect_seed_is_valid_keep_alive) then
+            {
+              code = define_error_connect_invalid_keep_alive_code;
+              message = define_error_connect_keep_alive_invalid;
             }
           else if (not connect_packet_seed.connect_seed_is_valid_property_length) then
             {

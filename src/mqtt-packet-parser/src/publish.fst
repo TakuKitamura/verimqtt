@@ -18,7 +18,7 @@ open Common
 open FFI
 open Debug_FFI
 
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
@@ -288,9 +288,21 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
   let lsb_u8: U8.t = packet_data.(U32.add next_start_index 1ul) in
   let msb_u32: U32.t = uint8_to_uint32 msb_u8  in
   let lsb_u32: U32.t = uint8_to_uint32 lsb_u8 in
-  let topic_length: U32.t =
-    U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
-  // U32.v topic_name_start_index + U32.v topic_length <= U32.v max_u32
+  let topic_length: type_topic_length_restrict =
+    (
+      let temp_length: U32.t = 
+        U32.logor (U32.shift_left msb_u32 8ul) lsb_u32 in
+      (
+        if (U32.lte temp_length 65535ul || U32.eq temp_length max_u32) then
+          (
+            temp_length
+          )
+        else
+          (
+            max_u32
+          )
+      )
+    ) in
   let topic_name_start_index: type_packet_data_index = U32.add next_start_index 2ul in
   let topic_name_struct: struct_topic_name = 
     (
@@ -311,17 +323,20 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
   let topic_name_error_status: U8.t = topic_name_struct.topic_name_error_status in
   let packet_identifier_struct: struct_packet_identifier = 
     (
-      let temp: U64.t = U64.add 
+      let temp1: U64.t = U64.add 
+        (uint32_to_uint64 (U32.add next_start_index 2ul))
+        (uint32_to_uint64 topic_length) in
+      let temp2: U64.t = U64.add 
         (uint32_to_uint64 (U32.add next_start_index 3ul))
         (uint32_to_uint64 topic_length) in
-      if (U64.lte temp (uint32_to_uint64 max_u32) && U8.gt qos_flag 0uy) then
+
+      if (U64.lt temp1 (uint32_to_uint64 packet_size) &&
+          U64.lte temp2 (uint32_to_uint64 max_u32) &&
+          U8.gt qos_flag 0uy) then
         (
           let packet_identifier_value: U16.t = 
             get_two_byte_integer_u8_to_u16 
-              packet_data.(
-                U32.add 
-                (U32.add next_start_index 2ul)
-                 topic_length)
+              packet_data.(uint64_to_uint32 temp1)
               packet_data.(U32.add (U32.add next_start_index 3ul) topic_length) in
             let packet_identifier_struct :struct_packet_identifier = 
               {
@@ -358,13 +373,45 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
           0ul
         )
     ) in
+  // U32.v property_start_index < (B.length packet_data - 1)
   let property_struct: struct_property = 
-    parse_property packet_data packet_size property_start_index in
-  let property_id = property_struct.property_id in
+    (
+      if (U32.lt property_start_index packet_size) then
+        (
+          parse_property packet_data packet_size property_start_index
+        )
+      else
+        (
+          let error_struct: struct_property = {
+            property_id = max_u8;
+            property_type_id = max_u8;
+            property_type_struct = property_struct_type_base;
+            payload_start_index = 0ul;
+          } in error_struct
+        )
+     ) in
+  // let property_id = property_struct.property_id in
   let payload_start_index: type_packet_data_index = property_struct.payload_start_index in
-  let paylaod_end_index: type_packet_data_index = U32.sub packet_size 1ul in
+  let payload_end_index: type_packet_data_index = U32.sub packet_size 1ul in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   let payload_struct: struct_payload = 
-    get_payload packet_data packet_size payload_start_index paylaod_end_index in
+    (
+      if (U32.gte payload_end_index payload_start_index &&
+          U32.lte U32.(payload_end_index -^ payload_start_index +^ 1ul) max_u32 &&
+          U32.lt payload_start_index max_packet_size &&
+          U32.lt payload_start_index packet_size) then
+        (
+          get_payload packet_data packet_size payload_start_index payload_end_index
+        )
+      else
+        (
+          let error_sturct: struct_payload = {
+            is_valid_payload = false;
+            payload_value = empty_buffer;
+            payload_length = 0ul;
+          } in error_sturct
+        )
+    ) in
   let payload_error_status = 
   if (payload_struct.is_valid_payload = false) then
     (

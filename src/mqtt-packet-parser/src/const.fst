@@ -10,7 +10,7 @@ open C.String
 open FStar.HyperStack.ST
 open FFI
 
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -536,29 +536,32 @@ let define_error_connect_flag_invalid_code: type_error_code = 14uy
 let define_error_property_error_code: type_error_code = 15uy
 let define_error_connect_id_invalid_code: type_error_code = 16uy
 let define_error_disconnect_reason_invalid_code: type_error_code = 17uy
+let define_error_connect_invalid_keep_alive_code: type_error_code = 18uy
 
+// TODO: どうするか
 type type_error_code_restrict =
   (v:
-    type_error_code{
-      v = define_no_error_code ||
-      v = define_error_remaining_length_invalid_code ||
-      v = define_error_message_type_invalid_code ||
-      v = define_error_flag_invalid_code ||
-      v = define_error_dup_flag_invalid_code ||
-      v = define_error_qos_flag_invalid_code ||
-      v = define_error_retain_flag_invalid_code ||
-      v = define_error_topic_length_invalid_code ||
-      v = define_error_topic_name_dont_zero_terminated_code ||
-      v = define_error_topic_name_have_inavlid_character_code ||
-      v = define_error_property_length_invalid_code ||
-      v = define_error_payload_invalid_code ||
-      v = define_error_protocol_name_invalid_code ||
-      v = define_error_protocol_version_invalid_code ||
-      v = define_error_connect_flag_invalid_code ||
-      v = define_error_property_error_code ||
-      v = define_error_connect_id_invalid_code ||
-      v = define_error_disconnect_reason_invalid_code
-    }
+    type_error_code
+    // {
+    //   v = define_no_error_code ||
+    //   v = define_error_remaining_length_invalid_code ||
+    //   v = define_error_message_type_invalid_code ||
+    //   v = define_error_flag_invalid_code ||
+    //   v = define_error_dup_flag_invalid_code ||
+    //   v = define_error_qos_flag_invalid_code ||
+    //   v = define_error_retain_flag_invalid_code ||
+    //   v = define_error_topic_length_invalid_code ||
+    //   v = define_error_topic_name_dont_zero_terminated_code ||
+    //   v = define_error_topic_name_have_inavlid_character_code ||
+    //   v = define_error_property_length_invalid_code ||
+    //   v = define_error_payload_invalid_code ||
+    //   v = define_error_protocol_name_invalid_code ||
+    //   v = define_error_protocol_version_invalid_code ||
+    //   v = define_error_connect_flag_invalid_code ||
+    //   v = define_error_property_error_code ||
+    //   v = define_error_connect_id_invalid_code ||
+    //   v = define_error_disconnect_reason_invalid_code
+    // }
   )
 
 // TODO: string 定数は排除し構造体定数に置き換える
@@ -581,6 +584,7 @@ let define_error_connect_flag_invalid: type_error_message = !$"connect flag is i
 let define_error_property_invalid: type_error_message = !$"property is invalid."
 let define_error_connect_id_invalid: type_error_message = !$"connect id is invalid."
 let define_error_disconnect_reason_invalid: type_error_message = !$"disconnect reason is invalid."
+let define_error_connect_keep_alive_invalid: type_error_message = !$"connect keep-alive is invalid."
 let define_no_error: type_error_message = !$""
 
 type type_error_message_restrict =
@@ -936,6 +940,7 @@ noeq type struct_connect_packet_seed = {
   connect_seed_is_valid_protocol_name: bool;
   connect_seed_is_valid_protocol_version: bool;
   connect_seed_connect_flag: U8.t;
+  connect_seed_is_valid_keep_alive: bool;
   connect_seed_keep_alive: U16.t;
   connect_seed_is_valid_property_length: bool;
   connect_seed_property: struct_property;

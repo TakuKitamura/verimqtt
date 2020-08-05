@@ -19,7 +19,7 @@ open Connect
 open Disconnect
 open Debug
 
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
 
 val mqtt_packet_parse (packet_data: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
@@ -39,15 +39,19 @@ let mqtt_packet_parse packet_data packet_size =
   else
     (
       let share_common_data: struct_share_common_data = share_common_data_check.share_common_data in
-      if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_PUBLISH) then
+      if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_PUBLISH &&
+          U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 2ul)) then
         (
           publish_packet_parse_result share_common_data
         )
-      else if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_CONNECT) then
+      else if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_CONNECT &&
+          U32.gte share_common_data.common_packet_size 6ul &&
+          U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 6ul)) then
         (
           connect_packet_parse_result share_common_data
         )
-      else if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_DISCONNECT) then
+      else if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_DISCONNECT &&
+          U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 1ul)) then
         (
           disconnect_packet_parse_result share_common_data
         )

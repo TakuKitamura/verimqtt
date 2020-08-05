@@ -11,8 +11,7 @@ module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
-
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
 
 val assemble_disconnect_struct: s: struct_disconnect_parts
   -> Stack (r: struct_fixed_header)

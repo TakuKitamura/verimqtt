@@ -18,7 +18,7 @@ open Const
 open FFI
 open Debug_FFI
 
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
 
 val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
 let most_significant_four_bit_to_zero i =
@@ -717,7 +717,7 @@ val get_payload: packet_data: (B.buffer U8.t)
     U32.v payload_end_index >= U32.v payload_start_index /\
     U32.v payload_end_index - U32.v payload_start_index + 1 <= U32.v max_u32 /\
     U32.v payload_start_index < U32.v max_packet_size /\
-    U32.v payload_start_index <= B.length packet_data
+    U32.v payload_start_index < (B.length packet_data) - 1
     )
     (ensures fun h0 r h1 -> true)
 let get_payload packet_data packet_size payload_start_index payload_end_index =
@@ -1355,7 +1355,13 @@ val get_utf8_encoded_string: packet_data: (B.buffer U8.t)
   -> utf8_encoded_string_start_index: type_packet_data_index
   -> Stack (utf8_string_struct: struct_utf8_string)
     (requires fun h0 -> 
-    logic_packet_data h0 packet_data packet_size /\
+    // logic_packet_data h0 packet_data packet_size /\
+
+    B.live h0 packet_data /\
+    B.length packet_data <= U32.v max_request_size /\
+    zero_terminated_buffer_u8 h0 packet_data /\
+    (B.length packet_data - 1) = U32.v packet_size /\
+
     U32.v utf8_encoded_string_start_index < (B.length packet_data - 2) /\
     U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size)
     (ensures fun h0 r h1 -> true)
@@ -1597,13 +1603,26 @@ val parse_property: packet_data: (B.buffer U8.t)
 let parse_property packet_data packet_size property_start_index =
   push_frame ();
   // TODO: エラーチェック
+  let ptr_have_error: B.buffer bool = B.alloca false 1ul in
   let variable_length: struct_variable_length = 
     get_variable_byte packet_data packet_size property_start_index in
   let property_length: type_remaining_length = 
     variable_length.variable_length_value in
   let property_id_start_index: type_packet_data_index = variable_length.next_start_index in
 
-  let last: U32.t = U32.add property_length property_id_start_index in
+  let last: type_packet_data_index = 
+    (
+      let temp_index: U32.t = U32.add property_length property_id_start_index in
+      if (U32.lt temp_index max_packet_size) then
+        (
+          temp_index
+        )
+      else
+        (
+          ptr_have_error.(0ul) <- true;
+          0ul
+        )
+    ) in
   let property_id: U8.t = 
     (
       if U32.lt property_id_start_index (U32.sub packet_size 1ul) then
@@ -1612,46 +1631,76 @@ let parse_property packet_data packet_size property_start_index =
         )
       else
         (
+          ptr_have_error.(0ul) <- true;
           max_u8
         )
     ) in
   let property_type_id: U8.t = get_property_type_id property_id in
-  let property_value_start_index: type_packet_data_index = U32.(property_id_start_index +^ 1ul) in
+  let property_value_start_index: type_packet_data_index = 
+    (
+      let temp_index: U32.t = U32.add property_id_start_index 1ul in
+      if (U32.lt temp_index max_packet_size) then
+        (
+          temp_index
+        )
+      else
+        (
+          ptr_have_error.(0ul) <- true;
+          0ul          
+        )
+    ) in
+  // TODO: 適切なエラーを用意する
+  let have_error: bool = ptr_have_error.(0ul) in
   let property_type_struct: struct_property_type = (
-    if property_type_id = 1uy then // One Byte Integer
+    if (not have_error) then
       (
-        // return 0
-        parse_property_one_byte_integer packet_data packet_size property_value_start_index
+        if property_type_id = 1uy then // One Byte Integer
+          (
+            // return 0
+            parse_property_one_byte_integer packet_data packet_size property_value_start_index
+          )
+        else if property_type_id = 2uy && // Two Byte Integer
+                U32.lt property_value_start_index (U32.sub packet_size 1ul) then 
+          (
+            // return 0
+            parse_property_two_byte_integer packet_data packet_size property_value_start_index
+          )
+        else if property_type_id = 3uy && // Four Byte Integer
+                U32.gt packet_size 3ul &&
+                U32.lt property_value_start_index (U32.sub packet_size 3ul) then
+          (
+            // return 0
+            parse_property_four_byte_integer packet_data packet_size property_value_start_index
+          )
+        else if property_type_id = 4uy && // UTF-8 Encoded String
+                U32.lt property_value_start_index (U32.sub packet_size 1ul) &&
+                U32.lt (U32.add property_value_start_index 2ul) max_packet_size then
+          (
+            parse_property_utf8_encoded_string
+              packet_data packet_size property_value_start_index
+          )
+        else if property_type_id = 5uy then // Variable Byte Integer
+          (
+            parse_property_variable_byte_integer packet_data packet_size property_value_start_index
+          )
+        else if property_type_id = 6uy && // Binary Data
+                U32.gt packet_size 3ul &&
+                U32.lt property_value_start_index (U32.sub packet_size 3ul) then
+          (
+            parse_property_binary packet_data packet_size property_value_start_index
+          )
+        else if property_type_id = 7uy && // UTF-8 String Pair
+                U32.lt property_value_start_index (U32.sub packet_size 1ul) then 
+          (
+            parse_property_utf8_encoded_string_pair
+              packet_data packet_size property_value_start_index
+          )
+        else 
+          (
+            property_struct_type_base
+          )
       )
-    else if property_type_id = 2uy then // Two Byte Integer
-      (
-        // return 0
-        parse_property_two_byte_integer packet_data packet_size property_value_start_index
-      )
-    else if property_type_id = 3uy then // Four Byte Integer
-      (
-        // return 0
-        parse_property_four_byte_integer packet_data packet_size property_value_start_index
-      )
-    else if property_type_id = 4uy then // UTF-8 Encoded String
-      (
-        parse_property_utf8_encoded_string
-          packet_data packet_size property_value_start_index
-      )
-    else if property_type_id = 5uy then // Variable Byte Integer
-      (
-        parse_property_variable_byte_integer packet_data packet_size property_value_start_index
-      )
-    else if property_type_id = 6uy then // Binary Data
-      (
-        parse_property_binary packet_data packet_size property_value_start_index
-      )
-    else if property_type_id = 7uy then // UTF-8 String Pair
-      (
-        parse_property_utf8_encoded_string_pair
-          packet_data packet_size property_value_start_index
-      )
-    else 
+    else
       (
         property_struct_type_base
       )
