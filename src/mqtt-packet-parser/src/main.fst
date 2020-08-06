@@ -19,7 +19,7 @@ open Connect
 open Disconnect
 open Debug
 
-#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
+#set-options "--z3rlimit 1000 --max_fuel 5 --max_ifuel 5"
 
 val mqtt_packet_parse (packet_data: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header

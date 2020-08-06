@@ -10,7 +10,7 @@ open C.String
 open FStar.HyperStack.ST
 open FFI
 
-#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
+#set-options "--z3rlimit 1000 --max_fuel 5 --max_ifuel 5"
 
 val max_u8: U8.t
 let max_u8 = 255uy

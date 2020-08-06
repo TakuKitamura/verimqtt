@@ -18,7 +18,7 @@ open Const
 open FFI
 open Debug_FFI
 
-#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
+#set-options "--z3rlimit 1000 --max_fuel 5 --max_ifuel 5"
 
 val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
 let most_significant_four_bit_to_zero i =
@@ -682,13 +682,18 @@ let get_property_type_id property_id =
 
 val get_two_byte_integer_u8_to_u16: msb_u8: (U8.t)
   -> lsb_u8: (U8.t)
-  -> two_byte_integer: (U16.t)
+  -> Stack (two_byte_integer: U16.t)
+    (requires fun h0 -> true)
+    (ensures fun h0 r h1 -> true)
 let get_two_byte_integer_u8_to_u16 msb_u8 lsb_u8 =
+  push_frame ();
   let msb_u16: U16.t = uint8_to_uint16 msb_u8 in
   let lsb_u16: U16.t = uint8_to_uint16 lsb_u8 in
   let two_byte_integer: U16.t =
     U16.logor (U16.shift_left msb_u16 8ul) lsb_u16
-  in two_byte_integer 
+  in 
+  pop_frame ();
+  two_byte_integer 
 
 val get_four_byte_integer: 
   mmsb_u8: (U8.t)
@@ -1511,8 +1516,11 @@ let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pai
   // U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size
   // U32.v U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 second_byte_integer) +^ 1ul) < U32.v max_packet_size)
   if (have_error ||
+      U32.gte (U32.add utf8_encoded_string_pair_start_index 2ul) max_packet_size ||
+      U32.gte U32.(utf8_encoded_string_pair_start_index +^ (uint16_to_uint32 fist_byte_integer) +^ 1ul) max_packet_size ||
       U32.gte (U32.add next_utf8_encoded_string_start_index 2ul) max_packet_size ||
-      U32.gte U32.(next_utf8_encoded_string_start_index +^ (uint16_to_uint32 second_byte_integer) +^ 1ul) max_packet_size) then
+      U32.gte U32.(next_utf8_encoded_string_start_index +^ (uint16_to_uint32 second_byte_integer) +^ 1ul) max_packet_size
+      ) then
     (
       let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
       pop_frame ();

@@ -15,7 +15,7 @@ open Const
 open Common
 open Debug_FFI
 
-#set-options "--z3rlimit 10000 --initial_fuel 10 --initial_ifuel 10"
+#set-options "--z3rlimit 20000 --max_fuel 0 --max_ifuel 0 --query_stats"
 
 val assemble_connect_struct: s: struct_connect_parts
   -> Stack (r: struct_fixed_header)
@@ -195,29 +195,51 @@ let connect_packet_parser packet_data packet_size next_start_index =
         if (U32.lt msb_index packet_size && U32.lt lsb_index packet_size) then 
           (
             ptr_is_valid_keep_alive.(0ul) <- true;
-            get_two_byte_integer_u8_to_u16
-              packet_data.(connect_flag_struct.keep_alive_start_index)
-              packet_data.(U32.(connect_flag_struct.keep_alive_start_index +^ 1ul))
+            let a: U32.t = connect_flag_struct.keep_alive_start_index in
+            let b: U32.t = U32.(connect_flag_struct.keep_alive_start_index +^ 1ul) in
+            get_two_byte_integer_u8_to_u16 // ここエラー
+              packet_data.(a)
+              packet_data.(b)
+            // let c: U8.t = packet_data.(a) in
+            // let d: U8.t = packet_data.(b) in
+            // let msb_u16: U16.t = uint8_to_uint16 c in
+            // let lsb_u16: U16.t = uint8_to_uint16 d in
+            // let two_byte_integer: U16.t =
+            //   U16.logor (U16.shift_left msb_u16 8ul) lsb_u16
+            // in two_byte_integer 
+
           )
         else
           (
             0us
           )
       ) in
-  let property_start_index: U32.t = 
-    U32.(connect_flag_struct.keep_alive_start_index +^ 2ul) in
+  let is_valid_keep_alive: bool = ptr_is_valid_keep_alive.(0ul) in
+  // TODO: エラー追加
+  let property_start_index: type_packet_data_index = 
+    (
+      let temp_index: U32.t = U32.add connect_flag_struct.keep_alive_start_index 2ul in
+      if (U32.lt temp_index packet_size) then
+        (
+          temp_index
+        )
+      else
+        (
+          0ul
+        )
+    ) in
   let property_struct: struct_property = 
     parse_property packet_data packet_size property_start_index in
   let payload_start_index: U32.t = property_struct.payload_start_index in
   let connect_id: struct_utf8_string =
     (
-      if (U32.lt payload_start_index (U32.sub packet_size 1ul) &&
-          U32.lt (U32.add payload_start_index 2ul) max_packet_size) then
-        (
-          get_utf8_encoded_string packet_data packet_size payload_start_index
-        ) 
-      else
-        (
+      // if (U32.lt payload_start_index (U32.sub packet_size 1ul) &&
+      //     U32.lt (U32.add payload_start_index 2ul) max_packet_size) then
+      //   (
+      //     get_utf8_encoded_string packet_data packet_size payload_start_index
+      //   ) 
+      // else
+      //   (
           let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
           let error_struct: struct_utf8_string = {
               utf8_string_length = 0us;
@@ -225,7 +247,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
               utf8_string_status_code = 1uy;
               utf8_next_start_index = 0ul;
             } in error_struct
-        )
+        // )
     ) in
   let connect_flag:U8.t = connect_flag_struct.connect_flag_value in
   let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
@@ -239,7 +261,9 @@ let connect_packet_parser packet_data packet_size next_start_index =
     U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id.utf8_string_length)) in
   let connect_will_struct: struct_connect_will =
     (
-      if (will_flag = 1uy && U32.lt will_or_user_name_or_password_start_index max_packet_size) then
+      if (will_flag = 1uy &&
+          U32.lt will_or_user_name_or_password_start_index max_packet_size &&
+          U32.lt will_or_user_name_or_password_start_index packet_size) then
         (
           // TODO: エラーチェック
           let will_property_start_index: type_packet_data_index =
@@ -247,9 +271,45 @@ let connect_packet_parser packet_data packet_size next_start_index =
           let property_struct: struct_property = 
             parse_property packet_data packet_size will_property_start_index in
           let will_topic_name_struct: struct_utf8_string = 
-            get_utf8_encoded_string packet_data packet_size property_struct.payload_start_index in
+            (
+              // if (U32.lt property_struct.payload_start_index (U32.sub packet_size 1ul) &&   U32.lt (U32.add property_struct.payload_start_index 2ul) max_packet_size) then
+              //   (
+              //     get_utf8_encoded_string 
+              //       packet_data packet_size property_struct.payload_start_index
+              //   )
+              // else
+              //   (
+                  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+                  let error_struct: struct_utf8_string = {
+                    utf8_string_length = 0us;
+                    utf8_string_value = empty_buffer;
+                    utf8_string_status_code = 1uy;
+                    utf8_next_start_index = 0ul;
+                  } in error_struct  
+                // )
+            ) in
           let will_payload_struct: struct_binary_data = 
-            get_binary packet_data packet_size will_topic_name_struct.utf8_next_start_index in
+            (
+              // if (U32.gte packet_size 3ul &&
+              //     U32.lt 
+              //       will_topic_name_struct.utf8_next_start_index
+              //       (U32.sub packet_size 3ul)
+              //     ) then
+              //   (
+              //     get_binary 
+              //       packet_data packet_size will_topic_name_struct.utf8_next_start_index
+              //   )
+              // else
+              //   (
+                  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+                  let binary_data_struct: struct_binary_data = {
+                    is_valid_binary_data = false;
+                    binary_length = 0us;
+                    binary_value = empty_buffer;
+                    binary_next_start_index = 0ul;
+                  } in binary_data_struct                
+                // )
+            ) in
           let connect_will_struct: struct_connect_will = 
             {
               connect_will_property = property_struct;
@@ -284,9 +344,15 @@ let connect_packet_parser packet_data packet_size next_start_index =
 
   let user_name_struct: struct_utf8_string = 
     (
-      if (user_name_flag = 1uy) then
+      if (user_name_flag = 1uy &&
+          U32.lt 
+            connect_will_struct.user_name_or_password_next_start_index
+            (U32.sub packet_size 1ul) &&
+          U32.lt 
+            (U32.add connect_will_struct.user_name_or_password_next_start_index 2ul)
+            max_packet_size) then
         (
-          let user_name_struct: struct_utf8_string = 
+          let user_name_struct: struct_utf8_string = //ここ
             get_utf8_encoded_string packet_data packet_size connect_will_struct.user_name_or_password_next_start_index
           in user_name_struct
         )
@@ -303,7 +369,11 @@ let connect_packet_parser packet_data packet_size next_start_index =
     ) in
   let password_struct: struct_binary_data =
     (
-      if (password_flag = 1uy) then
+      if (password_flag = 1uy &&
+          U32.gte packet_size 3ul &&
+          U32.lt 
+            user_name_struct.utf8_next_start_index
+            (U32.sub packet_size 3ul)) then
         (
           let password_struct: struct_binary_data =
             get_binary packet_data packet_size user_name_struct.utf8_next_start_index in
@@ -321,7 +391,6 @@ let connect_packet_parser packet_data packet_size next_start_index =
             in password_struct  
         )
     ) in
-  let is_valid_keep_alive: bool = ptr_is_valid_keep_alive.(0ul) in
   pop_frame ();
 
   let connect_packet_seed: struct_connect_packet_seed = {
