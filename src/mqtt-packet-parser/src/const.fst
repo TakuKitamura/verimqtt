@@ -10,7 +10,7 @@ open C.String
 open FStar.HyperStack.ST
 open FFI
 
-#set-options "--z3rlimit 1000 --max_fuel 5 --max_ifuel 5"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -996,3 +996,8 @@ logic type logic_packet_data
     B.length packet_data <= U32.v max_request_size /\
     zero_terminated_buffer_u8 h packet_data /\
     (B.length packet_data - 1) = U32.v packet_size 
+
+type struct_keep_alive = {
+  keep_alive_value: U16.t;
+  is_valid_keep_alive: bool;
+}

@@ -18,7 +18,7 @@ open Const
 open FFI
 open Debug_FFI
 
-#set-options "--z3rlimit 1000 --max_fuel 5 --max_ifuel 5"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 
 val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
 let most_significant_four_bit_to_zero i =

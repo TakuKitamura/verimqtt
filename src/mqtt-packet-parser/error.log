@@ -63,3 +63,7 @@ common.fst(1192,18-1192,19): (Error 189) Expected expression of type "LowStar.Mo
 ```
 const.fst(243,21-243,34): (Error 19) Failed to prove that the type 'Const.struct_utf8_string' supports decidable equality because of this argument; add either the 'noeq' or 'unopteq' qualifier; The solver found a (partial) counterexample, try to spell your proof in more detail or increase fuel/ifuel (see also const.fst(241,0-246,1))
 ```
+
+Unknown Error
+関数をできる限り分割する必要があるかも?? 
+--detail_errors が大事かもしれない
