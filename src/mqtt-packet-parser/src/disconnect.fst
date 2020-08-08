@@ -11,7 +11,7 @@ module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B = LowStar.Buffer
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
+// #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val assemble_disconnect_struct: s: struct_disconnect_parts
   -> Stack (r: struct_fixed_header)
@@ -107,10 +107,8 @@ let assemble_disconnect_struct s =
     };
   }
 
-val get_disconnect_reason: reason_code: type_disconnect_reason_code 
-  -> Stack (disconnect_reason_struct: struct_disconnect_reason)
-    (requires fun h0 -> true)
-    (ensures fun h0 r h1 -> true)
+val get_disconnect_reason: (reason_code: type_disconnect_reason_code) 
+  -> (disconnect_reason_struct: struct_disconnect_reason)
 let get_disconnect_reason reason_code =
   let disconnect_reason_struct: struct_disconnect_reason =
     (
@@ -174,7 +172,8 @@ let get_disconnect_reason reason_code =
         define_struct_disconnect_wildcard_subscriptions_not_supported
       else
         define_struct_disconnect_error
-    ) in disconnect_reason_struct
+    ) in
+    disconnect_reason_struct
 
 val disconnect_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
