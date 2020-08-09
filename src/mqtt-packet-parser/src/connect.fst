@@ -568,7 +568,6 @@ let connect_packet_parser packet_data packet_size next_start_index =
     connect_seed_user_name_struct = user_name_struct;
     connect_seed_password_struct = password_struct;
   } in connect_packet_seed
-#reset-options
 
 val connect_packet_parse_result: (share_common_data: struct_share_common_data)
   -> Stack (r: struct_fixed_header)

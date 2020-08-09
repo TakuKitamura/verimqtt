@@ -1081,7 +1081,8 @@ let parse_property_binary packet_data packet_size property_value_start_index =
     };
     property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
+// #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
+#set-options "--detail_errors"
 val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> utf8_encoded_string_start_index: type_packet_data_index
