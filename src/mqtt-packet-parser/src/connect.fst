@@ -15,7 +15,7 @@ open Const
 open Common
 open Debug_FFI
 
-// #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val assemble_connect_struct: s: struct_connect_parts
   -> Stack (r: struct_fixed_header)

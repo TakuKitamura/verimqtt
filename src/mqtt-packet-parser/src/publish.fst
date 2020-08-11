@@ -18,7 +18,7 @@ open Common
 open FFI
 open Debug_FFI
 
-// #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =

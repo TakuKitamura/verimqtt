@@ -10,7 +10,7 @@ open C.String
 open FStar.HyperStack.ST
 open FFI
 
-// #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val max_u8: U8.t
 let max_u8 = 255uy
@@ -1000,4 +1000,10 @@ logic type logic_packet_data
 type struct_keep_alive = {
   keep_alive_value: U16.t;
   is_valid_keep_alive: bool;
+}
+
+type struct_is_valid_utf8_ready = {
+  ready_is_malformed_utf8: bool;
+  ready_codelen: U8.t;
+  ready_codepoint: U16.t;
 }

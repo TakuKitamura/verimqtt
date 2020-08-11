@@ -81,6 +81,7 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
   pop_frame ();
   remaining_length
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val get_variable_byte: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> now_index: U32.t{U32.v packet_size > U32.v now_index}
@@ -169,6 +170,7 @@ let get_variable_byte packet_data packet_size now_index =
       variable_length_value = remaining_length;
       next_start_index = next_start_index;
     }
+#reset-options
 
 val get_message_type: message_type_bits: U8.t -> type_mqtt_control_packets_restrict
 let get_message_type message_type_bits =
@@ -1081,34 +1083,116 @@ let parse_property_binary packet_data packet_size property_value_start_index =
     };
     property_type_error = define_struct_property_no_error;
   } in property_struct_type_base
-// #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
-#set-options "--detail_errors"
-val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t) 
+
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
+val is_valid_utf8_ready: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
-  -> utf8_encoded_string_start_index: type_packet_data_index
-  -> utf8_encoded_string_length: U16.t
-  -> Stack (utf8_encoded_string_struct: struct_utf8_string)
+  -> i: type_packet_data_index
+  -> Stack (is_valid_utf8_ready_struct: struct_is_valid_utf8_ready)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size /\
-    U32.v U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) < U32.v max_packet_size)
+    U32.lt i max_packet_size)
     (ensures fun h0 r h1 -> true)
-let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_index utf8_encoded_string_length =
+let is_valid_utf8_ready packet_data packet_size i =
   push_frame ();
-  let utf8_encoded_string_entity_start_index: type_packet_data_index = 
-    U32.add utf8_encoded_string_start_index 2ul in
-  let utf8_encoded_string_end_index: type_packet_data_index = 
-    U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) in
+  let ptr_is_malformed_utf8: B.buffer bool = B.alloca false 1ul in
+  let ptr_codelen: B.buffer U8.t = B.alloca 0uy 1ul in
+  let ptr_codepoint: B.buffer U16.t = B.alloca 0us 1ul in
+  let one_byte: U8.t = 
+    (
+      if (U32.gte i packet_size) then
+        0uy
+      else
+        packet_data.(i)
+    ) in
+  (
+    if (U8.eq one_byte 0uy) then
+      (
+        print_string "a\n";
+        ptr_is_malformed_utf8.(0ul) <- true
+      )
+    else if (U8.lte one_byte 0x7fuy) then
+      (
+        ptr_codelen.(0ul) <- 1uy;
+        ptr_codepoint.(0ul) <- uint8_to_uint16 one_byte
+      )
+    else if(U8.eq (U8.logand one_byte 0xE0uy) 0xC0uy) then
+      (
+        // 110xxxxx - 2 byte sequence */
+        if (U8.eq one_byte 0xC0uy || U8.eq one_byte 0xC1uy) then
+          (
+            // Invalid bytes */
+            print_string "b\n";
+            ptr_is_malformed_utf8.(0ul) <- true
+          )
+        else
+          (
+            ptr_codelen.(0ul) <- 2uy;
+            ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x1Fuy)
+          )
+      )
+    else if(U8.eq (U8.logand one_byte 0xF0uy) 0xE0uy) then
+      (
+        // 1110xxxx - 3 byte sequence */
+        ptr_codelen.(0ul) <- 3uy;
+        ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x0Fuy)
+      )
+    else if(U8.eq (U8.logand one_byte 0xF8uy) 0xF0uy) then
+      (
+        // 11110xxx - 4 byte sequence */
+        if(U8.gt one_byte 0xF4uy) then
+          (
+            // Invalid, this would produce values > 0x10FFFF. */
+            print_string "c\n";
+            ptr_is_malformed_utf8.(0ul) <- true
+          )
+        else
+          (
+            ptr_codelen.(0ul) <- 4uy;
+            ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x07uy)
+          )
+      )
+    else
+      (
+        // Unexpected continuation byte. */
+        print_string "d\n";
+        ptr_is_malformed_utf8.(0ul) <- true
+      )
+  );
+  let is_malformed_utf8: bool = ptr_is_malformed_utf8.(0ul) in
+  let codelen: U8.t = ptr_codelen.(0ul) in
+  let codepoint: U16.t = ptr_codepoint.(0ul) in
+  let is_valid_utf8_ready_struct: struct_is_valid_utf8_ready = {
+    ready_is_malformed_utf8 = is_malformed_utf8;
+    ready_codelen = codelen;
+    ready_codepoint = codepoint;
+  } in
+  pop_frame ();
+  is_valid_utf8_ready_struct
+#reset-options
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
+val is_valid_utf8: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
+  -> utf8_encoded_string_entity_start_index: type_packet_data_index
+  -> utf8_encoded_string_entity_end_index: type_packet_data_index
+  -> utf8_encoded_string_end_index: type_packet_data_index  // len
+  -> Stack (is_malformed_utf8: bool)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.lt utf8_encoded_string_entity_start_index max_packet_size /\
+    U32.lt utf8_encoded_string_entity_end_index max_packet_size /\
+    U32.lt utf8_encoded_string_end_index max_packet_size)
+    (ensures fun h0 r h1 -> true)
+let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index utf8_encoded_string_entity_end_index utf8_encoded_string_end_index =
+  push_frame ();
   let ptr_is_malformed_utf8: B.buffer bool = B.alloca false 1ul in
   let ptr_codelen: B.buffer U8.t = B.alloca 0uy 1ul in
   let ptr_codepoint: B.buffer U16.t = B.alloca 0us 1ul in
   let ptr_i: B.buffer type_packet_data_index = 
     B.alloca utf8_encoded_string_entity_start_index 1ul in
-  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
 
   // if(len < 0 || len > 65536) return MOSQ_ERR_INVAL;
-
   let inv h (counter: nat) = 
     B.live h packet_data /\
     B.live h ptr_is_malformed_utf8 /\
@@ -1124,65 +1208,71 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
       ()
     else
       (
-        let one_byte: U8.t = 
-          (
-            if (U32.gte i packet_size) then
-              0uy
-            else
-              packet_data.(i)
-          ) in
-        if (U8.eq one_byte 0uy) then
-          (
-            print_string "a\n";
-            ptr_is_malformed_utf8.(0ul) <- true
-          )
-        else if (U8.lte one_byte 0x7fuy) then
-          (
-            ptr_codelen.(0ul) <- 1uy;
-            ptr_codepoint.(0ul) <- uint8_to_uint16 one_byte
-          )
-        else if(U8.eq (U8.logand one_byte 0xE0uy) 0xC0uy) then
-          (
-            // 110xxxxx - 2 byte sequence */
-            if (U8.eq one_byte 0xC0uy || U8.eq one_byte 0xC1uy) then
-              (
-                // Invalid bytes */
-                print_string "b\n";
-                ptr_is_malformed_utf8.(0ul) <- true
-              )
-            else
-              (
-                ptr_codelen.(0ul) <- 2uy;
-                ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x1Fuy)
-              )
-          )
-        else if(U8.eq (U8.logand one_byte 0xF0uy) 0xE0uy) then
-          (
-            // 1110xxxx - 3 byte sequence */
-            ptr_codelen.(0ul) <- 3uy;
-            ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x0Fuy)
-          )
-        else if(U8.eq (U8.logand one_byte 0xF8uy) 0xF0uy) then
-          (
-            // 11110xxx - 4 byte sequence */
-            if(U8.gt one_byte 0xF4uy) then
-              (
-                // Invalid, this would produce values > 0x10FFFF. */
-                print_string "c\n";
-                ptr_is_malformed_utf8.(0ul) <- true
-              )
-            else
-              (
-                ptr_codelen.(0ul) <- 4uy;
-                ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x07uy)
-              )
-          )
-        else
-          (
-            // Unexpected continuation byte. */
-            print_string "d\n";
-            ptr_is_malformed_utf8.(0ul) <- true
-          );
+        // let one_byte: U8.t = 
+        //   (
+        //     if (U32.gte i packet_size) then
+        //       0uy
+        //     else
+        //       packet_data.(i)
+        //   ) in
+        // if (U8.eq one_byte 0uy) then
+        //   (
+        //     print_string "a\n";
+        //     ptr_is_malformed_utf8.(0ul) <- true
+        //   )
+        // else if (U8.lte one_byte 0x7fuy) then
+        //   (
+        //     ptr_codelen.(0ul) <- 1uy;
+        //     ptr_codepoint.(0ul) <- uint8_to_uint16 one_byte
+        //   )
+        // else if(U8.eq (U8.logand one_byte 0xE0uy) 0xC0uy) then
+        //   (
+        //     // 110xxxxx - 2 byte sequence */
+        //     if (U8.eq one_byte 0xC0uy || U8.eq one_byte 0xC1uy) then
+        //       (
+        //         // Invalid bytes */
+        //         print_string "b\n";
+        //         ptr_is_malformed_utf8.(0ul) <- true
+        //       )
+        //     else
+        //       (
+        //         ptr_codelen.(0ul) <- 2uy;
+        //         ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x1Fuy)
+        //       )
+        //   )
+        // else if(U8.eq (U8.logand one_byte 0xF0uy) 0xE0uy) then
+        //   (
+        //     // 1110xxxx - 3 byte sequence */
+        //     ptr_codelen.(0ul) <- 3uy;
+        //     ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x0Fuy)
+        //   )
+        // else if(U8.eq (U8.logand one_byte 0xF8uy) 0xF0uy) then
+        //   (
+        //     // 11110xxx - 4 byte sequence */
+        //     if(U8.gt one_byte 0xF4uy) then
+        //       (
+        //         // Invalid, this would produce values > 0x10FFFF. */
+        //         print_string "c\n";
+        //         ptr_is_malformed_utf8.(0ul) <- true
+        //       )
+        //     else
+        //       (
+        //         ptr_codelen.(0ul) <- 4uy;
+        //         ptr_codepoint.(0ul) <- uint8_to_uint16 (U8.logand one_byte 0x07uy)
+        //       )
+        //   )
+        // else
+        //   (
+        //     // Unexpected continuation byte. */
+        //     print_string "d\n";
+        //     ptr_is_malformed_utf8.(0ul) <- true
+        //   );
+        let is_valid_utf8_ready_struct :struct_is_valid_utf8_ready = is_valid_utf8_ready packet_data packet_size i in
+        ptr_is_malformed_utf8.(0ul) <- is_valid_utf8_ready_struct.ready_is_malformed_utf8;
+        ptr_codelen.(0ul) <- is_valid_utf8_ready_struct.ready_codelen;
+        ptr_codepoint.(0ul) <- is_valid_utf8_ready_struct.ready_codepoint;
+
+        
 
         // Reconstruct full code point */
         let codelen_u8: U8.t = ptr_codelen.(0ul) in
@@ -1201,6 +1291,7 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
             // let inv2 h (j: nat) = 
             //   B.live h packet_data /\
             //   B.live h ptr_i in
+            
             let body2 (j): Stack unit
               (requires (fun h -> inv h (U32.v j)))
               (ensures (fun _ _ _ -> true)) =
@@ -1315,6 +1406,41 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
             )      
       )
   in
+  (
+    if (U32.lt utf8_encoded_string_entity_start_index utf8_encoded_string_entity_end_index) then
+      (
+        C.Loops.for utf8_encoded_string_entity_start_index utf8_encoded_string_entity_end_index inv body
+      )
+    else
+      (
+        ptr_is_malformed_utf8.(0ul) <- true
+      )
+  );
+  let is_malformed_utf8: bool = ptr_is_malformed_utf8.(0ul) in
+  pop_frame ();
+  is_malformed_utf8
+#reset-options
+
+// ref https://github.com/eclipse/mosquitto/blob/master/lib/utf8_mosq.c
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+val is_valid_utf8_encoded_string: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size 
+  -> utf8_encoded_string_start_index: type_packet_data_index
+  -> utf8_encoded_string_length: U16.t
+  -> Stack (utf8_encoded_string_struct: struct_utf8_string)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v (U32.add utf8_encoded_string_start_index 2ul) < U32.v max_packet_size /\
+    U32.v U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) < U32.v max_packet_size)
+    (ensures fun h0 r h1 -> true)
+let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_index utf8_encoded_string_length =
+  push_frame ();
+  let utf8_encoded_string_entity_start_index: type_packet_data_index = 
+    U32.add utf8_encoded_string_start_index 2ul in
+  let utf8_encoded_string_end_index: type_packet_data_index = 
+    U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 utf8_encoded_string_length) +^ 1ul) in
+  let ptr_is_malformed_utf8_encoded_string: B.buffer bool = B.alloca false 1ul in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   let utf8_encoded_string_entity_end_index: type_packet_data_index = 
     (
       if (U32.lt utf8_encoded_string_end_index (U32.sub max_packet_size 1ul)) then
@@ -1323,11 +1449,15 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
         )
       else
         (
-          ptr_is_malformed_utf8.(0ul) <- true;
+          ptr_is_malformed_utf8_encoded_string.(0ul) <- true;
           utf8_encoded_string_entity_start_index
         )
     ) in
-  C.Loops.for utf8_encoded_string_entity_start_index utf8_encoded_string_entity_end_index inv body;
+  let is_malformed_utf8: bool = 
+    is_valid_utf8
+      packet_data packet_size utf8_encoded_string_entity_start_index utf8_encoded_string_entity_end_index utf8_encoded_string_end_index in
+  let temp: bool = ptr_is_malformed_utf8_encoded_string.(0ul) in
+  ptr_is_malformed_utf8_encoded_string.(0ul) <- is_malformed_utf8 || temp;
   let utf8_value: B.buffer U8.t =
     (
       if (U32.lte utf8_encoded_string_entity_start_index (U32.add packet_size 1ul)) then
@@ -1336,7 +1466,7 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
         )
       else
         (
-          ptr_is_malformed_utf8.(0ul) <- true;
+          ptr_is_malformed_utf8_encoded_string.(0ul) <- true;
           empty_buffer
         )
     ) in
@@ -1345,10 +1475,13 @@ let is_valid_utf8_encoded_string packet_data packet_size utf8_encoded_string_sta
     utf8_string_value = utf8_value;
     utf8_string_status_code =
       (
-        if (ptr_is_malformed_utf8.(0ul)) then
-          1uy
-        else
-          0uy
+        let temp: bool = ptr_is_malformed_utf8_encoded_string.(0ul) in
+          (
+            if (temp) then
+              1uy
+            else
+              0uy
+          )
       );
     utf8_next_start_index = utf8_encoded_string_entity_end_index;
   } in 
@@ -1459,6 +1592,7 @@ let parse_property_utf8_encoded_string packet_data packet_size property_value_st
       );
   } in property_struct_type_base
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val get_utf8_encoded_string_pair: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> utf8_encoded_string_pair_start_index: type_packet_data_index
@@ -1550,6 +1684,7 @@ let get_utf8_encoded_string_pair packet_data packet_size utf8_encoded_string_pai
         utf8_string_pair_value = utf8_string_pair_value;
       } in utf8_string_pair_struct
     )
+#reset-options
 
 val parse_property_utf8_encoded_string_pair: packet_data: (B.buffer U8.t)  
   -> packet_size: type_packet_size 
@@ -1601,6 +1736,67 @@ let parse_property_utf8_encoded_string_pair packet_data packet_size property_val
       );
   } in property_struct_type_base
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
+val get_property_type_struct: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
+  -> property_type_id: U8.t
+  -> property_value_start_index: type_packet_data_index
+  -> Stack (property_type_struct: struct_property_type)
+    (requires fun h0 -> 
+    logic_packet_data h0 packet_data packet_size /\
+    U32.v property_value_start_index < U32.v max_packet_size)
+    (ensures fun h0 r h1 -> true)
+let get_property_type_struct packet_data packet_size property_type_id property_value_start_index =
+  (
+    if property_type_id = 1uy && U32.lt property_value_start_index packet_size then // One Byte Integer
+      (
+        // return 0
+        parse_property_one_byte_integer packet_data packet_size property_value_start_index // U32.v property_value_start_index < (B.length packet_data - 1)
+      )
+    else if property_type_id = 2uy && // Two Byte Integer
+            U32.lt property_value_start_index (U32.sub packet_size 1ul) then 
+      (
+        // return 0
+        parse_property_two_byte_integer packet_data packet_size property_value_start_index
+      )
+    else if property_type_id = 3uy && // Four Byte Integer
+            U32.gt packet_size 3ul &&
+            U32.lt property_value_start_index (U32.sub packet_size 3ul) then
+      (
+        // return 0
+        parse_property_four_byte_integer packet_data packet_size property_value_start_index
+      )
+    else if property_type_id = 4uy && // UTF-8 Encoded String
+            U32.lt property_value_start_index (U32.sub packet_size 1ul) &&
+            U32.lt (U32.add property_value_start_index 2ul) max_packet_size then
+      (
+        parse_property_utf8_encoded_string
+          packet_data packet_size property_value_start_index
+      )
+    else if property_type_id = 5uy && U32.lt property_value_start_index packet_size then // Variable Byte Integer
+      (
+        parse_property_variable_byte_integer packet_data packet_size property_value_start_index //U32.v packet_size > U32.v property_value_start_index
+      )
+    else if property_type_id = 6uy && // Binary Data
+            U32.gt packet_size 3ul &&
+            U32.lt property_value_start_index (U32.sub packet_size 3ul) then
+      (
+        parse_property_binary packet_data packet_size property_value_start_index
+      )
+    else if property_type_id = 7uy && // UTF-8 String Pair
+            U32.lt property_value_start_index (U32.sub packet_size 1ul) then 
+      (
+        parse_property_utf8_encoded_string_pair
+          packet_data packet_size property_value_start_index
+      )
+    else 
+      (
+        property_struct_type_base
+      )
+  )
+#reset-options
+
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val parse_property: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> property_start_index: type_packet_data_index
@@ -1663,51 +1859,7 @@ let parse_property packet_data packet_size property_start_index =
   let property_type_struct: struct_property_type = (
     if (not have_error) then
       (
-        if property_type_id = 1uy then // One Byte Integer
-          (
-            // return 0
-            parse_property_one_byte_integer packet_data packet_size property_value_start_index
-          )
-        else if property_type_id = 2uy && // Two Byte Integer
-                U32.lt property_value_start_index (U32.sub packet_size 1ul) then 
-          (
-            // return 0
-            parse_property_two_byte_integer packet_data packet_size property_value_start_index
-          )
-        else if property_type_id = 3uy && // Four Byte Integer
-                U32.gt packet_size 3ul &&
-                U32.lt property_value_start_index (U32.sub packet_size 3ul) then
-          (
-            // return 0
-            parse_property_four_byte_integer packet_data packet_size property_value_start_index
-          )
-        else if property_type_id = 4uy && // UTF-8 Encoded String
-                U32.lt property_value_start_index (U32.sub packet_size 1ul) &&
-                U32.lt (U32.add property_value_start_index 2ul) max_packet_size then
-          (
-            parse_property_utf8_encoded_string
-              packet_data packet_size property_value_start_index
-          )
-        else if property_type_id = 5uy then // Variable Byte Integer
-          (
-            parse_property_variable_byte_integer packet_data packet_size property_value_start_index
-          )
-        else if property_type_id = 6uy && // Binary Data
-                U32.gt packet_size 3ul &&
-                U32.lt property_value_start_index (U32.sub packet_size 3ul) then
-          (
-            parse_property_binary packet_data packet_size property_value_start_index
-          )
-        else if property_type_id = 7uy && // UTF-8 String Pair
-                U32.lt property_value_start_index (U32.sub packet_size 1ul) then 
-          (
-            parse_property_utf8_encoded_string_pair
-              packet_data packet_size property_value_start_index
-          )
-        else 
-          (
-            property_struct_type_base
-          )
+        get_property_type_struct packet_data packet_size property_type_id property_value_start_index
       )
     else
       (
@@ -1721,3 +1873,4 @@ let parse_property packet_data packet_size property_start_index =
     property_type_struct = property_type_struct;
     payload_start_index = last;
   } in property
+#reset-options
