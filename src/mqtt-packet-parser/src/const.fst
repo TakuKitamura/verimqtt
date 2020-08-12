@@ -994,7 +994,6 @@ logic type logic_packet_data
   (h: HS.mem) (packet_data: B.buffer U8.t) (packet_size: type_packet_size) = 
     B.live h packet_data /\
     B.length packet_data <= U32.v max_request_size /\
-    zero_terminated_buffer_u8 h packet_data /\
     (B.length packet_data) = U32.v packet_size 
 
 type struct_keep_alive = {

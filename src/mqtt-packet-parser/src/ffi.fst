@@ -11,7 +11,7 @@ open FStar.HyperStack.ST
 open C
 open LowStar.Printf
 // TODO: ここの対応をどうするか
-let zero_terminated_buffer_u8 (h: HS.mem) (b: B.buffer U8.t) = true
+// let zero_terminated_buffer_u8 (h: HS.mem) (b: B.buffer U8.t) = true
   // let s = B.as_seq h b in
   // B.length b > 0 /\
   // B.length b <= FStar.UInt.max_int 32 /\

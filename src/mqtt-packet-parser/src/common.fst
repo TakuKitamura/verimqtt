@@ -1302,7 +1302,7 @@ let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index
                   let countup_i: U32.t = U32.add ptr_i.(0ul) 1ul in
                   ptr_i.(0ul) <- 
                     (
-                      if (U32.v countup_i < U32.v max_packet_size) then
+                      if (U32.lt countup_i max_packet_size) then
                         countup_i
                       else
                         (
@@ -1399,7 +1399,7 @@ let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index
           let countup_i: U32.t = U32.add ptr_i.(0ul) 1ul in
           ptr_i.(0ul) <- 
             (
-              if (U32.v countup_i < U32.v max_packet_size) then
+              if (U32.lt countup_i max_packet_size) then
                 countup_i
               else
                 (

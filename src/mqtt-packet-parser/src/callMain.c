@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
     packet_size = fsize;
 
-    request = (uint8_t*)malloc(sizeof(uint8_t) * (packet_size + 1));
+    request = (uint8_t*)malloc(sizeof(uint8_t) * (packet_size));
     if(request == NULL) {
         fprintf(stderr, "malloc error.\n");
         exit(EXIT_FAILURE);
