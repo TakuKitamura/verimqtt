@@ -353,7 +353,7 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
   // U32.v property_start_index < (B.length packet_data - 1)
   let property_struct: struct_property = 
     (
-      if (U32.lt property_start_index packet_size) then
+      if (U32.lt property_start_index (U32.sub packet_size 1ul)) then
         (
           parse_property packet_data packet_size property_start_index
         )

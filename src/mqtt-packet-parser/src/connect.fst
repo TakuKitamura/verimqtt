@@ -248,7 +248,8 @@ let get_connect_id packet_data packet_size payload_start_index =
     ) in
     pop_frame ();
     connect_id
- 
+
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val get_connect_will_struct: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> will_start_index: type_packet_data_index
@@ -262,8 +263,7 @@ let get_connect_will_struct packet_data packet_size will_start_index will_flag =
   let connect_will_struct: struct_connect_will =
     (
       if (U8.eq will_flag 1uy &&
-          U32.lt will_start_index max_packet_size &&
-          U32.lt will_start_index packet_size) then
+          U32.lt will_start_index (U32.sub packet_size 1ul)) then
         (
           // TODO: エラーチェック
           let will_property_start_index: type_packet_data_index =
@@ -343,7 +343,7 @@ let get_connect_will_struct packet_data packet_size will_start_index will_flag =
     ) in
     pop_frame ();
     connect_will_struct
-
+#reset-options
 
 val get_keep_alive: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
@@ -456,6 +456,7 @@ let get_password_struct packet_data packet_size password_start_index password_fl
     pop_frame ();
     password_struct
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val connect_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> next_start_index: type_packet_data_index
@@ -479,7 +480,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
     get_connect_property_index connect_flag_struct.keep_alive_start_index packet_size in
   let property_struct: struct_property = 
     (
-      if (U32.lt property_start_index packet_size) then
+      if (U32.lt property_start_index (U32.sub packet_size 1ul)) then
         (
           parse_property packet_data packet_size property_start_index 
         )
@@ -568,6 +569,8 @@ let connect_packet_parser packet_data packet_size next_start_index =
     connect_seed_user_name_struct = user_name_struct;
     connect_seed_password_struct = password_struct;
   } in connect_packet_seed
+#reset-options
+
 
 val connect_packet_parse_result: (share_common_data: struct_share_common_data)
   -> Stack (r: struct_fixed_header)

@@ -105,11 +105,13 @@ type type_remaining_length =
   (remaining_length: U32.t{U32.v remaining_length <= U32.v (U32.sub max_packet_size 5ul)})
 
 type type_flag_restrict =
-  flag: U8.t{
-    U8.eq flag 0b0000uy ||
-    U8.eq flag 0b0010uy ||
-    U8.eq flag max_u8
-}
+  flag: U8.t
+  // TODO: 正しく定義する
+// {
+//     U8.eq flag 0b0000uy ||
+//     U8.eq flag 0b0010uy ||
+//     U8.eq flag max_u8
+// }
 
 type type_dup_flags = U8.t
 let define_dup_flag_first_delivery : type_dup_flags = 0uy

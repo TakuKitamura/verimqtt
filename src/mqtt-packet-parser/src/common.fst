@@ -503,6 +503,7 @@ let get_retain_flag fixed_header_first_one_byte =
     else
       retain_flag_bits
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val get_flag: (message_type: type_mqtt_control_packets_restrict)
   -> (fixed_header_first_one_byte: U8.t)
   -> type_flag_restrict
@@ -532,6 +533,7 @@ let get_flag message_type fixed_header_first_one_byte =
           else
             v
         )
+#reset-options
 
 // val replace_utf8_encoded: data: (B.buffer U8.t) 
 //   -> data_size: U32.t{U32.v data_size > 0}
@@ -1832,7 +1834,7 @@ val parse_property: packet_data: (B.buffer U8.t)
   -> Stack (property: struct_property)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v property_start_index < (B.length packet_data))
+    U32.v property_start_index < (B.length packet_data) - 1)
     (ensures fun h0 r h1 -> true)
 let parse_property packet_data packet_size property_start_index =
   push_frame ();
@@ -1846,7 +1848,9 @@ let parse_property packet_data packet_size property_start_index =
         property_type_id = 0uy;
         property_type_struct = no_property_struct_type_base;
         payload_start_index = U32.add property_start_index 1ul;
-      } in property
+      } in
+      pop_frame ();
+      property
     )
   else // プロパティが存在する
     (

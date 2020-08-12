@@ -189,7 +189,23 @@ let disconnect_packet_parser packet_data packet_size next_start_index =
   let disconnect_reason_struct: struct_disconnect_reason = get_disconnect_reason reason_code in
   let property_start_index: type_packet_data_index = U32.add next_start_index 1ul in
   let property_struct: struct_property = 
-    parse_property packet_data packet_size property_start_index in
+    (
+      if (U32.lt property_start_index (U32.sub packet_size 1ul)) then
+        (
+          parse_property packet_data packet_size property_start_index 
+        )
+      else
+        (
+          let error_struct: struct_property = {
+            property_id = max_u8;
+            property_type_id = max_u8;
+            property_type_struct = property_struct_type_base;
+            payload_start_index = 0ul;
+          } in error_struct
+        )
+    ) in
+
+
   pop_frame ();
   let disconnect_packet_seed_struct :struct_disconnect_packet_seed = 
     {
