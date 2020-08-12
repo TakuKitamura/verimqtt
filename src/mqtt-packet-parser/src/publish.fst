@@ -20,30 +20,6 @@ open Debug_FFI
 
 #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
-val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
-let get_dup_flag fixed_header_first_one_byte =
-  let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 0uy 1uy in
-  if (U8.gt dup_flag_bits 1uy) then
-    max_u8
-  else
-    dup_flag_bits
-
-val get_qos_flag: fixed_header_first_one_byte: U8.t -> type_qos_flags_restrict
-let get_qos_flag fixed_header_first_one_byte =
-    let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 1uy 3uy in
-    if (U8.gt qos_flag_bits 2uy) then
-      max_u8
-    else
-      qos_flag_bits
-
-val get_retain_flag: fixed_header_first_one_byte: U8.t -> type_retain_flags_restrict
-let get_retain_flag fixed_header_first_one_byte =
-    let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 3uy 4uy in
-    if (U8.gt retain_flag_bits 1uy) then
-      max_u8
-    else
-      retain_flag_bits
-
 val struct_fixed_publish:
   flag: type_flag_restrict
   -> dup_flag:type_dup_flags_restrict
@@ -520,9 +496,9 @@ let publish_packet_parse_result share_common_data =
       let ed_fixed_header_parts:
         struct_publish_parts = {
           publish_flag = share_common_data.common_flag;
-          publish_dup_flag = publish_packet_seed.publish_seed_dup_flag;
-          publish_qos_flag = publish_packet_seed.publish_seed_qos_flag;
-          publish_retain_flag = publish_packet_seed.publish_seed_retain_flag;
+          publish_dup_flag = get_dup_flag share_common_data.common_flag;
+          publish_qos_flag = get_qos_flag share_common_data.common_flag;
+          publish_retain_flag = get_retain_flag share_common_data.common_flag;
           publish_remaining_length = share_common_data.common_remaining_length;
           publish_topic_length = publish_packet_seed.publish_seed_topic_length;
           publish_topic_name = publish_packet_seed.publish_seed_topic_name;

@@ -782,6 +782,53 @@ pop_frame ();
   property_type_error = define_struct_property_id_error;
 }
 
+val no_property_struct_type_base: (property_type: struct_property_type)
+let no_property_struct_type_base: struct_property_type = 
+push_frame ();
+let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+pop_frame ();
+{
+  one_byte_integer_struct = {
+    one_byte_integer_value = 0uy;
+  };
+  two_byte_integer_struct = {
+    two_byte_integer_value = 0us;
+  };
+  four_byte_integer_struct = {
+    four_byte_integer_value = 0ul
+  };
+  utf8_encoded_string_struct = {
+    utf8_string_length = 0us;
+    utf8_string_value = empty_buffer;
+    utf8_string_status_code = 0uy;
+    utf8_next_start_index = 0ul;
+  };
+  variable_byte_integer_struct = {
+    variable_byte_integer_value = 0ul;
+  };
+  binary_data_struct = {
+    is_valid_binary_data = false;
+    binary_length = 0us;
+    binary_value = empty_buffer;
+    binary_next_start_index = 0ul;
+  };
+  utf8_string_pair_struct = {
+    utf8_string_pair_key = {
+      utf8_string_length = 0us;
+      utf8_string_value = empty_buffer;
+      utf8_string_status_code = 0uy;
+      utf8_next_start_index = 0ul;
+    };
+    utf8_string_pair_value = {
+      utf8_string_length = 0us;
+      utf8_string_value = empty_buffer;
+      utf8_string_status_code = 0uy;
+      utf8_next_start_index = 0ul;
+    };
+  };
+  property_type_error = define_struct_property_no_error;
+}
+
 // let property_struct_type_base: struct_property_type = {
 //   one_byte_integer_struct = {
 //     one_byte_integer_value = b.one_byte_integer_struct.one_byte_integer_value;

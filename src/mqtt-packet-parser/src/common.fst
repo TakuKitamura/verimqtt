@@ -18,8 +18,6 @@ open Const
 open FFI
 open Debug_FFI
 
-
-
 val most_significant_four_bit_to_zero: i:U8.t -> y:U8.t{U8.v y >= 0 && U8.v y <= 127}
 let most_significant_four_bit_to_zero i =
     if (U8.(i >=^ 128uy)) then
@@ -148,7 +146,7 @@ let get_variable_byte packet_data packet_size now_index =
                   if (U32.eq loop_last packet_size) then // 可変長整数の後続に何も存在しない場合
                     U32.sub packet_size 1ul
                   else // 可変長整数の後続にはバイト列が存在する場合
-                    loop_last
+                    U32.add now_index (uint8_to_uint32 bytes_length_u8)
               )           
             )
       )
@@ -481,6 +479,29 @@ let slice_byte byte a b =
     let r: U8.t = U8.shift_right (U8.logand byte mask) (U32.sub 8ul (uint8_to_uint32 b)) in
   r
 
+val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
+let get_dup_flag fixed_header_first_one_byte =
+  let dup_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 4uy 5uy in
+  if (U8.gt dup_flag_bits 1uy) then
+    max_u8
+  else
+    dup_flag_bits
+
+val get_qos_flag: fixed_header_first_one_byte: U8.t -> type_qos_flags_restrict
+let get_qos_flag fixed_header_first_one_byte =
+    let qos_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 5uy 7uy in
+    if (U8.gt qos_flag_bits 2uy) then
+      max_u8
+    else
+      qos_flag_bits
+
+val get_retain_flag: fixed_header_first_one_byte: U8.t -> type_retain_flags_restrict
+let get_retain_flag fixed_header_first_one_byte =
+    let retain_flag_bits: U8.t = slice_byte fixed_header_first_one_byte 7uy 8uy in
+    if (U8.gt retain_flag_bits 1uy) then
+      max_u8
+    else
+      retain_flag_bits
 
 val get_flag: (message_type: type_mqtt_control_packets_restrict)
   -> (fixed_header_first_one_byte: U8.t)
@@ -492,6 +513,14 @@ let get_flag message_type fixed_header_first_one_byte =
         U8.eq message_type define_mqtt_control_packet_UNSUBSCRIBE) then
         (
           if (v <> 0b0010uy) then
+            max_u8
+          else
+            v
+        )
+      else if (U8.eq message_type define_mqtt_control_packet_PUBLISH) then
+        (
+          let qos_flag: U8.t = get_qos_flag fixed_header_first_one_byte in
+          if (U8.eq qos_flag 3uy) then
             max_u8
           else
             v
@@ -576,6 +605,8 @@ let share_common_data_check packet_data packet_size =
 
   let variable_length: struct_variable_length = get_variable_byte packet_data packet_size 1ul in
   let remaining_length: type_remaining_length = variable_length.variable_length_value in
+  // print_u32 remaining_length;
+  // print_string "\n";
 
   let next_start_index: U32.t = variable_length.next_start_index in
   let is_share_error: bool = 
@@ -1745,6 +1776,7 @@ val get_property_type_struct: packet_data: (B.buffer U8.t)
     (ensures fun h0 r h1 -> true)
 let get_property_type_struct packet_data packet_size property_type_id property_value_start_index =
   (
+    // property_type_id = 0 はプロパティが存在しない
     if property_type_id = 1uy && U32.lt property_value_start_index packet_size then // One Byte Integer
       (
         // return 0
@@ -1806,68 +1838,81 @@ let parse_property packet_data packet_size property_start_index =
   push_frame ();
   // TODO: エラーチェック
   let ptr_have_error: B.buffer bool = B.alloca false 1ul in
-  let variable_length: struct_variable_length = 
-    get_variable_byte packet_data packet_size property_start_index in
-  let property_length: type_remaining_length = 
-    variable_length.variable_length_value in
-  let property_id_start_index: type_packet_data_index = variable_length.next_start_index in
+  let first_property_length_byte: U8.t = packet_data.(property_start_index) in
+  if (U8.eq first_property_length_byte 0uy) then // プロパティは無し
+    (
+      let property: struct_property = {
+        property_id = 0uy;
+        property_type_id = 0uy;
+        property_type_struct = no_property_struct_type_base;
+        payload_start_index = U32.add property_start_index 1ul;
+      } in property
+    )
+  else // プロパティが存在する
+    (
+      let variable_length: struct_variable_length = 
+        get_variable_byte packet_data packet_size property_start_index in
+      let property_length: type_remaining_length = 
+        variable_length.variable_length_value in
+      let property_id_start_index: type_packet_data_index = variable_length.next_start_index in
 
-  let last: type_packet_data_index = 
-    (
-      let temp_index: U32.t = U32.add property_length property_id_start_index in
-      if (U32.lt temp_index max_packet_size) then
+      let last: type_packet_data_index = 
         (
-          temp_index
-        )
-      else
+          let temp_index: U32.t = U32.add property_length property_id_start_index in
+          if (U32.lt temp_index max_packet_size) then
+            (
+              temp_index
+            )
+          else
+            (
+              ptr_have_error.(0ul) <- true;
+              0ul
+            )
+        ) in
+      let property_id: U8.t = 
         (
-          ptr_have_error.(0ul) <- true;
-          0ul
-        )
-    ) in
-  let property_id: U8.t = 
-    (
-      if U32.lt property_id_start_index (U32.sub packet_size 1ul) then
+          if U32.lt property_id_start_index (U32.sub packet_size 1ul) then
+            (
+              packet_data.(property_id_start_index)
+            )
+          else
+            (
+              ptr_have_error.(0ul) <- true;
+              max_u8
+            )
+        ) in
+      let property_type_id: U8.t = get_property_type_id property_id in
+      let property_value_start_index: type_packet_data_index = 
         (
-          packet_data.(property_id_start_index)
-        )
-      else
-        (
-          ptr_have_error.(0ul) <- true;
-          max_u8
-        )
-    ) in
-  let property_type_id: U8.t = get_property_type_id property_id in
-  let property_value_start_index: type_packet_data_index = 
-    (
-      let temp_index: U32.t = U32.add property_id_start_index 1ul in
-      if (U32.lt temp_index max_packet_size) then
-        (
-          temp_index
-        )
-      else
-        (
-          ptr_have_error.(0ul) <- true;
-          0ul          
-        )
-    ) in
-  // TODO: 適切なエラーを用意する
-  let have_error: bool = ptr_have_error.(0ul) in
-  let property_type_struct: struct_property_type = (
-    if (not have_error) then
-      (
-        get_property_type_struct packet_data packet_size property_type_id property_value_start_index
-      )
-    else
-      (
-        property_struct_type_base
-      )
-  ) in
-  pop_frame ();
-  let property: struct_property = {
-    property_id = property_id;
-    property_type_id = property_type_id;
-    property_type_struct = property_type_struct;
-    payload_start_index = last;
-  } in property
+          let temp_index: U32.t = U32.add property_id_start_index 1ul in
+          if (U32.lt temp_index max_packet_size) then
+            (
+              temp_index
+            )
+          else
+            (
+              ptr_have_error.(0ul) <- true;
+              0ul          
+            )
+        ) in
+      // TODO: 適切なエラーを用意する
+      let have_error: bool = ptr_have_error.(0ul) in
+      let property_type_struct: struct_property_type = (
+        if (not have_error) then
+          (
+            get_property_type_struct packet_data packet_size property_type_id property_value_start_index
+          )
+        else
+          (
+            property_struct_type_base
+          )
+      ) in
+      pop_frame ();
+      let property: struct_property = {
+        property_id = property_id;
+        property_type_id = property_type_id;
+        property_type_struct = property_type_struct;
+        payload_start_index = last;
+      } in property
+    )
 #reset-options

@@ -99,6 +99,10 @@ int main(int argc, char *argv[]) {
                 printf(", ");
         }
 
+        if (data.flags.qos_flag > 0) {
+            printf("data.publish.packet_identifier = %d\n", data.publish.packet_identifier);
+        }
+
         printf("data.publish.payload =\n [");
         for (int i=0; i < data.publish.payload.payload_length; i++) {
             printf("0x%02X", data.publish.payload.payload_value[i] & 0x000000FF);
