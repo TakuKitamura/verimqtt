@@ -19,15 +19,11 @@ open Connect
 open Disconnect
 open Debug
 
-#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 
 val mqtt_packet_parse (packet_data: B.buffer U8.t) (packet_size: type_packet_size):
   Stack struct_fixed_header
-    (requires (fun h ->
-      B.live h packet_data /\
-      B.length packet_data <= U32.v max_request_size /\
-      zero_terminated_buffer_u8 h packet_data /\
-      (B.length packet_data - 1) = U32.v packet_size))
+    (requires (fun h -> logic_packet_data h packet_data packet_size))
     (ensures (fun h0 _ h1 -> B.live h0 packet_data /\ B.live h1 packet_data))
 let mqtt_packet_parse packet_data packet_size =
   let share_common_data_check: struct_share_common_data_check =
@@ -40,7 +36,8 @@ let mqtt_packet_parse packet_data packet_size =
     (
       let share_common_data: struct_share_common_data = share_common_data_check.share_common_data in
       if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_PUBLISH &&
-          U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 2ul)) then
+          U32.gte share_common_data.common_packet_size 3ul &&
+          U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 3ul)) then
         (
           publish_packet_parse_result share_common_data
         )
@@ -66,3 +63,4 @@ let mqtt_packet_parse packet_data packet_size =
           error_struct_fixed_header error_struct
         )
     )
+#reset-options

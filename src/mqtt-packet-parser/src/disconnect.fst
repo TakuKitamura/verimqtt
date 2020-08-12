@@ -181,7 +181,7 @@ val disconnect_packet_parser: packet_data: (B.buffer U8.t)
   -> Stack (disconnect_packet_seed: struct_disconnect_packet_seed)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v next_start_index < (B.length packet_data - 2))
+    U32.v next_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
 let disconnect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
@@ -201,7 +201,7 @@ val disconnect_packet_parse_result: (share_common_data: struct_share_common_data
   -> Stack (r: struct_fixed_header)
     (requires fun h0 -> 
     logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
-    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 2))
+    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 1))
     (ensures fun h0 r h1 -> true)
 let disconnect_packet_parse_result share_common_data =
   // Reason Code, Property ともに省略

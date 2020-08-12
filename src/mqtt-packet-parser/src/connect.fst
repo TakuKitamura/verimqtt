@@ -69,7 +69,7 @@ val is_valid_protocol_name: packet_data: (B.buffer U8.t)
   -> Stack (protocoll_name_struct: struct_protocol_name)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v next_start_index < (B.length packet_data - 7))
+    U32.v next_start_index < (B.length packet_data - 6))
     (ensures fun h0 r h1 -> true)
 let is_valid_protocol_name packet_data packet_size next_start_index = 
   push_frame ();
@@ -108,7 +108,7 @@ val is_valid_protocol_version: packet_data: (B.buffer U8.t)
   -> Stack (protocoll_version_struct: struct_protocol_version)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v next_start_index < (B.length packet_data - 2))
+    U32.v next_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
 let is_valid_protocol_version packet_data packet_size next_start_index = 
   (
@@ -135,7 +135,7 @@ val get_connect_flag: packet_data: (B.buffer U8.t)
   -> Stack (connect_flag_struct: struct_connect_flag)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v next_start_index < (B.length packet_data - 2))
+    U32.v next_start_index < (B.length packet_data - 1))
     (ensures fun h0 r h1 -> true)
 let get_connect_flag packet_data packet_size next_start_index = 
   let connect_flag: U8.t = packet_data.(next_start_index) in
@@ -462,7 +462,7 @@ val connect_packet_parser: packet_data: (B.buffer U8.t)
   -> Stack (connect_packet_seed: struct_connect_packet_seed)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v next_start_index < (B.length packet_data - 7))
+    U32.v next_start_index < (B.length packet_data - 6))
     (ensures fun h0 r h1 -> true)
 let connect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
@@ -573,7 +573,7 @@ val connect_packet_parse_result: (share_common_data: struct_share_common_data)
   -> Stack (r: struct_fixed_header)
     (requires fun h0 -> 
     logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
-    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 7))
+    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 6))
     (ensures fun h0 r h1 -> true)
 let connect_packet_parse_result share_common_data =
   let connect_packet_seed: struct_connect_packet_seed = 

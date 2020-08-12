@@ -268,6 +268,7 @@ let get_topic_name packet_data packet_size topic_name_start_index topic_length =
     topic_name = topic_name;
   } in topic_name
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val publish_packet_parser: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> common_flag: type_flag_restrict
@@ -331,13 +332,13 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
         (uint32_to_uint64 topic_length) in
 
       if (U64.lt temp1 (uint32_to_uint64 packet_size) &&
-          U64.lte temp2 (uint32_to_uint64 max_u32) &&
+          U64.lt temp2 (uint32_to_uint64 packet_size) &&
           U8.gt qos_flag 0uy) then
         (
           let packet_identifier_value: U16.t = 
             get_two_byte_integer_u8_to_u16 
               packet_data.(uint64_to_uint32 temp1)
-              packet_data.(U32.add (U32.add next_start_index 3ul) topic_length) in
+              packet_data.(uint64_to_uint32 temp2) in
             let packet_identifier_struct :struct_packet_identifier = 
               {
                 packet_identifier_value = packet_identifier_value;
@@ -440,6 +441,7 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
     // publish_seed_property_id = property_id;
     publish_seed_property = property_struct;
   } in publish_packet_seed
+#reset-options
 
 val publish_packet_parse_result: (share_common_data: struct_share_common_data)
   -> Stack (r: struct_fixed_header)

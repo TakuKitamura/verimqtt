@@ -995,7 +995,7 @@ logic type logic_packet_data
     B.live h packet_data /\
     B.length packet_data <= U32.v max_request_size /\
     zero_terminated_buffer_u8 h packet_data /\
-    (B.length packet_data - 1) = U32.v packet_size 
+    (B.length packet_data) = U32.v packet_size 
 
 type struct_keep_alive = {
   keep_alive_value: U16.t;
