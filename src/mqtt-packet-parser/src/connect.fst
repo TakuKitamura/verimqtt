@@ -290,10 +290,10 @@ let get_connect_will_struct packet_data packet_size will_start_index will_flag =
             ) in
           let will_payload_struct: struct_binary_data = 
             (
-              if (U32.gte packet_size 3ul &&
+              if (U32.gte packet_size 2ul &&
                   U32.lt 
                     will_topic_name_struct.utf8_next_start_index
-                    (U32.sub packet_size 3ul)
+                    (U32.sub packet_size 2ul)
                   ) then
                 (
                   get_binary 
@@ -432,10 +432,10 @@ let get_password_struct packet_data packet_size password_start_index password_fl
   let password_struct: struct_binary_data =
     (
       if (password_flag = 1uy &&
-          U32.gte packet_size 3ul &&
+          U32.gte packet_size 2ul &&
           U32.lt 
             password_start_index
-            (U32.sub packet_size 3ul)) then
+            (U32.sub packet_size 2ul)) then
         (
           let password_struct: struct_binary_data =
             get_binary packet_data packet_size password_start_index in

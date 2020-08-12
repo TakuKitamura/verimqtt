@@ -86,6 +86,94 @@ int main(int argc, char *argv[]) {
 
         }
 
+
+        if (data.connect.will.connect_will_topic_name.utf8_string_status_code == 0) {
+            if (data.connect.will.connect_will_property.property_id != 255) {
+                if (data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code == 0) {
+                    printf("data.property.payload_start_index = %u\n", data.connect.will.connect_will_property.payload_start_index);
+                    printf("data.connect.will.connect_will_property.property_id = %u\n", data.connect.will.connect_will_property.property_id);
+                    printf("data.connect.will.connect_will_property.property_type_id = %u\n", data.connect.will.connect_will_property.property_type_id);
+
+                    if (data.connect.will.connect_will_property.property_type_id == 1) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.one_byte_integer_struct.one_byte_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.one_byte_integer_struct);
+                    } else if (data.connect.will.connect_will_property.property_type_id == 2) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.two_byte_integer_struct.two_byte_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.two_byte_integer_struct);           
+                    } else if (data.connect.will.connect_will_property.property_type_id == 3) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.four_byte_integer_struct.four_byte_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.four_byte_integer_struct);  
+                    } else if (data.connect.will.connect_will_property.property_type_id == 4) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length = %u\n", data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
+                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_value = \n [");
+                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length; i++) {
+                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_value[i] & 0x000000FF);
+                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length) 
+                                puts("]");
+                            else
+                                printf(", ");
+                        }
+                    } else if (data.connect.will.connect_will_property.property_type_id == 5) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.variable_byte_integer_struct.variable_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.variable_byte_integer_struct);  
+                    } else if (data.connect.will.connect_will_property.property_type_id == 6) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length = %u\n", data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length);
+                        printf("data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_value = \n [");
+                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length; i++) {
+                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_value[i] & 0x000000FF);
+                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length) 
+                                puts("]");
+                            else
+                                printf(", ");
+                        }
+                    } else if (data.connect.will.connect_will_property.property_type_id == 7) {
+                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
+                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
+                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
+                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value[i] & 0x000000FF);
+                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length) 
+                                puts("]");
+                            else
+                                printf(", ");
+                        }
+
+                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length = %u\n", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
+                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value = \n [");
+                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length; i++) {
+                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value[i] & 0x000000FF);
+                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length) 
+                                puts("]");
+                            else
+                                printf(", ");
+                        }
+                        
+
+                    }
+                    puts("");
+                } else {
+                    puts("property error");
+                    printf("property error code = %u\n", data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code);
+                    printf("property error code name = %s\n", data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code_name);
+                }
+            } else {
+                puts("property type id is invalid");
+            }
+
+            printf("data.connect.will.connect_will_topic_name.utf8_string_length = %u\n", data.connect.will.connect_will_topic_name.utf8_string_length);
+            printf("data.connect.will.connect_will_topic_name.utf8_string_value = \n [");
+            if (data.connect.will.connect_will_topic_name.utf8_string_length > 0) {
+                for (int i=0; i < data.connect.will.connect_will_topic_name.utf8_string_length; i++) {
+                    printf("0x%02X", data.connect.will.connect_will_topic_name.utf8_string_value[i] & 0x000000FF);
+                    if (i + 1 == data.connect.will.connect_will_topic_name.utf8_string_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
+            } else {
+                puts("]");
+            }
+
+
+        }
+
+        puts("");
+
         if (data.connect.user_name.utf8_string_status_code == 0) {
             printf("data.connect.user_name.utf8_string_length = %u\n", data.connect.user_name.utf8_string_length);
             printf("data.connect.user_name.utf8_string_value = \n [");
@@ -100,11 +188,23 @@ int main(int argc, char *argv[]) {
             } else {
                 puts("]");
             }
-
         }
 
 
         puts("");
+
+        printf("data.connect.will.connect_will_payload.binary_length = %u\n", data.connect.will.connect_will_payload.binary_length);
+        printf("data.connect.will.connect_will_payload.binary_value = \n [");
+        for (int i=0; i < data.connect.will.connect_will_payload.binary_length; i++) {
+            printf("0x%02X", data.connect.will.connect_will_payload.binary_value[i] & 0x000000FF);
+            if (i + 1 == data.connect.will.connect_will_payload.binary_length) 
+                puts("]");
+            else
+                printf(", ");
+        }
+
+        puts("");
+
     } else if (data.message_type == 3) {
 
         printf("data.publish.topic_length = %u\n", data.publish.topic_length);

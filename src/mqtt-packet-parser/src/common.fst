@@ -1018,7 +1018,7 @@ val get_binary: packet_data: (B.buffer U8.t)
   -> Stack (binary_data_struct: struct_binary_data)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v binary_start_index < (B.length packet_data - 3))
+    U32.v binary_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let get_binary packet_data packet_size binary_start_index =
   push_frame ();
@@ -1075,7 +1075,7 @@ val parse_property_binary: packet_data: (B.buffer U8.t)
   -> Stack (property_struct_type_base: struct_property_type)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size /\
-    U32.v property_value_start_index < (B.length packet_data - 3))
+    U32.v property_value_start_index < (B.length packet_data - 2))
     (ensures fun h0 r h1 -> true)
 let parse_property_binary packet_data packet_size property_value_start_index =
   push_frame ();
@@ -1818,8 +1818,8 @@ let get_property_type_struct packet_data packet_size property_type_id property_v
         parse_property_variable_byte_integer packet_data packet_size property_value_start_index //U32.v packet_size > U32.v property_value_start_index
       )
     else if property_type_id = 6uy && // Binary Data
-            U32.gt packet_size 3ul &&
-            U32.lt property_value_start_index (U32.sub packet_size 3ul) then
+            U32.gt packet_size 2ul &&
+            U32.lt property_value_start_index (U32.sub packet_size 2ul) then
       (
         parse_property_binary packet_data packet_size property_value_start_index
       )

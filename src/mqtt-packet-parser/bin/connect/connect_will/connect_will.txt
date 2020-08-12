@@ -1,0 +1,30 @@
+MQ Telemetry Transport Protocol, Connect Command
+    Header Flags: 0x10, Message Type: Connect Command
+    Msg Len: 70
+    Protocol Name Length: 4
+    Protocol Name: MQTT
+    Version: MQTT v5.0 (5)
+    Connect Flags: 0x06, QoS Level: At most once delivery (Fire and Forget), Will Flag, Clean Session Flag
+        0... .... = User Name Flag: Not set
+        .0.. .... = Password Flag: Not set
+        ..0. .... = Will Retain: Not set
+        ...0 0... = QoS Level: At most once delivery (Fire and Forget) (0)
+        .... .1.. = Will Flag: Set
+        .... ..1. = Clean Session Flag: Set
+        .... ...0 = (Reserved): Not set
+    Keep Alive: 60
+    Properties
+        Total Length: 3
+        ID: Receive Maximum (0x21)
+        Value: 20
+    Client ID Length: 0
+    Client ID: 
+    Will Properties
+        Total Length: 27
+        ID: Content Type (0x03)
+        Length: 24
+        Value: will_conetent_type_value
+    Will Topic Length: 10
+    Will Topic: will_topic
+    Will Message Length: 12
+    Will Message: will_payload
