@@ -1541,7 +1541,16 @@ let get_utf8_encoded_string packet_data packet_size utf8_encoded_string_start_in
   let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   pop_frame ();
   let two_byte_integer: U16.t = get_two_byte_integer_u8_to_u16 msb_u8 lsb_u8 in 
-  if U32.lt U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 two_byte_integer) +^ 1ul) max_packet_size then
+  if (U8.eq msb_u8 0uy && U8.eq lsb_u8 0uy) then // 実部が0の場合
+    (
+     let empty_utf8_string: struct_utf8_string = {
+        utf8_string_length = 0us;
+        utf8_string_value = empty_buffer;
+        utf8_string_status_code = 0uy;
+        utf8_next_start_index = U32.add utf8_encoded_string_start_index 2ul;
+      } in empty_utf8_string  
+    )
+  else if U32.lt U32.(utf8_encoded_string_start_index +^ (uint16_to_uint32 two_byte_integer) +^ 1ul) max_packet_size then
     (
       let utf8_encoded_string_struct: struct_utf8_string =
       is_valid_utf8_encoded_string packet_data packet_size

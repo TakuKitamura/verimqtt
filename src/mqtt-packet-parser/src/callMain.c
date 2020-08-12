@@ -86,6 +86,24 @@ int main(int argc, char *argv[]) {
 
         }
 
+        if (data.connect.user_name.utf8_string_status_code == 0) {
+            printf("data.connect.user_name.utf8_string_length = %u\n", data.connect.user_name.utf8_string_length);
+            printf("data.connect.user_name.utf8_string_value = \n [");
+            if (data.connect.user_name.utf8_string_length > 0) {
+                for (int i=0; i < data.connect.user_name.utf8_string_length; i++) {
+                    printf("0x%02X", data.connect.user_name.utf8_string_value[i] & 0x000000FF);
+                    if (i + 1 == data.connect.user_name.utf8_string_length) 
+                        puts("]");
+                    else
+                        printf(", ");
+                }
+            } else {
+                puts("]");
+            }
+
+        }
+
+
         puts("");
     } else if (data.message_type == 3) {
 
