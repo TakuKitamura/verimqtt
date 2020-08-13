@@ -1055,3 +1055,18 @@ type struct_is_valid_utf8_ready = {
   ready_codelen: U8.t;
   ready_codepoint: U16.t;
 }
+
+noeq type struct_ready_connect_will = {
+  ready_connect_will_struct: struct_connect_will;
+  ready_exsist_will: bool;
+}
+
+noeq type struct_ready_connect_user_name = {
+  ready_connect_user_name_struct: struct_utf8_string;
+  ready_exsist_user_name: bool;
+}
+
+noeq type struct_ready_connect_password = {
+  ready_connect_password_struct: struct_binary_data;
+  ready_exsist_password: bool;
+}

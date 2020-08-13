@@ -177,6 +177,7 @@ let get_message_type message_type_bits =
   else
     message_type_bits
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val get_struct_fixed_header_constant_except_publish :
   (message_type: type_mqtt_control_packets_restrict)
   -> struct_fixed_header_constant
@@ -335,6 +336,7 @@ let get_struct_fixed_header_constant_except_publish message_type =
         retain_flag = max_u8;
       };
     }
+#reset-options
 
 val error_struct_fixed_header:
   (error_struct: struct_error_struct)
@@ -1144,7 +1146,7 @@ let is_valid_utf8_ready packet_data packet_size i =
   (
     if (U8.eq one_byte 0uy) then
       (
-        print_string "a\n";
+        // print_string "a\n";
         ptr_is_malformed_utf8.(0ul) <- true
       )
     else if (U8.lte one_byte 0x7fuy) then
@@ -1158,7 +1160,7 @@ let is_valid_utf8_ready packet_data packet_size i =
         if (U8.eq one_byte 0xC0uy || U8.eq one_byte 0xC1uy) then
           (
             // Invalid bytes */
-            print_string "b\n";
+            // print_string "b\n";
             ptr_is_malformed_utf8.(0ul) <- true
           )
         else
@@ -1179,7 +1181,7 @@ let is_valid_utf8_ready packet_data packet_size i =
         if(U8.gt one_byte 0xF4uy) then
           (
             // Invalid, this would produce values > 0x10FFFF. */
-            print_string "c\n";
+            // print_string "c\n";
             ptr_is_malformed_utf8.(0ul) <- true
           )
         else
@@ -1191,7 +1193,7 @@ let is_valid_utf8_ready packet_data packet_size i =
     else
       (
         // Unexpected continuation byte. */
-        print_string "d\n";
+        // print_string "d\n";
         ptr_is_malformed_utf8.(0ul) <- true
       )
   );
@@ -1319,7 +1321,7 @@ let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index
           ) then
           (
             // Not enough data */
-            print_string "e\n";
+            // print_string "e\n";
             ptr_is_malformed_utf8.(0ul) <- true
           )
         else
@@ -1359,7 +1361,7 @@ let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index
                   if (not (U8.eq (U8.logand next_one_byte 0xC0uy) 0x80uy)) then
                     (
                       // Not a continuation byte */
-                      print_string "f\n";
+                      // print_string "f\n";
                       ptr_is_malformed_utf8.(0ul) <- true
                     )
                   else
@@ -1388,7 +1390,7 @@ let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index
             // Check for UTF-16 high/low surrogates */
             if (U16.gte codepoint 0xD800us && U16.lte codepoint 0xDFFFus) then
               (
-                print_string "g\n";
+                // print_string "g\n";
                 ptr_is_malformed_utf8.(0ul) <- true
               );
 
@@ -1403,29 +1405,29 @@ let is_valid_utf8 packet_data packet_size utf8_encoded_string_entity_start_index
             let codepoint_u32: U32.t = uint16_to_uint32 codepoint_u16 in
             if (U8.eq codelen_u8 3uy && U16.lt codepoint 0x0800us) then
               (
-                print_string "h\n";
+                // print_string "h\n";
                 ptr_is_malformed_utf8.(0ul) <- true
               )
             else if(U8.eq codelen_u8 4uy && ( U32.lt codepoint_u32 0x10000ul || U32.gt codepoint_u32 0x10FFFFul)) then
               (
-                print_string "i\n";
+                // print_string "i\n";
                 ptr_is_malformed_utf8.(0ul) <- true
               );
             // Check for non-characters */
             if (U16.gte codepoint 0xFDD0us && U16.lte codepoint 0xFDEFus) then
               (
-                print_string "j\n";
+                // print_string "j\n";
                 ptr_is_malformed_utf8.(0ul) <- true
               );
             if(U16.eq (U16.logand codepoint 0xFFFFus) 0xFFFEus || U16.eq (U16.logand codepoint 0xFFFFus) 0xFFFFus) then
               (
-                print_string "k\n";
+                // print_string "k\n";
                 ptr_is_malformed_utf8.(0ul) <- true
               );
             // Check for control characters */
             if (U16.lte codepoint 0x001Fus || (U16.gte codepoint 0x007Fus && U16.lte codepoint 0x009Fus)) then
               (
-                print_string "l\n";
+                // print_string "l\n";
                 ptr_is_malformed_utf8.(0ul) <- true
               )
           );

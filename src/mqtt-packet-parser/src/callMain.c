@@ -169,7 +169,17 @@ int main(int argc, char *argv[]) {
                 puts("]");
             }
 
+            printf("data.connect.will.connect_will_payload.binary_length = %u\n", data.connect.will.connect_will_payload.binary_length);
+            printf("data.connect.will.connect_will_payload.binary_value = \n [");
+            for (int i=0; i < data.connect.will.connect_will_payload.binary_length; i++) {
+                printf("0x%02X", data.connect.will.connect_will_payload.binary_value[i] & 0x000000FF);
+                if (i + 1 == data.connect.will.connect_will_payload.binary_length) 
+                    puts("]");
+                else
+                    printf(", ");
+            }
 
+            puts("");            
         }
 
         puts("");
@@ -190,21 +200,20 @@ int main(int argc, char *argv[]) {
             }
         }
 
-
-        puts("");
-
-        printf("data.connect.will.connect_will_payload.binary_length = %u\n", data.connect.will.connect_will_payload.binary_length);
-        printf("data.connect.will.connect_will_payload.binary_value = \n [");
-        for (int i=0; i < data.connect.will.connect_will_payload.binary_length; i++) {
-            printf("0x%02X", data.connect.will.connect_will_payload.binary_value[i] & 0x000000FF);
-            if (i + 1 == data.connect.will.connect_will_payload.binary_length) 
-                puts("]");
-            else
-                printf(", ");
+        if (data.connect.password.is_valid_binary_data) {
+            printf("data.connect.password.binary_length = %u\n", data.connect.password.binary_length);
+            printf("data.connect.password.binary_value = \n [");
+            for (int i=0; i < data.connect.password.binary_length; i++) {
+                printf("0x%02X", data.connect.password.binary_value[i] & 0x000000FF);
+                if (i + 1 == data.connect.password.binary_length) 
+                    puts("]");
+                else
+                    printf(", ");
+            }
         }
 
-        puts("");
 
+        puts("");
     } else if (data.message_type == 3) {
 
         printf("data.publish.topic_length = %u\n", data.publish.topic_length);
@@ -238,7 +247,7 @@ int main(int argc, char *argv[]) {
         puts("");
     }
 
-
+    puts("");
  
     if (data.property.property_type_id != 255) {
         if (data.property.property_type_struct.property_type_error.property_error_code == 0) {

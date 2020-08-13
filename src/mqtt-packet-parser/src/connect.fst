@@ -253,17 +253,15 @@ let get_connect_id packet_data packet_size payload_start_index =
 val get_connect_will_struct: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> will_start_index: type_packet_data_index
-  -> will_flag: U8.t
   -> Stack (connect_will_struct: struct_connect_will)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
-let get_connect_will_struct packet_data packet_size will_start_index will_flag =
+let get_connect_will_struct packet_data packet_size will_start_index =
   push_frame ();
   let connect_will_struct: struct_connect_will =
     (
-      if (U8.eq will_flag 1uy &&
-          U32.lt will_start_index (U32.sub packet_size 1ul)) then
+      if (U32.lt will_start_index (U32.sub packet_size 1ul)) then
         (
           // TODO: エラーチェック
           let will_property_start_index: type_packet_data_index =
@@ -381,20 +379,18 @@ let get_keep_alive packet_data packet_size keep_alive_start_index =
   pop_frame ();
   keep_alive_struct
 
-val get_user_name_struct: packet_data: (B.buffer U8.t) 
+val get_connect_user_name_struct: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> user_name_start_index: type_packet_data_index
-  -> user_name_flag: U8.t
   -> Stack (user_name_struct: struct_utf8_string)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
-let get_user_name_struct packet_data packet_size user_name_start_index user_name_flag =
+let get_connect_user_name_struct packet_data packet_size user_name_start_index =
   push_frame ();
   let user_name_struct: struct_utf8_string = 
     (
-      if (user_name_flag = 1uy &&
-          U32.lt 
+      if (U32.lt 
             user_name_start_index
             (U32.sub packet_size 1ul) &&
           U32.lt 
@@ -419,20 +415,18 @@ let get_user_name_struct packet_data packet_size user_name_start_index user_name
     pop_frame ();
     user_name_struct
 
-val get_password_struct: packet_data: (B.buffer U8.t) 
+val get_connect_password_struct: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size
   -> password_start_index: type_packet_data_index
-  -> password_flag: U8.t
   -> Stack (password_struct: struct_binary_data)
     (requires fun h0 -> 
     logic_packet_data h0 packet_data packet_size)
     (ensures fun h0 r h1 -> true)
-let get_password_struct packet_data packet_size password_start_index password_flag =
+let get_connect_password_struct packet_data packet_size password_start_index =
   push_frame ();
   let password_struct: struct_binary_data =
     (
-      if (password_flag = 1uy &&
-          U32.gte packet_size 2ul &&
+      if (U32.gte packet_size 2ul &&
           U32.lt 
             password_start_index
             (U32.sub packet_size 2ul)) then
@@ -455,6 +449,204 @@ let get_password_struct packet_data packet_size password_start_index password_fl
     ) in
     pop_frame ();
     password_struct
+
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
+val get_connect_will: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
+  -> will_flag: U8.t 
+  -> payload_start_index: type_packet_data_index
+  -> connect_id_length: U16.t
+  -> Stack (ready_connect_will_struct: struct_ready_connect_will)
+    (requires fun h0 -> 
+      logic_packet_data h0 packet_data packet_size)
+    (ensures fun h0 r h1 -> true)
+let get_connect_will packet_data packet_size will_flag payload_start_index connect_id_length =
+  push_frame ();
+  let ptr_exsist_will: B.buffer bool = B.alloca false 1ul in
+  let ptr_is_valid_next_start_index: B.buffer bool = B.alloca false 1ul in
+  let next_start_index: type_packet_data_index = 
+    (
+      let temp: U32.t = U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id_length)) in
+      if (U32.lt temp max_packet_size) then
+        (
+          if (U8.eq will_flag 1uy) then
+            (
+              ptr_exsist_will.(0ul) <- true;
+              ptr_is_valid_next_start_index.(0ul) <- true;
+              temp
+            )
+          else
+            (
+              ptr_exsist_will.(0ul) <- false;
+              ptr_is_valid_next_start_index.(0ul) <- true;
+              temp
+            )
+        )
+      else
+        (
+          ptr_exsist_will.(0ul) <- false;
+          ptr_is_valid_next_start_index.(0ul) <- false;
+          0ul
+        )
+    ) in
+  let exsist_will: bool = ptr_exsist_will.(0ul) in
+  let is_valid_next_start_index: bool = ptr_is_valid_next_start_index.(0ul) in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  let connect_will_struct: struct_connect_will = 
+    (
+      if (exsist_will) then
+        (
+          get_connect_will_struct packet_data packet_size next_start_index
+        )
+      else if (is_valid_next_start_index) then // will は存在しない
+        (
+          let connect_will_struct: struct_connect_will =
+            {
+              connect_will_property = property_struct_base;
+              connect_will_topic_name = 
+                {
+                  utf8_string_length = 0us;
+                  utf8_string_value = empty_buffer;
+                  utf8_string_status_code = 1uy;
+                  utf8_next_start_index = 0ul;
+                };
+              connect_will_payload = 
+                {
+                  is_valid_binary_data = false;
+                  binary_length = 0us;
+                  binary_value = empty_buffer;
+                  binary_next_start_index = 0ul;
+                };
+              user_name_or_password_next_start_index = next_start_index;
+            } in connect_will_struct 
+        )
+      else
+        (
+          let connect_will_struct: struct_connect_will =
+            {
+              connect_will_property = property_struct_base;
+              connect_will_topic_name = 
+                {
+                  utf8_string_length = 0us;
+                  utf8_string_value = empty_buffer;
+                  utf8_string_status_code = 1uy;
+                  utf8_next_start_index = 0ul;
+                };
+              connect_will_payload = 
+                {
+                  is_valid_binary_data = false;
+                  binary_length = 0us;
+                  binary_value = empty_buffer;
+                  binary_next_start_index = 0ul;
+                };
+              user_name_or_password_next_start_index = 0ul;
+            } in connect_will_struct          
+        )
+    ) in
+    pop_frame ();
+    let ready_connect_will_struct: struct_ready_connect_will = {
+      ready_connect_will_struct = connect_will_struct;
+      ready_exsist_will = exsist_will;
+    } in ready_connect_will_struct
+#reset-options
+
+val get_connect_user_name: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
+  -> user_name_flag: U8.t 
+  -> user_name_start_index: type_packet_data_index
+  -> Stack (ready_connect_user_name_struct: struct_ready_connect_user_name)
+    (requires fun h0 -> 
+      logic_packet_data h0 packet_data packet_size)
+    (ensures fun h0 r h1 -> true)
+let get_connect_user_name packet_data packet_size user_name_flag user_name_start_index =
+  push_frame ();
+  let ptr_exsist_user_name: B.buffer bool = B.alloca false 1ul in
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  let next_start_index: type_packet_data_index = 
+    (
+      if (U8.eq user_name_flag 1uy) then
+        (
+          ptr_exsist_user_name.(0ul) <- true;
+          user_name_start_index
+        )
+      else
+        (
+          ptr_exsist_user_name.(0ul) <- false;
+          user_name_start_index
+        )
+    ) in
+  let exsist_user_name: bool = ptr_exsist_user_name.(0ul) in
+  let user_name_struct: struct_utf8_string = 
+    (
+      if (exsist_user_name) then
+        (
+          get_connect_user_name_struct packet_data packet_size next_start_index
+        )
+      else
+        (
+          let error_struct: struct_utf8_string = {
+              utf8_string_length = 0us;
+              utf8_string_value = empty_buffer;
+              utf8_string_status_code = 1uy;
+              utf8_next_start_index = next_start_index;
+            } in error_struct
+        )
+    ) in
+    pop_frame ();
+    let ready_connect_user_name_struct: struct_ready_connect_user_name = {
+      ready_connect_user_name_struct = user_name_struct;
+      ready_exsist_user_name = exsist_user_name;
+    } in ready_connect_user_name_struct    
+
+
+val get_connect_password: packet_data: (B.buffer U8.t) 
+  -> packet_size: type_packet_size
+  -> password_flag: U8.t 
+  -> user_name_start_index: type_packet_data_index
+  -> Stack (ready_connect_password_struct: struct_ready_connect_password)
+    (requires fun h0 -> 
+      logic_packet_data h0 packet_data packet_size)
+    (ensures fun h0 r h1 -> true)
+let get_connect_password packet_data packet_size password_flag user_name_start_index =
+  push_frame ();
+  let ptr_exsist_password: B.buffer bool = B.alloca false 1ul in  
+  let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  let next_start_index: type_packet_data_index = 
+    (
+      if (U8.eq password_flag 1uy) then
+        (
+          ptr_exsist_password.(0ul) <- true;
+          user_name_start_index
+        )
+      else
+        (
+          ptr_exsist_password.(0ul) <- false;
+          user_name_start_index
+        )
+    ) in
+  let exsist_password: bool = ptr_exsist_password.(0ul) in
+  let password_struct: struct_binary_data = 
+    (
+      if (exsist_password) then
+        (
+          get_connect_password_struct packet_data packet_size next_start_index
+        )
+      else
+        (
+          let binary_data_struct: struct_binary_data = {
+            is_valid_binary_data = false;
+            binary_length = 0us;
+            binary_value = empty_buffer;
+            binary_next_start_index = 0ul;
+          } in binary_data_struct
+        )
+    ) in
+  pop_frame ();
+  let ready_connect_password_struct: struct_ready_connect_password = {
+    ready_connect_password_struct = password_struct;
+    ready_exsist_password = exsist_password;
+  } in ready_connect_password_struct 
+
 
 #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val connect_packet_parser: packet_data: (B.buffer U8.t) 
@@ -505,55 +697,159 @@ let connect_packet_parser packet_data packet_size next_start_index =
   let will_flag: U8.t = slice_byte connect_flag 5uy 6uy in
   let clean_start_flag: U8.t = slice_byte connect_flag 6uy 7uy in
   let resreved_flag: U8.t = slice_byte connect_flag 7uy 8uy in
-  let ptr_is_valid_will_start_index: B.buffer bool = B.alloca false 1ul in
-  let will_start_index: type_packet_data_index = 
-    (
-      let temp: U32.t = U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id.utf8_string_length)) in
-      if (U32.lt temp max_packet_size) then
-        (
-          ptr_is_valid_will_start_index.(0ul) <- true;
-          temp
-        )
-      else
-        (
-          0ul
-        )
-    ) in
-  let is_valid_will_start_index: bool = ptr_is_valid_will_start_index.(0ul) in
+  let ready_connect_will_struct: struct_ready_connect_will =
+    get_connect_will packet_data packet_size will_flag payload_start_index connect_id.utf8_string_length in
   let connect_will_struct: struct_connect_will = 
-    (
-      if (is_valid_will_start_index) then
-        (
-          get_connect_will_struct packet_data packet_size will_start_index will_flag
-        )
-      else
-        (
-          let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
-          let connect_will_struct: struct_connect_will =
-            {
-              connect_will_property = property_struct_base;
-              connect_will_topic_name = 
-                {
-                  utf8_string_length = 0us;
-                  utf8_string_value = empty_buffer;
-                  utf8_string_status_code = 1uy;
-                  utf8_next_start_index = 0ul;
-                };
-              connect_will_payload = 
-                {
-                  is_valid_binary_data = false;
-                  binary_length = 0us;
-                  binary_value = empty_buffer;
-                  binary_next_start_index = 0ul;
-                };
-              user_name_or_password_next_start_index = 0ul;
-            } in connect_will_struct          
-        )
-    ) in
-  let user_name_struct: struct_utf8_string = 
-    get_user_name_struct packet_data packet_size connect_will_struct.user_name_or_password_next_start_index user_name_flag in
-  let password_struct: struct_binary_data =
-    get_password_struct packet_data packet_size user_name_struct.utf8_next_start_index password_flag in
+    ready_connect_will_struct.ready_connect_will_struct in
+  let ready_connect_user_name_struct: struct_ready_connect_user_name =
+   get_connect_user_name packet_data packet_size user_name_flag connect_will_struct.user_name_or_password_next_start_index in
+  let user_name_struct: struct_utf8_string = ready_connect_user_name_struct.ready_connect_user_name_struct in
+  let ready_connect_password_struct: struct_ready_connect_password = 
+    get_connect_password packet_data packet_size password_flag user_name_struct.utf8_next_start_index in
+  let password_struct: struct_binary_data = ready_connect_password_struct.ready_connect_password_struct in
+  
+  // let ptr_is_valid_next_start_index: B.buffer bool = B.alloca false 1ul in
+  // let next_start_index: type_packet_data_index = 
+  //   (
+  //     let temp: U32.t = U32.(payload_start_index +^ 2ul +^ (uint16_to_uint32 connect_id.utf8_string_length)) in
+  //     if (U32.lt temp max_packet_size) then
+  //       (
+  //         if (U8.eq will_flag 1uy) then
+  //           (
+  //             ptr_exsist_will.(0ul) <- true;
+  //             ptr_is_valid_next_start_index.(0ul) <- true;
+  //             temp
+  //           )
+  //         else
+  //           (
+  //             ptr_exsist_will.(0ul) <- false;
+  //             ptr_is_valid_next_start_index.(0ul) <- true;
+  //             temp
+  //           )
+  //       )
+  //     else
+  //       (
+  //         ptr_exsist_will.(0ul) <- false;
+  //         ptr_is_valid_next_start_index.(0ul) <- false;
+  //         0ul
+  //       )
+  //   ) in
+  // let exsist_will: bool = ptr_exsist_will.(0ul) in
+  // let is_valid_next_start_index: bool = ptr_is_valid_next_start_index.(0ul) in
+  // let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
+  // let connect_will_struct: struct_connect_will = 
+  //   (
+  //     if (exsist_will) then
+  //       (
+  //         get_connect_will_struct packet_data packet_size next_start_index
+  //       )
+  //     else if (is_valid_next_start_index) then // will は存在しない
+  //       (
+  //         let connect_will_struct: struct_connect_will =
+  //           {
+  //             connect_will_property = property_struct_base;
+  //             connect_will_topic_name = 
+  //               {
+  //                 utf8_string_length = 0us;
+  //                 utf8_string_value = empty_buffer;
+  //                 utf8_string_status_code = 1uy;
+  //                 utf8_next_start_index = 0ul;
+  //               };
+  //             connect_will_payload = 
+  //               {
+  //                 is_valid_binary_data = false;
+  //                 binary_length = 0us;
+  //                 binary_value = empty_buffer;
+  //                 binary_next_start_index = 0ul;
+  //               };
+  //             user_name_or_password_next_start_index = next_start_index;
+  //           } in connect_will_struct 
+  //       )
+  //     else
+  //       (
+  //         let connect_will_struct: struct_connect_will =
+  //           {
+  //             connect_will_property = property_struct_base;
+  //             connect_will_topic_name = 
+  //               {
+  //                 utf8_string_length = 0us;
+  //                 utf8_string_value = empty_buffer;
+  //                 utf8_string_status_code = 1uy;
+  //                 utf8_next_start_index = 0ul;
+  //               };
+  //             connect_will_payload = 
+  //               {
+  //                 is_valid_binary_data = false;
+  //                 binary_length = 0us;
+  //                 binary_value = empty_buffer;
+  //                 binary_next_start_index = 0ul;
+  //               };
+  //             user_name_or_password_next_start_index = 0ul;
+  //           } in connect_will_struct          
+  //       )
+  //   ) in
+  // let ptr_exsist_user: B.buffer bool = B.alloca false 1ul in
+  // let next_start_index: type_packet_data_index = 
+  //   (
+  //     if (U8.eq user_name_flag 1uy) then
+  //       (
+  //         ptr_exsist_user.(0ul) <- true;
+  //         connect_will_struct.user_name_or_password_next_start_index
+  //       )
+  //     else
+  //       (
+  //         ptr_exsist_user.(0ul) <- false;
+  //         connect_will_struct.user_name_or_password_next_start_index
+  //       )
+  //   ) in
+  // let exsist_user: bool = ptr_exsist_user.(0ul) in
+  // let user_name_struct: struct_utf8_string = 
+  //   (
+  //     if (exsist_user) then
+  //       (
+  //         get_connect_user_name_struct packet_data packet_size next_start_index
+  //       )
+  //     else
+  //       (
+  //         let error_struct: struct_utf8_string = {
+  //             utf8_string_length = 0us;
+  //             utf8_string_value = empty_buffer;
+  //             utf8_string_status_code = 1uy;
+  //             utf8_next_start_index = next_start_index;
+  //           } in error_struct
+  //       )
+  //   ) in
+  // let ptr_exsist_password: B.buffer bool = B.alloca false 1ul in  
+  // let next_start_index: type_packet_data_index = 
+  //   (
+  //     if (U8.eq password_flag 1uy) then
+  //       (
+  //         ptr_exsist_password.(0ul) <- true;
+  //         user_name_struct.utf8_next_start_index
+  //       )
+  //     else
+  //       (
+  //         ptr_exsist_password.(0ul) <- false;
+  //         user_name_struct.utf8_next_start_index
+  //       )
+  //   ) in
+  // let exsist_password: bool = ptr_exsist_password.(0ul) in
+  // let password_struct: struct_binary_data = 
+  //   (
+  //     if (exsist_password) then
+  //       (
+  //         get_connect_password_struct packet_data packet_size next_start_index
+  //       )
+  //     else
+  //       (
+  //         let binary_data_struct: struct_binary_data = {
+  //           is_valid_binary_data = false;
+  //           binary_length = 0us;
+  //           binary_value = empty_buffer;
+  //           binary_next_start_index = 0ul;
+  //         } in binary_data_struct
+  //       )
+  //   ) in
   pop_frame ();
 
   let connect_packet_seed: struct_connect_packet_seed = {
