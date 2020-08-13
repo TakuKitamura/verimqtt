@@ -3,6 +3,34 @@
 
 #include "Main.h"
 
+long long int getFileSize(const char* fileName)
+{
+    FILE* fp = fopen(fileName, "rb");
+    if (fp == NULL) {
+        return -1LL;
+    }
+
+    long long int count = 0LL;
+    for (;;) {
+        if (fgetc(fp) == EOF) {
+            if (feof(fp)) {
+                break;
+            }
+            else if (ferror(fp)) {
+                fclose(fp);
+                return -1LL;
+            }
+            else {
+                // EOF と同じ値をもつ有効な文字
+            }
+        }
+        ++count;
+    }
+
+    fclose(fp);
+    return count;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "%s [file_path]\n", argv[0]);
@@ -11,9 +39,6 @@ int main(int argc, char *argv[]) {
     FILE *fp;
     char *file_name = argv[1];
     uint8_t *request;
-    uint32_t  i;
-    fpos_t fsize = 0;
-    uint32_t packet_size;
 
     fp = fopen(file_name, "rb");
 
@@ -22,14 +47,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    fseek(fp, 0, SEEK_END);
-    if (fgetpos(fp, &fsize) != 0) {
-        fprintf(stderr, "fgetpos error.\n");
-        exit(EXIT_FAILURE);
-    }
-    fseek(fp, 0L, SEEK_SET);
-
-    packet_size = fsize;
+    long long int packet_size = getFileSize(file_name);
+    printf("%lld\n", packet_size);
 
     request = (uint8_t*)malloc(sizeof(uint8_t) * (packet_size));
     if(request == NULL) {
