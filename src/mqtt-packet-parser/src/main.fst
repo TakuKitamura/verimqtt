@@ -48,7 +48,7 @@ let mqtt_packet_parse packet_data packet_size =
           connect_packet_parse_result share_common_data
         )
       else if (U8.eq share_common_data.common_message_type define_mqtt_control_packet_DISCONNECT &&
-          U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 1ul)) then
+          U32.lt share_common_data.common_next_start_index share_common_data.common_packet_size) then
         (
           disconnect_packet_parse_result share_common_data
         )

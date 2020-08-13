@@ -250,7 +250,8 @@ int main(int argc, char *argv[]) {
     puts("");
  
     if (data.property.property_type_id != 255) {
-        if (data.property.property_type_struct.property_type_error.property_error_code == 0) {
+        if (data.property.property_type_struct.property_type_error.property_error_code == 0 &&
+            data.property.property_type_id != 0) {
             printf("data.property.payload_start_index = %u\n", data.property.payload_start_index);
             printf("data.property.property_id = %u\n", data.property.property_id);
             printf("data.property.property_type_id = %u\n", data.property.property_type_id);

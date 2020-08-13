@@ -6,6 +6,7 @@ open Const
 open Common
 open FStar.HyperStack.ST
 open LowStar.BufferOps
+open LowStar.Printf
 
 module U8 = FStar.UInt8
 module U16 = FStar.UInt16
@@ -217,26 +218,31 @@ val disconnect_packet_parse_result: (share_common_data: struct_share_common_data
   -> Stack (r: struct_fixed_header)
     (requires fun h0 -> 
     logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
-    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 1))
+    U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data))
     (ensures fun h0 r h1 -> true)
 let disconnect_packet_parse_result share_common_data =
-  // Reason Code, Property ともに省略
   let disconnect_constant: struct_fixed_header_constant =
     get_struct_fixed_header_constant_except_publish share_common_data.common_message_type in
-  if (share_common_data.common_remaining_length = 0ul) then
+  if (share_common_data.common_remaining_length = 0ul) then // Reason Code, Property ともに省略
     (
       let disconnect_struct: struct_disconnect = {
         disconnect_reason = define_struct_disconnect_normal_disconnection;
+      } in
+      let no_property: struct_property = {
+        property_id = 0uy;
+        property_type_id = 0uy;
+        property_type_struct = no_property_struct_type_base;
+        payload_start_index = 0ul;
       } in
       let ed_fixed_header_parts: struct_disconnect_parts = {
         disconnect_disconnect_constant = disconnect_constant;
         disconnect_remaining_length = share_common_data.common_remaining_length;
         disconnect_struct = disconnect_struct;
-        property = property_struct_base;
+        property = no_property;
       } in
       assemble_disconnect_struct ed_fixed_header_parts
     )
-  else 
+  else if (U32.lt share_common_data.common_next_start_index (U32.sub share_common_data.common_packet_size 1ul)) then
     (
       let disconnect_packet_seed: struct_disconnect_packet_seed = 
         disconnect_packet_parser
@@ -279,4 +285,18 @@ let disconnect_packet_parse_result share_common_data =
             } in
             assemble_disconnect_struct ed_fixed_header_parts
           )
+    )
+  else
+    (
+      let error_property: struct_property = {
+        property_id = max_u8;
+        property_type_id = max_u8;
+        property_type_struct = property_struct_type_base;
+        payload_start_index = 0ul;
+      } in
+      let error_struct: struct_error_struct =
+        {
+          code = define_error_property_error_code;
+          message = define_error_property_invalid;
+        } in error_struct_fixed_header error_struct
     )
