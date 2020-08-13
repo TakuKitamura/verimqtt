@@ -1,0 +1,11 @@
+MQ Telemetry Transport Protocol, Disconnect Req
+    Header Flags: 0xe0, Message Type: Disconnect Req
+    Msg Len: 30
+    Reason Code: Normal disconnection (0)
+    Properties
+        Total Length: 28
+        ID: User Property (0x26)
+        Key Length: 10
+        Key: disconnect
+        Value Length: 13
+        Value: user_property

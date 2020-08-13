@@ -1,0 +1,1 @@
+mosquitto_pub -t 'topic' -m 'message' -V mqttv5 --will-payload will_payload --will-topic will_topic -i connect_id -D Connect user-property connect user_property -D Will content-type will_content_type -u user -P password
