@@ -1,0 +1,1 @@
+mosquitto_pub -t 'topic' -m 'message' -V mqttv5 -D Publish user-property utf8_key utf8_value

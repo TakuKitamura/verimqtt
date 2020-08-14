@@ -83,10 +83,11 @@ let decodeing_variable_bytes ptr_for_decoding_packets bytes_length =
 val get_variable_byte: packet_data: (B.buffer U8.t) 
   -> packet_size: type_packet_size 
   -> now_index: U32.t{U32.v packet_size > U32.v now_index}
+  -> compare_packet_size: bool
   -> Stack (variable_length: struct_variable_length)
     (requires fun (h0: HS.mem) -> logic_packet_data h0 packet_data packet_size)
     (ensures fun (h0: HS.mem) (r: struct_variable_length) (h1: HS.mem) -> true)
-let get_variable_byte packet_data packet_size now_index =
+let get_variable_byte packet_data packet_size now_index compare_packet_size =
   push_frame ();
   let ptr_for_decoding_packets: B.buffer U8.t = B.alloca 0uy 4ul in
   let ptr_remaining_length: B.buffer type_remaining_length =
@@ -139,7 +140,8 @@ let get_variable_byte packet_data packet_size now_index =
                   else // 可変長整数の終端がどこに有るかは不明
                     U32.lte untrust_packet_last_index packet_last_index 
                 ) in
-              if valid_remaining_length then (
+              // compare_packet_size: ture であればパケットサイズとの比較を行う
+              if valid_remaining_length || not compare_packet_size then (
                 ptr_remaining_length.(0ul) <- untrust_remaining_length;
                 ptr_byte_length.(0ul) <- bytes_length_u8;
                 ptr_next_start_index.(0ul) <- 
@@ -607,7 +609,7 @@ let share_common_data_check packet_data packet_size =
   let message_type: type_mqtt_control_packets_restrict = get_message_type message_type_bits in
   let flag: U8.t = get_flag message_type first_one_byte in
 
-  let variable_length: struct_variable_length = get_variable_byte packet_data packet_size 1ul in
+  let variable_length: struct_variable_length = get_variable_byte packet_data packet_size 1ul true in
   let remaining_length: type_remaining_length = variable_length.variable_length_value in
   // print_u32 remaining_length;
   // print_string "\n";
@@ -961,7 +963,7 @@ val parse_property_variable_byte_integer: packet_data: (B.buffer U8.t)
     (ensures fun h0 r h1 -> true)
 let parse_property_variable_byte_integer packet_data packet_size property_value_start_index =
   let variable_length: struct_variable_length = 
-    get_variable_byte packet_data packet_size property_value_start_index in
+    get_variable_byte packet_data packet_size property_value_start_index false in
   let property_variable_value: type_remaining_length = variable_length.variable_length_value in
   let variable_value_struct: struct_variable_byte_integer = {
     variable_byte_integer_value = property_variable_value;
@@ -1866,7 +1868,7 @@ let parse_property packet_data packet_size property_start_index =
   else // プロパティが存在する
     (
       let variable_length: struct_variable_length = 
-        get_variable_byte packet_data packet_size property_start_index in
+        get_variable_byte packet_data packet_size property_start_index true in
       let property_length: type_remaining_length = 
         variable_length.variable_length_value in
       let property_id_start_index: type_packet_data_index = variable_length.next_start_index in
