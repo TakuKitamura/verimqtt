@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
                     }
                     puts("");
                 } else {
-                    puts("property error");
+                    // puts("property error");
                     printf("property error code = %u\n", data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code);
                     printf("property error code name = %s\n", data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code_name);
                 }
@@ -328,7 +328,7 @@ int main(int argc, char *argv[]) {
             }
             puts("");
         } else {
-            puts("property error");
+            // puts("property error");
             printf("property error code = %u\n", data.property.property_type_struct.property_type_error.property_error_code);
             printf("property error code name = %s\n", data.property.property_type_struct.property_type_error.property_error_code_name);
         }

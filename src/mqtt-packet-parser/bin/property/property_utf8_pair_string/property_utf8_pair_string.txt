@@ -1,0 +1,13 @@
+MQ Telemetry Transport Protocol, Publish Message
+    Header Flags: 0x30, Message Type: Publish Message, QoS Level: At most once delivery (Fire and Forget)
+    Msg Len: 38
+    Topic Length: 5
+    Topic: topic
+    Properties
+        Total Length: 23
+        ID: User Property (0x26)
+        Key Length: 8
+        Key: utf8_key
+        Value Length: 10
+        Value: utf8_value
+    Message: message

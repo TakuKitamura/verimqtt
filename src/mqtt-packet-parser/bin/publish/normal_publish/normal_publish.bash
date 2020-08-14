@@ -1,0 +1,1 @@
+mosquitto_pub -t 'topic' -m 'message' -V mqttv5
