@@ -1,6 +1,6 @@
 import json
 import copy
-
+import pprint
 def err(message):
   print(message)
   exit(1)
@@ -60,6 +60,8 @@ with open(file_path) as f:
           splitted_line = data.split(' ')
           data_type = (splitted_line[0] + ('*' * asterisk_count)).replace('C_String_t', 'const char*')
           data_name = splitted_line[1].replace('*', '')
+          if data_name in ['utf8_next_start_index', 'binary_next_start_index', 'payload_start_index', 'user_name_or_password_next_start_index', '']:
+            continue
           parsed_typedef_structs[typedef_struct_name][data_name] = data_type
         data_contents = []
 
@@ -77,11 +79,12 @@ def explore_parsed_typedef_structs (explore_target, origin_structs):
   for data_name in explore_target:
     data_type = explore_target[data_name]
     if (data_type in origin_structs.keys()):
-      explored[data_type] = explore_parsed_typedef_structs(origin_structs[data_type], origin_structs)
+      explored[data_name] = explore_parsed_typedef_structs(origin_structs[data_type], origin_structs)
     else:
       explored[data_name] = explore_target[data_name]
   return explored
 
+# pprint.pprint(parsed_typedef_structs)
 origin_structs = copy.deepcopy(parsed_typedef_structs)
 extentioned_structs = {}
 for struct_name in origin_structs:
