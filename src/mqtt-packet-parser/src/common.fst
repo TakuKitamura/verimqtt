@@ -436,6 +436,7 @@ pop_frame ();
     error = error_struct;
   }
 
+#set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 val slice_byte:
   byte:U8.t
   -> a:U8.t{U8.v a <= 7}
@@ -482,6 +483,7 @@ let slice_byte byte a b =
     let mask: U8.t = U8.logand for_mask_temp1 for_mask_temp2 in
     let r: U8.t = U8.shift_right (U8.logand byte mask) (U32.sub 8ul (uint8_to_uint32 b)) in
   r
+#reset-options
 
 val get_dup_flag: fixed_header_first_one_byte: U8.t -> type_dup_flags_restrict
 let get_dup_flag fixed_header_first_one_byte =
