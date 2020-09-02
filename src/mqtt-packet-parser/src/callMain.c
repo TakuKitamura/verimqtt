@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    fread(request, sizeof(uint8_t), packet_size, fp);
+    size_t read_count = fread(request, sizeof(uint8_t), packet_size, fp);
     if (fclose(fp) == EOF) {
         fprintf(stderr, "fclose error.\n");
         exit(EXIT_FAILURE);
