@@ -10,7 +10,7 @@ def err(message):
 
 argv = sys.argv
 
-typedef_struct_json = flated_master.get_typedef_struct_json('../../out/Const.h')
+typedef_struct_json = flated_master.get_typedef_struct_json('../../../out/Const.h')
 flated_master_list = gron(typedef_struct_json)
 params_type_dict = {}
 for line in flated_master_list:
