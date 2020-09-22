@@ -64,28 +64,20 @@ else:
           err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
         params_value_dict[params_name] = int(params_value)
       elif params_data_type == 'uint8_t*' or params_data_type == 'const char*':
-        # print(params_value)
-        params_value = params_value[1:-1]
-        # print(params_value)
-        try:
-          v = tuple(ast.literal_eval(params_value))
-          print(v)
-        except:
-          try:
-            v = [ord(c) for c in params_value]
-          except:
-            err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
-        # if (type(v) is list):
-        # print(v)
-        for list_v in v:
-          if list_v < 0 or list_v > 0xff:
-            # print(list_v)
-            err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
-        # elif (type(v) is str):
-        #   pass
-        # else:
-        #   err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
-        params_value_dict[params_name] = tuple(v)
+        params_value_dict[params_name] = params_value[1:-1]
+        # params_value = params_value[1:-1]
+        # try:
+        #   v = tuple(ast.literal_eval(params_value))
+        #   print(v)
+        # except:
+        #   try:
+        #     v = [ord(c) for c in params_value]
+        #   except:
+        #     err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
+        # for list_v in v:
+        #   if list_v < 0 or list_v > 0xff:
+        #     err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
+        # params_value_dict[params_name] = tuple(v)
       elif params_data_type == 'bool':
         try:
           strtobool(params_value)
