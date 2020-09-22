@@ -1,7 +1,102 @@
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include <limits.h>
 
 #include "Main.h"
+
+static unsigned int total = 0;
+static unsigned int pass = 0;
+
+void Testing_test_start(C_String_t title) {
+  printf("  \x1b[36m[%s]\x1b[0m\n", title);
+}
+
+void Testing_test_end() {
+  if (total != pass) {
+    printf("  \x1b[35mSOME TESTS FAILED (%u/%u) (PASS/TOTAL)\x1b[0m\n", pass, total);
+  } else {
+    puts("  \x1b[32mALL TESTS PASSED\x1b[0m\n");
+  }
+}
+
+void test_static(bool is_pass) {
+  total++;
+  if (total == UINT_MAX) {
+    puts("test-code has so many tests.");
+    exit(1);
+  }
+
+  if (is_pass == true) {
+    pass++;
+  }
+}
+
+#define MK_CHECK(n)\
+  void Testing_eq_i##n(C_String_t title, int##n##_t expect, int##n##_t result) {\
+    bool is_pass = (expect == result);\
+    test_static(is_pass);\
+    if (is_pass) {\
+    } else {\
+          printf("\x1b[31m✘\x1b[0m %s\n\t expected is %" PRId##n " but result is %" PRId##n "\n", title, expect, result);\
+    }\
+  }
+MK_CHECK(8)
+MK_CHECK(16)
+MK_CHECK(32)
+MK_CHECK(64)
+
+#define MK_UCHECK(n)\
+  void Testing_eq_u##n(C_String_t title, uint##n##_t expect, uint##n##_t result) {\
+    bool is_pass = (expect == result);\
+    test_static(is_pass);\
+    if (is_pass) {\
+    } else {\
+          printf("\x1b[31m✘\x1b[0m %s\n\t expected is %" PRIu##n " but result is %" PRIu##n "\n", title, expect, result);\
+    }\
+  }
+MK_UCHECK(8)
+MK_UCHECK(16)
+MK_UCHECK(32)
+MK_UCHECK(64)
+
+void Testing_eq_bool(C_String_t title, bool expect, bool result) {
+  bool is_pass = (expect == result);
+  test_static(is_pass);
+  if (is_pass) {
+  } else {
+    printf("\x1b[31m✘\x1b[0m %s\n\t expected is true but result is false\n", title);
+  }
+}
+
+void Testing_eq_str(C_String_t title, C_String_t expect, C_String_t result) {
+  bool is_pass = (strcmp(expect, result) == 0);
+  test_static(is_pass);
+  if (is_pass) {
+  } else {
+    printf("\x1b[31m✘\x1b[0m %s\n\t expected is \'%s\' but result is \'%s\'\n", title, expect, result);
+  }
+}
+
+void Testing_eq_u8_array(C_String_t title, C_String_t expect, uint32_t expect_length, C_String_t result) {
+  for(uint32_t i = 0; i <= expect_length; i++) {
+      if(expect[i] != result[i]) {
+          printf("\x1b[31m✘\x1b[0m %s\n\t expected is \'%s\' but result is '", title, expect);
+          for(uint32_t i = 0; i <= expect_length; i++) {
+            printf("%c",result[i] & 0x000000FF);
+          }
+          puts("'");
+          test_static(false);
+          return;
+      }
+  }
+
+  test_static(true);
+  return;
+}
 
 long long int getFileSize(const char* fileName)
 {
@@ -32,12 +127,8 @@ long long int getFileSize(const char* fileName)
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "%s [file_path]\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
     FILE *fp;
-    char *file_name = argv[1];
+    char *file_name = "/root/verimqtt/src/mqtt-packet-parser/bin/publish/normal_publish/normal_publish.bin";
     uint8_t *request;
 
     fp = fopen(file_name, "rb");
@@ -48,7 +139,6 @@ int main(int argc, char *argv[]) {
     }
 
     long long int packet_size = getFileSize(file_name);
-    printf("%lld\n", packet_size);
 
     request = (uint8_t*)malloc(sizeof(uint8_t) * (packet_size));
     if(request == NULL) {
@@ -65,278 +155,92 @@ int main(int argc, char *argv[]) {
     kremlinit_globals();
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
     free(request);
+    Testing_test_start("SAMPLE TEST");
+    Testing_eq_u8("connect.connect_id.utf8_string_status_code", 0, data.connect.connect_id.utf8_string_status_code);
+    Testing_eq_u8("connect.flags.clean_start", 0, data.connect.flags.clean_start);
+    Testing_eq_u8("connect.flags.connect_flag", 0, data.connect.flags.connect_flag);
+    Testing_eq_u8("connect.flags.password", 0, data.connect.flags.password);
+    Testing_eq_u8("connect.flags.user_name", 0, data.connect.flags.user_name);
+    Testing_eq_u8("connect.flags.will_flag", 0, data.connect.flags.will_flag);
+    Testing_eq_u8("connect.flags.will_qos", 0, data.connect.flags.will_qos);
+    Testing_eq_u8("connect.flags.will_retain", 0, data.connect.flags.will_retain);
+    Testing_eq_u8("connect.protocol_version", 0, data.connect.protocol_version);
+    Testing_eq_u8("connect.user_name.utf8_string_status_code", 0, data.connect.user_name.utf8_string_status_code);
+    Testing_eq_u8("connect.will.connect_will_property.property_id", 0, data.connect.will.connect_will_property.property_id);
+    Testing_eq_u8("connect.will.connect_will_property.property_type_id", 0, data.connect.will.connect_will_property.property_type_id);
+    Testing_eq_u8("connect.will.connect_will_property.property_type_struct.one_byte_integer_struct", 0, data.connect.will.connect_will_property.property_type_struct.one_byte_integer_struct);
+    Testing_eq_u8("connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code", 0, data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code);
+    Testing_eq_u8("connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_status_code", 0, data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_status_code);
+    Testing_eq_u8("connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code", 0, data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code);
+    Testing_eq_u8("connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code", 0, data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code);
+    Testing_eq_u8("connect.will.connect_will_topic_name.utf8_string_status_code", 0, data.connect.will.connect_will_topic_name.utf8_string_status_code);
+    Testing_eq_u8("disconnect.disconnect_reason_code", 0, data.disconnect.disconnect_reason_code);
+    Testing_eq_u8("error.code", 0, data.error.code);
+    Testing_eq_u8("flags.dup_flag", 0, data.flags.dup_flag);
+    Testing_eq_u8("flags.flag", 0, data.flags.flag);
+    Testing_eq_u8("flags.qos_flag", 0, data.flags.qos_flag);
+    Testing_eq_u8("flags.retain_flag", 0, data.flags.retain_flag);
+    Testing_eq_u8("message_type", 0, data.message_type);
+    Testing_eq_u8("property.property_id", 0, data.property.property_id);
+    Testing_eq_u8("property.property_type_id", 0, data.property.property_type_id);
+    Testing_eq_u8("property.property_type_struct.one_byte_integer_struct", 0, data.property.property_type_struct.one_byte_integer_struct);
+    Testing_eq_u8("property.property_type_struct.property_type_error.property_error_code", 0, data.property.property_type_struct.property_type_error.property_error_code);
+    Testing_eq_u8("property.property_type_struct.utf8_encoded_string_struct.utf8_string_status_code", 0, data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_status_code);
+    Testing_eq_u8("property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code", 0, data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_status_code);
+    Testing_eq_u8("property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code", 0, data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_status_code);
+    Testing_eq_u16("connect.connect_id.utf8_string_length", 0, data.connect.connect_id.utf8_string_length);
+    Testing_eq_u16("connect.keep_alive", 0, data.connect.keep_alive);
+    Testing_eq_u16("connect.password.binary_length", 0, data.connect.password.binary_length);
+    Testing_eq_u16("connect.user_name.utf8_string_length", 0, data.connect.user_name.utf8_string_length);
+    Testing_eq_u16("connect.will.connect_will_payload.binary_length", 0, data.connect.will.connect_will_payload.binary_length);
+    Testing_eq_u16("connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length", 0, data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length);
+    Testing_eq_u16("connect.will.connect_will_property.property_type_struct.two_byte_integer_struct", 0, data.connect.will.connect_will_property.property_type_struct.two_byte_integer_struct);
+    Testing_eq_u16("connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length", 0, data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
+    Testing_eq_u16("connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length", 0, data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
+    Testing_eq_u16("connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length", 0, data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
+    Testing_eq_u16("connect.will.connect_will_topic_name.utf8_string_length", 0, data.connect.will.connect_will_topic_name.utf8_string_length);
+    Testing_eq_u16("property.property_type_struct.binary_data_struct.binary_length", 0, data.property.property_type_struct.binary_data_struct.binary_length);
+    Testing_eq_u16("property.property_type_struct.two_byte_integer_struct", 0, data.property.property_type_struct.two_byte_integer_struct);
+    Testing_eq_u16("property.property_type_struct.utf8_encoded_string_struct.utf8_string_length", 0, data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
+    Testing_eq_u16("property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length", 0, data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
+    Testing_eq_u16("property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length", 0, data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
+    Testing_eq_u16("publish.packet_identifier", 0, data.publish.packet_identifier);
+    Testing_eq_u32("connect.will.connect_will_property.property_type_struct.four_byte_integer_struct", 0, data.connect.will.connect_will_property.property_type_struct.four_byte_integer_struct);
+    Testing_eq_u32("connect.will.connect_will_property.property_type_struct.variable_byte_integer_struct", 0, data.connect.will.connect_will_property.property_type_struct.variable_byte_integer_struct);
+    Testing_eq_u32("property.property_type_struct.four_byte_integer_struct", 0, data.property.property_type_struct.four_byte_integer_struct);
+    Testing_eq_u32("property.property_type_struct.variable_byte_integer_struct", 0, data.property.property_type_struct.variable_byte_integer_struct);
+    Testing_eq_u32("publish.payload.payload_length", 0, data.publish.payload.payload_length);
+    Testing_eq_u32("publish.topic_length", 0, data.publish.topic_length);
+    Testing_eq_u32("remaining_length", 0, data.remaining_length);
+    Testing_eq_u8_array("connect.connect_id.utf8_string_value", "hello", 5, (C_String_t)data.connect.connect_id.utf8_string_value);
+    Testing_eq_u8_array("connect.password.binary_value", "hello", 5, (C_String_t)data.connect.password.binary_value);
+    Testing_eq_u8_array("connect.user_name.utf8_string_value", "hello", 5, (C_String_t)data.connect.user_name.utf8_string_value);
+    Testing_eq_u8_array("connect.will.connect_will_payload.binary_value", "hello", 5, (C_String_t)data.connect.will.connect_will_payload.binary_value);
+    Testing_eq_u8_array("connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_value", "hello", 5, (C_String_t)data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_value);
+    Testing_eq_u8_array("connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_value", "hello", 5, (C_String_t)data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_value);
+    Testing_eq_u8_array("connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value", "hello", 5, (C_String_t)data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value);
+    Testing_eq_u8_array("connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value", "hello", 5, (C_String_t)data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value);
+    Testing_eq_u8_array("connect.will.connect_will_topic_name.utf8_string_value", "hello", 5, (C_String_t)data.connect.will.connect_will_topic_name.utf8_string_value);
+    Testing_eq_u8_array("property.property_type_struct.binary_data_struct.binary_value", "hello", 5, (C_String_t)data.property.property_type_struct.binary_data_struct.binary_value);
+    Testing_eq_u8_array("property.property_type_struct.utf8_encoded_string_struct.utf8_string_value", "hello", 5, (C_String_t)data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value);
+    Testing_eq_u8_array("property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value", "hello", 5, (C_String_t)data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value);
+    Testing_eq_u8_array("property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value", "hello", 5, (C_String_t)data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value);
+    Testing_eq_u8_array("publish.payload.payload_value", "hello", 5, (C_String_t)data.publish.payload.payload_value);
+    Testing_eq_u8_array("connect.protocol_name", "hello", 5, (C_String_t)data.connect.protocol_name);
+    Testing_eq_u8_array("connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code_name", "hello", 5, (C_String_t)data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code_name);
+    Testing_eq_u8_array("disconnect.disconnect_reason_code_name", "hello", 5, (C_String_t)data.disconnect.disconnect_reason_code_name);
+    Testing_eq_u8_array("error.message", "hello", 5, (C_String_t)data.error.message);
+    Testing_eq_u8_array("message_name", "hello", 5, (C_String_t)data.message_name);
+    Testing_eq_u8_array("property.property_type_struct.property_type_error.property_error_code_name", "hello", 5, (C_String_t)data.property.property_type_struct.property_type_error.property_error_code_name);
+    Testing_eq_u8_array("publish.topic_name", "hello", 5, (C_String_t)data.publish.topic_name);
+    Testing_eq_bool("connect.password.is_valid_binary_data", false, data.connect.password.is_valid_binary_data);
+    Testing_eq_bool("connect.will.connect_will_payload.is_valid_binary_data", false, data.connect.will.connect_will_payload.is_valid_binary_data);
+    Testing_eq_bool("connect.will.connect_will_property.property_type_struct.binary_data_struct.is_valid_binary_data", false, data.connect.will.connect_will_property.property_type_struct.binary_data_struct.is_valid_binary_data);
+    Testing_eq_bool("property.property_type_struct.binary_data_struct.is_valid_binary_data", false, data.property.property_type_struct.binary_data_struct.is_valid_binary_data);
+    Testing_eq_bool("publish.payload.is_valid_payload", false, data.publish.payload.is_valid_payload);
 
-    printf("data.message_type = 0x%02x\n", data.message_type);
-    printf("data.message_name = %s\n", data.message_name);
-    printf("data.flags.flag = 0x%02x\n", data.flags.flag);
-    printf("data.flags.dup_flag = 0x%02x\n", data.flags.dup_flag);
-    printf("data.flags.qos_flag = 0x%02x\n", data.flags.qos_flag);
-    printf("data.flags.retain_flag = 0x%02x\n", data.flags.retain_flag);
-    printf("data.remaining_length = %u\n", data.remaining_length);
+    Testing_test_end();
 
-    puts("");
-
-    if (data.message_type == 1) {
-        printf("data.connect.protocol_name = %s\n", data.connect.protocol_name);
-        printf("data.connect.protocol_version = %u\n", data.connect.protocol_version);
-        printf("data.connect.flags.connect_flag = 0x%02x\n", data.connect.flags.connect_flag);
-        printf("data.connect.flags.user_name = 0x%02x\n", data.connect.flags.user_name);
-        printf("data.connect.flags.password = 0x%02x\n", data.connect.flags.password);
-        printf("data.connect.flags.will_retain = 0x%02x\n", data.connect.flags.will_retain);
-        printf("data.connect.flags.will_qos = 0x%02x\n", data.connect.flags.will_qos);
-        printf("data.connect.flags.will_flag = 0x%02x\n", data.connect.flags.will_flag);
-        printf("data.connect.flags.clean_start = 0x%02x\n", data.connect.flags.clean_start);
-        printf("data.connect.keep_alive = 0x%02x\n", data.connect.keep_alive);
-
-        if (data.connect.connect_id.utf8_string_status_code == 0) {
-            printf("data.connect.connect_id.utf8_string_length = %u\n", data.connect.connect_id.utf8_string_length);
-            printf("data.connect.connect_id.utf8_string_value = \n [");
-            if (data.connect.connect_id.utf8_string_length > 0) {
-                for (int i=0; i < data.connect.connect_id.utf8_string_length; i++) {
-                    printf("0x%02X", data.connect.connect_id.utf8_string_value[i] & 0x000000FF);
-                    if (i + 1 == data.connect.connect_id.utf8_string_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-            } else {
-                puts("]");
-            }
-
-        }
-
-
-        if (data.connect.will.connect_will_topic_name.utf8_string_status_code == 0) {
-            if (data.connect.will.connect_will_property.property_id != 255) {
-                if (data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code == 0) {
-                    printf("data.property.payload_start_index = %u\n", data.connect.will.connect_will_property.payload_start_index);
-                    printf("data.connect.will.connect_will_property.property_id = %u\n", data.connect.will.connect_will_property.property_id);
-                    printf("data.connect.will.connect_will_property.property_type_id = %u\n", data.connect.will.connect_will_property.property_type_id);
-
-                    if (data.connect.will.connect_will_property.property_type_id == 1) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.one_byte_integer_struct.one_byte_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.one_byte_integer_struct);
-                    } else if (data.connect.will.connect_will_property.property_type_id == 2) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.two_byte_integer_struct.two_byte_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.two_byte_integer_struct);           
-                    } else if (data.connect.will.connect_will_property.property_type_id == 3) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.four_byte_integer_struct.four_byte_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.four_byte_integer_struct);  
-                    } else if (data.connect.will.connect_will_property.property_type_id == 4) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length = %u\n", data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
-                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_value = \n [");
-                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length; i++) {
-                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_value[i] & 0x000000FF);
-                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.utf8_encoded_string_struct.utf8_string_length) 
-                                puts("]");
-                            else
-                                printf(", ");
-                        }
-                    } else if (data.connect.will.connect_will_property.property_type_id == 5) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.variable_byte_integer_struct.variable_integer_value = %u\n", data.connect.will.connect_will_property.property_type_struct.variable_byte_integer_struct);  
-                    } else if (data.connect.will.connect_will_property.property_type_id == 6) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length = %u\n", data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length);
-                        printf("data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_value = \n [");
-                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length; i++) {
-                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_value[i] & 0x000000FF);
-                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.binary_data_struct.binary_length) 
-                                puts("]");
-                            else
-                                printf(", ");
-                        }
-                    } else if (data.connect.will.connect_will_property.property_type_id == 7) {
-                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
-                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
-                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
-                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value[i] & 0x000000FF);
-                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length) 
-                                puts("]");
-                            else
-                                printf(", ");
-                        }
-
-                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length = %u\n", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
-                        printf("data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value = \n [");
-                        for (int i=0; i < data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length; i++) {
-                            printf("0x%02X", data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value[i] & 0x000000FF);
-                            if (i + 1 == data.connect.will.connect_will_property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length) 
-                                puts("]");
-                            else
-                                printf(", ");
-                        }
-                        
-
-                    }
-                    puts("");
-                } else {
-                    // puts("property error");
-                    printf("property error code = %u\n", data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code);
-                    printf("property error code name = %s\n", data.connect.will.connect_will_property.property_type_struct.property_type_error.property_error_code_name);
-                }
-            } else {
-                puts("property type id is invalid");
-            }
-
-            printf("data.connect.will.connect_will_topic_name.utf8_string_length = %u\n", data.connect.will.connect_will_topic_name.utf8_string_length);
-            printf("data.connect.will.connect_will_topic_name.utf8_string_value = \n [");
-            if (data.connect.will.connect_will_topic_name.utf8_string_length > 0) {
-                for (int i=0; i < data.connect.will.connect_will_topic_name.utf8_string_length; i++) {
-                    printf("0x%02X", data.connect.will.connect_will_topic_name.utf8_string_value[i] & 0x000000FF);
-                    if (i + 1 == data.connect.will.connect_will_topic_name.utf8_string_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-            } else {
-                puts("]");
-            }
-
-            printf("data.connect.will.connect_will_payload.binary_length = %u\n", data.connect.will.connect_will_payload.binary_length);
-            printf("data.connect.will.connect_will_payload.binary_value = \n [");
-            for (int i=0; i < data.connect.will.connect_will_payload.binary_length; i++) {
-                printf("0x%02X", data.connect.will.connect_will_payload.binary_value[i] & 0x000000FF);
-                if (i + 1 == data.connect.will.connect_will_payload.binary_length) 
-                    puts("]");
-                else
-                    printf(", ");
-            }
-
-            puts("");            
-        }
-
-        puts("");
-
-        if (data.connect.user_name.utf8_string_status_code == 0) {
-            printf("data.connect.user_name.utf8_string_length = %u\n", data.connect.user_name.utf8_string_length);
-            printf("data.connect.user_name.utf8_string_value = \n [");
-            if (data.connect.user_name.utf8_string_length > 0) {
-                for (int i=0; i < data.connect.user_name.utf8_string_length; i++) {
-                    printf("0x%02X", data.connect.user_name.utf8_string_value[i] & 0x000000FF);
-                    if (i + 1 == data.connect.user_name.utf8_string_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-            } else {
-                puts("]");
-            }
-        }
-
-        if (data.connect.password.is_valid_binary_data) {
-            printf("data.connect.password.binary_length = %u\n", data.connect.password.binary_length);
-            printf("data.connect.password.binary_value = \n [");
-            for (int i=0; i < data.connect.password.binary_length; i++) {
-                printf("0x%02X", data.connect.password.binary_value[i] & 0x000000FF);
-                if (i + 1 == data.connect.password.binary_length) 
-                    puts("]");
-                else
-                    printf(", ");
-            }
-        }
-
-
-        puts("");
-    } else if (data.message_type == 3) {
-
-        printf("data.publish.topic_length = %u\n", data.publish.topic_length);
-        printf("data.publish.topic_name =\n [");
-        for (int i=0; i < data.publish.topic_length; i++) {
-            printf("0x%02X", data.publish.topic_name[i] & 0x000000FF);
-            if (i + 1 == data.publish.topic_length) 
-                puts("]\n");
-            else
-                printf(", ");
-        }
-
-        if (data.flags.qos_flag > 0) {
-            printf("data.publish.packet_identifier = %d\n", data.publish.packet_identifier);
-        }
-
-        printf("data.publish.payload =\n [");
-        for (int i=0; i < data.publish.payload.payload_length; i++) {
-            printf("0x%02X", data.publish.payload.payload_value[i] & 0x000000FF);
-            if (i + 1 == data.publish.payload.payload_length) 
-                puts("]");
-            else
-                printf(", ");
-        }
-        printf("data.publish.payload_length = %u\n", data.publish.payload.payload_length);
-
-        puts("");
-    } else if (data.message_type == 14) {
-        printf("data.disconnect.disconnect_reason_code = 0x%02x\n", data.disconnect.disconnect_reason_code);
-        printf("data.disconnect.disconnect_reason_code_name = %s\n", data.disconnect.disconnect_reason_code_name);
-        puts("");
-    }
-
-    puts("");
- 
-    if (data.property.property_type_id != 255) {
-        if (data.property.property_type_struct.property_type_error.property_error_code == 0 &&
-            data.property.property_type_id != 0) {
-            printf("data.property.payload_start_index = %u\n", data.property.payload_start_index);
-            printf("data.property.property_id = %u\n", data.property.property_id);
-            printf("data.property.property_type_id = %u\n", data.property.property_type_id);
-
-            if (data.property.property_type_id == 1) {
-                printf("data.property.property_type_struct.one_byte_integer_struct.one_byte_integer_value = %u\n", data.property.property_type_struct.one_byte_integer_struct);
-            } else if (data.property.property_type_id == 2) {
-                printf("data.property.property_type_struct.two_byte_integer_struct.two_byte_integer_value = %u\n", data.property.property_type_struct.two_byte_integer_struct);           
-            } else if (data.property.property_type_id == 3) {
-                printf("data.property.property_type_struct.four_byte_integer_struct.four_byte_integer_value = %u\n", data.property.property_type_struct.four_byte_integer_struct);  
-            } else if (data.property.property_type_id == 4) {
-                printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length = %u\n", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length);
-                printf("data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value = \n [");
-                for (int i=0; i < data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length; i++) {
-                    printf("0x%02X", data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_value[i] & 0x000000FF);
-                    if (i + 1 == data.property.property_type_struct.utf8_encoded_string_struct.utf8_string_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-            } else if (data.property.property_type_id == 5) {
-                printf("data.property.property_type_struct.variable_byte_integer_struct.variable_integer_value = %u\n", data.property.property_type_struct.variable_byte_integer_struct);  
-            } else if (data.property.property_type_id == 6) {
-                printf("data.property.property_type_struct.binary_data_struct.binary_length = %u\n", data.property.property_type_struct.binary_data_struct.binary_length);
-                printf("data.property.property_type_struct.binary_data_struct.binary_value = \n [");
-                for (int i=0; i < data.property.property_type_struct.binary_data_struct.binary_length; i++) {
-                    printf("0x%02X", data.property.property_type_struct.binary_data_struct.binary_value[i] & 0x000000FF);
-                    if (i + 1 == data.property.property_type_struct.binary_data_struct.binary_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-            } else if (data.property.property_type_id == 7) {
-                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length);
-                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value = \n [");
-                for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length; i++) {
-                    printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_value[i] & 0x000000FF);
-                    if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_key.utf8_string_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-
-                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length = %u\n", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length);
-                printf("data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value = \n [");
-                for (int i=0; i < data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length; i++) {
-                    printf("0x%02X", data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_value[i] & 0x000000FF);
-                    if (i + 1 == data.property.property_type_struct.utf8_string_pair_struct.utf8_string_pair_value.utf8_string_length) 
-                        puts("]");
-                    else
-                        printf(", ");
-                }
-                
-
-            }
-            puts("");
-        } else {
-            // puts("property error");
-            printf("property error code = %u\n", data.property.property_type_struct.property_type_error.property_error_code);
-            printf("property error code name = %s\n", data.property.property_type_struct.property_type_error.property_error_code_name);
-        }
-    } else {
-        puts("property type id is invalid");
-    }
-
-    printf("data.error.code=%u\n", data.error.code);
-    printf("data.error.message=%s\n", data.error.message);
-    exit(EXIT_SUCCESS);
+    return 0;
 }
+
