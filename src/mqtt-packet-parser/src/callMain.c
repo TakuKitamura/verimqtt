@@ -64,7 +64,6 @@ int main(int argc, char *argv[]) {
 
     kremlinit_globals();
     struct_fixed_header data = mqtt_packet_parse(request, packet_size);
-    free(request);
 
     printf("data.message_type = 0x%02x\n", data.message_type);
     printf("data.message_name = %s\n", data.message_name);
@@ -338,5 +337,6 @@ int main(int argc, char *argv[]) {
 
     printf("data.error.code=%u\n", data.error.code);
     printf("data.error.message=%s\n", data.error.message);
+    free(request);
     exit(EXIT_SUCCESS);
 }
