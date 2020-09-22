@@ -3,6 +3,7 @@ import flated_master
 import sys
 from distutils.util import strtobool
 import ast
+import os
 
 def err(message):
   print(message)
@@ -10,7 +11,7 @@ def err(message):
 
 argv = sys.argv
 
-typedef_struct_json = flated_master.get_typedef_struct_json('../../../out/Const.h')
+typedef_struct_json = flated_master.get_typedef_struct_json('../out/Const.h')
 flated_master_list = gron(typedef_struct_json)
 params_type_dict = {}
 for line in flated_master_list:
@@ -40,8 +41,8 @@ if (len(argv) == 2 and argv[1] == 'template'):
     print(line)
 elif (len(argv) == 3 and argv[1] == 'generate'):
   params_value_dict = {'uint8_t': {}, 'uint16_t': {}, 'uint32_t': {}, 'uint8_t*': {}, 'const char*': {}, 'bool': {}}
-  file_path = argv[2]
-  with open('./{}'.format(file_path.replace('.bin', '.template'))) as f:
+  file_path = os.path.abspath(argv[2])
+  with open(file_path.replace('.bin', '.template')) as f:
     for i, line in enumerate(f.readlines()):
       if line == '\n':
         continue
@@ -108,7 +109,7 @@ elif (len(argv) == 3 and argv[1] == 'generate'):
       else:
         print('unkown data type:', params_data_type)
         exit(1)  
-  with open('./test_c.template') as f:
+  with open('test/gen_test/test_c.template') as f:
     template_c = f.read()
     write_c = template_c.format(file_path, '{} TEST'.format(file_path), gen_test_code)
     print(write_c)
