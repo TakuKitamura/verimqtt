@@ -108,7 +108,7 @@ elif (len(argv) == 3 and argv[1] == 'generate'):
         err('unkown data type:' + params_data_type)
   with open('test/gen_test/test_c.template') as f:
     template_c = f.read()
-    write_c = template_c.format(file_path, '{} TEST'.format(file_path), gen_test_code)
+    write_c = template_c.format(file_path, '{} TEST'.format(file_path.split('/')[-1]), gen_test_code)
     print(write_c)
 else:
   err("python3 main.py (template, generate) ...")

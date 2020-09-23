@@ -1,10 +1,15 @@
 SHELL=/bin/bash
-krml_link = time krml -verbose -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ../out -fsopt --cache_dir -fsopt ../out -no-prefix Main -no-prefix Utils -no-prefix Const -no-prefix Common -no-prefix Publish -no-prefix Connect -no-prefix Disconnect -no-prefix FFI -no-prefix Debug -no-prefix Debug_FFI -o ../mqttPacketParser.out main.fst common.fst const.fst publish.fst connect.fst disconnect.fst ffi.fst debug.fst debug_ffi.fst ffi.c debug_ffi.c 
+krml_link = krml -verbose -warn-error +9 -drop WasmSupport -drop C_Endianness -drop C -tmpdir ../out -fsopt --cache_dir -fsopt ../out -no-prefix Main -no-prefix Utils -no-prefix Const -no-prefix Common -no-prefix Publish -no-prefix Connect -no-prefix Disconnect -no-prefix FFI -no-prefix Debug -no-prefix Debug_FFI -o ../mqttPacketParser.out main.fst common.fst const.fst publish.fst connect.fst disconnect.fst ffi.fst debug.fst debug_ffi.fst ffi.c debug_ffi.c 
 
-exec_test_c = $(krml_link) /tmp/gen_test.c && ../mqttPacketParser.out && rm ../mqttPacketParser.out
+silent = -silent 1> /dev/null 2> /dev/null
+
+exec_test_c = $(krml_link) /tmp/gen_test.c $(silent) && ../mqttPacketParser.out && rm ../mqttPacketParser.out
 
 all:
 	cd src && $(krml_link) callMain.c
+
+silent:
+	cd src && $(krml_link) callMain.c $(silent)
 
 verify:
 	cd src && $(krml_link) callMain.c -verify
@@ -58,7 +63,7 @@ test_publish_packet_identifier:
 	cd src && python3 test/gen_test/main.py generate ../bin/publish/publish_packet_identifier/publish_packet_identifier.bin > /tmp/gen_test.c && $(exec_test_c)
 
 test:
-	make && \
+	time (make silent && \
 	make test_connect_all && \
 	make test_connect_password && \
 	make test_connect_user && \
@@ -74,7 +79,7 @@ test:
 	make test_property_utf8_string && \
 	make test_property_variable_byte && \
 	make test_normal_publish && \
-	make test_publish_packet_identifier
+	make test_publish_packet_identifier)
 
 verify_and_test:
 	make verify && make test
