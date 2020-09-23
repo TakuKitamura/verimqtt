@@ -7,7 +7,6 @@ flags.retain_flag = 0 // type:uint8_t, max_u8:255
 message_name = "PUBLISH" // type:const char*, can use uint8_array
 message_type = 3 // type:uint8_t, max_u8:255
 property.property_id = 0 // type:uint8_t, max_u8:255
-type:const char*, can use uint8_array
 publish.payload.payload_length = 7 // type:uint32_t, max_u32:4294967295
 publish.payload.payload_value = "message" // type:uint8_t*, can use uint8_array
 publish.topic_length = 5 // type:uint32_t, max_u32:4294967295
