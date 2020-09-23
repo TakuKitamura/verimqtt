@@ -21,6 +21,9 @@ test_connect_user:
 test_connect_will:
 	cd src && python3 test/gen_test/main.py generate ../bin/connect/connect_will/connect_will.bin > /tmp/gen_test.c && $(exec_test_c)
 
+test_normal_connect:
+	cd src && python3 test/gen_test/main.py generate ../bin/connect/normal_connect/normal_connect.bin > /tmp/gen_test.c && $(exec_test_c)
+
 test_disconnect_reason:
 	cd src && python3 test/gen_test/main.py generate ../bin/disconnect/disconnect_reason/disconnect_reason.bin > /tmp/gen_test.c && $(exec_test_c)
 
