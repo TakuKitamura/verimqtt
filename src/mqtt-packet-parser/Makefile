@@ -52,9 +52,10 @@ test_normal_publish:
 	cd src && python3 test/gen_test/main.py generate ../bin/publish/normal_publish/normal_publish.bin > /tmp/gen_test.c && $(exec_test_c)
 
 test_publish_packet_identifier:
-	cd src && python3 test/gen_test/main.py generate ../bin/publish/publish_packet_identifier/publish_packet_identifier.bin && $(exec_test_c)
+	cd src && python3 test/gen_test/main.py generate ../bin/publish/publish_packet_identifier/publish_packet_identifier.bin > /tmp/gen_test.c && $(exec_test_c)
 
 test:
+	make && \
 	make test_connect_all && \
 	make test_connect_password && \
 	make test_connect_user && \
