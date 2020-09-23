@@ -63,6 +63,7 @@ test:
 	make test_connect_password && \
 	make test_connect_user && \
 	make test_connect_will && \
+	make test_normal_connect && \
 	make test_disconnect_reason && \
 	make test_normal_disconnect && \
 	make test_property_binary_data && \
