@@ -48,7 +48,6 @@ int main(int argc, char *argv[]) {
     }
 
     long long int packet_size = getFileSize(file_name);
-    printf("%lld\n", packet_size);
 
     request = (uint8_t*)malloc(sizeof(uint8_t) * (packet_size));
     if(request == NULL) {
