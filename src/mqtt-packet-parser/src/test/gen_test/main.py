@@ -4,7 +4,6 @@ import sys
 from distutils.util import strtobool
 import ast
 import os
-import sys
 
 def err(message):
   print(message, file=sys.stderr)
@@ -85,8 +84,7 @@ elif (len(argv) == 3 and argv[1] == 'generate'):
           err('line: {}, param: {}, invalid {}'.format(i+1, params_name, params_data_type))
         params_value_dict[params_data_type][params_name] = strtobool(params_value) == True
       else:
-        err('unkown data type:' + params_data_type)
-        exit(1)      
+        err('unkown data type:' + params_data_type)   
   gen_test_code = ''
   for data_type, values in params_value_dict.items():
       if data_type == 'uint8_t':
@@ -108,10 +106,11 @@ elif (len(argv) == 3 and argv[1] == 'generate'):
           gen_test_code += '    Testing_eq_bool("{}", {}, data.{});\n'.format(result, str(expect).lower(), result)
       else:
         err('unkown data type:' + params_data_type)
-        exit(1)  
   with open('test/gen_test/test_c.template') as f:
     template_c = f.read()
     write_c = template_c.format(file_path, '{} TEST'.format(file_path), gen_test_code)
     print(write_c)
 else:
   err("python3 main.py (template, generate) ...")
+
+exit(0)
