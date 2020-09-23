@@ -82,7 +82,7 @@ void Testing_eq_str(C_String_t title, C_String_t expect, C_String_t result) {{
 }}
 
 void Testing_eq_u8_array(C_String_t title, C_String_t expect, uint32_t expect_length, C_String_t result) {{
-  for(uint32_t i = 0; i <= expect_length; i++) {{
+  for(uint32_t i = 0; i < expect_length; i++) {{
       if(expect[i] != result[i]) {{
           printf("\x1b[31m✘\x1b[0m %s\n\t expected is \'%s\' but result is '", title, expect);
           for(uint32_t i = 0; i <= expect_length; i++) {{
