@@ -1,0 +1,16 @@
+error.code = 0 // type:uint8_t, max_u8:255
+error.message = "" // type:const char*, can use uint8_array
+flags.dup_flag = 0 // type:uint8_t, max_u8:255
+flags.flag = 0 // type:uint8_t, max_u8:255
+flags.qos_flag = 0 // type:uint8_t, max_u8:255
+flags.retain_flag = 0 // type:uint8_t, max_u8:255
+message_name = "PUBLISH" // type:const char*, can use uint8_array
+message_type = 3 // type:uint8_t, max_u8:255
+property.property_id = 2 // type:uint8_t, max_u8:255
+property.property_type_id = 3 // type:uint8_t, max_u8:255
+property.property_type_struct.four_byte_integer_struct = 4294967295 // type:uint32_t, max_u32:4294967295
+publish.payload.payload_length = 7 // type:uint32_t, max_u32:4294967295
+publish.payload.payload_value = "message" // type:uint8_t*, can use uint8_array
+publish.topic_length = 5 // type:uint32_t, max_u32:4294967295
+publish.topic_name = "topic" // type:const char*, can use uint8_array
+remaining_length = 20 // type:uint32_t, max_u32:4294967295
