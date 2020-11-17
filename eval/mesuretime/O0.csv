@@ -1,0 +1,17 @@
+file_name,packet_count,packet_byte,emqtt5_ave_time[μs],verimqtt_ave_time[μs]
+property_four_byte,1000000,22,4.47331,3.0983
+property_utf8_pair_string,1000000,40,4.96783,3.789
+property_variable_byte,1000000,22,4.50085,3.1783
+property_two_byte,1000000,20,4.39481,3.08284
+property_binary_data,1000000,31,6.03996,3.10893
+property_one_byte,1000000,19,3.93584,3.08656
+property_utf8_string,1000000,24,4.12521,3.26274
+connect_will,1000000,72,12.5007,2.59138
+connect_all,1000000,116,14.9569,3.69983
+normal_connect,1000000,18,5.9396,1.11899
+connect_user,1000000,24,6.24944,1.32594
+connect_password,1000000,28,7.63911,1.20141
+normal_disconnect,1000000,2,2.2057,0.529033
+disconnect_reason,1000000,32,4.20751,1.63579
+normal_publish,1000000,17,3.23499,2.89576
+publish_packet_identifier,1000000,19,3.25965,2.90452
