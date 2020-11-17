@@ -24,8 +24,12 @@ def plot_data(file_path, o_level):
 
   for _ in range(0, 2):
     for i, x in enumerate(packet_byte_x):
-      ax.plot(x, emqtt5_ave_time_y1[i], marker='.', color=color_map['emqtt5'])
-      ax.plot(x, verimqtt_ave_time_y2[i], marker='.', color=color_map['verimqtt'])
+      if (_ == 0 and i == 0):
+        ax.plot(x, emqtt5_ave_time_y1[i], marker='.', color=color_map['emqtt5'], label='emqtt5')
+        ax.plot(x, verimqtt_ave_time_y2[i], marker='.', color=color_map['verimqtt'], label='verimqtt')
+      else:
+        ax.plot(x, emqtt5_ave_time_y1[i], marker='.', color=color_map['emqtt5'])
+        ax.plot(x, verimqtt_ave_time_y2[i], marker='.', color=color_map['verimqtt'])
 
 
   target_x = [[x] for x in packet_byte_x ]
@@ -56,11 +60,11 @@ def plot_data(file_path, o_level):
 
 
 
-# plot_data('./O0.csv', 0)
-plot_data('./O2.csv', 2)
+plot_data('./O0.csv', 0)
+# plot_data('./O2.csv', 2)
 
 
-plt.title('パケットサイズと平均パース時間の関係(最適化レベルデフォルト値)')
+plt.title('パケットサイズと平均パース時間の関係(最適化しない)')
 plt.xlabel('パケットサイズ [byte]')
 plt.ylabel('1パケットあたりの平均パース時間 [μs]')
 plt.xlim(0, X_MAX)
