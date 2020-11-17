@@ -37,6 +37,7 @@ def plot_data(file_path, o_level):
   lr.fit(target_x, emqtt5_ave_time_y1)
   slope = lr.coef_[0] # 傾き
   intercept = lr.intercept_ # 切片
+  print('y={:+,f}x{:+,f} // emqtt5'.format(slope, intercept))
 
   emqtt5_line = lines.Line2D([0, X_MAX], [intercept, X_MAX * slope + intercept], color=color_map['emqtt5'], alpha=0.3, label='emqtt5の回帰直線')
 
@@ -45,6 +46,7 @@ def plot_data(file_path, o_level):
   lr.fit(target_x, verimqtt_ave_time_y2)
   slope = lr.coef_[0] # 傾き
   intercept = lr.intercept_ # 切片
+  print('y={:+,f}x{:+,f} // verimqtt'.format(slope, intercept))
 
   verimqtt_line = lines.Line2D([0, X_MAX], [intercept, X_MAX * slope + intercept], color=color_map['verimqtt'], alpha=0.3, label='verimqttの回帰直線')
   ax.add_line(verimqtt_line)
@@ -54,11 +56,11 @@ def plot_data(file_path, o_level):
 
 
 
-plot_data('./O0.csv', 0)
-# plot_data('./O2.csv', 2)
+# plot_data('./O0.csv', 0)
+plot_data('./O2.csv', 2)
 
 
-plt.title('パケットサイズと平均パース時間の関係(最適化しない)')
+plt.title('パケットサイズと平均パース時間の関係(最適化レベルデフォルト値)')
 plt.xlabel('パケットサイズ [byte]')
 plt.ylabel('1パケットあたりの平均パース時間 [μs]')
 plt.xlim(0, X_MAX)
