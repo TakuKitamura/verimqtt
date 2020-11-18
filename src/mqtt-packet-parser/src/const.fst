@@ -333,186 +333,186 @@ let define_disconnect_reason_maximum_connect_time_name: type_disconnect_reason_c
 let define_disconnect_reason_subscription_identifiers_not_supported_name: type_disconnect_reason_code_name = !$"Subscription Identifiers not supported"
 let define_disconnect_reason_wildcard_subscriptions_not_supported_name: type_disconnect_reason_code_name = !$"Wildcard Subscriptions not supported"
 
-type struct_disconnect_reason = {
+type struct_disconnect = {
   disconnect_reason_code: type_disconnect_reason_code;
   disconnect_reason_code_name: type_disconnect_reason_code_name;
 }
 
-let define_struct_disconnect_normal_disconnection: struct_disconnect_reason =
+let define_struct_disconnect_normal_disconnection: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_normal_disconnection;
     disconnect_reason_code_name = define_disconnect_reason_code_normal_disconnection_name;
   }
 
-let define_struct_disconnect_disconnect_with_will_message: struct_disconnect_reason =
+let define_struct_disconnect_disconnect_with_will_message: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_disconnect_with_will_message;
     disconnect_reason_code_name = define_disconnect_reason_code_disconnect_with_will_message_name;
   }
 
-let define_struct_disconnect_unspecified_error: struct_disconnect_reason =
+let define_struct_disconnect_unspecified_error: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_unspecified_error;
     disconnect_reason_code_name = define_disconnect_reason_code_unspecified_error_name;
   }
 
-let define_struct_disconnect_malformed_packet: struct_disconnect_reason =
+let define_struct_disconnect_malformed_packet: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_malformed_packet;
     disconnect_reason_code_name = define_disconnect_reason_code_malformed_packet_name;
   }
 
-let define_struct_disconnect_protocol_error: struct_disconnect_reason =
+let define_struct_disconnect_protocol_error: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_protocol_error;
     disconnect_reason_code_name = define_disconnect_reason_code_protocol_error_name;
   }
 
-let define_struct_disconnect_implementation_specific_error: struct_disconnect_reason =
+let define_struct_disconnect_implementation_specific_error: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_implementation_specific_error;
     disconnect_reason_code_name = define_disconnect_reason_code_implementation_specific_error_name;
   }
 
-let define_struct_disconnect_not_authorized: struct_disconnect_reason =
+let define_struct_disconnect_not_authorized: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_not_authorized;
     disconnect_reason_code_name = define_disconnect_reason_code_not_authorized_name;
   }
 
-let define_struct_disconnect_server_busy: struct_disconnect_reason =
+let define_struct_disconnect_server_busy: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_server_busy;
     disconnect_reason_code_name = define_disconnect_reason_code_server_busy_name;
   }
 
-let define_struct_disconnect_server_shutting_down: struct_disconnect_reason =
+let define_struct_disconnect_server_shutting_down: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_server_shutting_down;
     disconnect_reason_code_name = define_disconnect_reason_code_server_shutting_down_name;
   }
 
-let define_struct_disconnect_keep_alive_timeout: struct_disconnect_reason =
+let define_struct_disconnect_keep_alive_timeout: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_keep_alive_timeout;
     disconnect_reason_code_name = define_disconnect_reason_code_keep_alive_timeout_name;
   }  
 
-let define_struct_disconnect_session_taken_over: struct_disconnect_reason =
+let define_struct_disconnect_session_taken_over: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_session_taken_over;
     disconnect_reason_code_name = define_disconnect_reason_code_session_taken_over_name;
   } 
 
-let define_struct_disconnect_topic_filter_invalid: struct_disconnect_reason =
+let define_struct_disconnect_topic_filter_invalid: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_topic_filter_invalid;
     disconnect_reason_code_name = define_disconnect_reason_code_topic_filter_invalid_name;
   } 
 
-let define_struct_disconnect_topic_name_invalid: struct_disconnect_reason =
+let define_struct_disconnect_topic_name_invalid: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_code_topic_name_invalid;
     disconnect_reason_code_name = define_disconnect_reason_code_topic_name_invalid_name;
   } 
 
-let define_struct_disconnect_receive_maximum_exceeded: struct_disconnect_reason =
+let define_struct_disconnect_receive_maximum_exceeded: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_receive_maximum_exceeded;
     disconnect_reason_code_name = define_disconnect_reason_receive_maximum_exceeded_name;
   } 
 
-let define_struct_disconnect_topic_alias_invalid: struct_disconnect_reason =
+let define_struct_disconnect_topic_alias_invalid: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_topic_alias_invalid;
     disconnect_reason_code_name = define_disconnect_reason_topic_alias_invalid_name;
   } 
 
-let define_struct_disconnect_packet_too_large: struct_disconnect_reason =
+let define_struct_disconnect_packet_too_large: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_packet_too_large;
     disconnect_reason_code_name = define_disconnect_reason_packet_too_large_name;
   }   
 
-let define_struct_disconnect_message_rate_too_high: struct_disconnect_reason =
+let define_struct_disconnect_message_rate_too_high: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_message_rate_too_high;
     disconnect_reason_code_name = define_disconnect_reason_message_rate_too_high_name;
   }   
 
-let define_struct_disconnect_quota_exceeded: struct_disconnect_reason =
+let define_struct_disconnect_quota_exceeded: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_quota_exceeded;
     disconnect_reason_code_name = define_disconnect_reason_quota_exceeded_name;
   }   
 
-let define_struct_disconnect_administrative_action: struct_disconnect_reason =
+let define_struct_disconnect_administrative_action: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_administrative_action;
     disconnect_reason_code_name = define_disconnect_reason_administrative_action_name;
   }   
 
-let define_struct_disconnect_payload_format_invalid: struct_disconnect_reason =
+let define_struct_disconnect_payload_format_invalid: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_payload_format_invalid;
     disconnect_reason_code_name = define_disconnect_reason_payload_format_invalid_name;
   }   
 
-let define_struct_disconnect_retain_not_supported: struct_disconnect_reason =
+let define_struct_disconnect_retain_not_supported: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_retain_not_supported;
     disconnect_reason_code_name = define_disconnect_reason_retain_not_supported_name;
   }   
 
-let define_struct_disconnect_qos_not_supported: struct_disconnect_reason =
+let define_struct_disconnect_qos_not_supported: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_qos_not_supported;
     disconnect_reason_code_name = define_disconnect_reason_qos_not_supported_name;
   }   
 
-let define_struct_disconnect_use_another_server: struct_disconnect_reason =
+let define_struct_disconnect_use_another_server: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_use_another_server;
     disconnect_reason_code_name = define_disconnect_reason_use_another_server_name;
   }   
 
-let define_struct_disconnect_server_moved: struct_disconnect_reason =
+let define_struct_disconnect_server_moved: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_server_moved;
     disconnect_reason_code_name = define_disconnect_reason_server_moved_name;
   }   
 
-let define_struct_disconnect_shared_subscriptions_not_supported: struct_disconnect_reason =
+let define_struct_disconnect_shared_subscriptions_not_supported: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_shared_subscriptions_not_supported;
     disconnect_reason_code_name = define_disconnect_reason_shared_subscriptions_not_supported_name;
   }   
 
-let define_struct_disconnect_connection_rate_exceeded: struct_disconnect_reason =
+let define_struct_disconnect_connection_rate_exceeded: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_connection_rate_exceeded;
     disconnect_reason_code_name = define_disconnect_reason_connection_rate_exceeded_name;
   } 
 
-let define_struct_disconnect_maximum_connect_time: struct_disconnect_reason =
+let define_struct_disconnect_maximum_connect_time: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_maximum_connect_time;
     disconnect_reason_code_name = define_disconnect_reason_maximum_connect_time_name;
   } 
 
-let define_struct_disconnect_subscription_identifiers_not_supported: struct_disconnect_reason =
+let define_struct_disconnect_subscription_identifiers_not_supported: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_subscription_identifiers_not_supported;
     disconnect_reason_code_name = define_disconnect_reason_subscription_identifiers_not_supported_name;
   } 
 
-let define_struct_disconnect_wildcard_subscriptions_not_supported: struct_disconnect_reason =
+let define_struct_disconnect_wildcard_subscriptions_not_supported: struct_disconnect =
   {
     disconnect_reason_code = define_disconnect_reason_wildcard_subscriptions_not_supported;
     disconnect_reason_code_name = define_disconnect_reason_wildcard_subscriptions_not_supported_name;
   } 
 
-let define_struct_disconnect_error: struct_disconnect_reason =
+let define_struct_disconnect_error: struct_disconnect =
   {
     disconnect_reason_code = max_u8;
     disconnect_reason_code_name = !$"";
@@ -879,8 +879,8 @@ let property_struct_base: struct_property = {
   payload_start_index = 0ul;
 }
 
-type struct_disconnect = {
-  disconnect_reason: struct_disconnect_reason;
+type struct_disconnect_x = {
+  disconnect_reason: struct_disconnect;
 }
 
 noeq type struct_publish_parts = {
@@ -928,7 +928,7 @@ noeq type parse_result = {
   remaining_length: type_remaining_length;
   connect: struct_connect;
   publish: struct_publish;
-  disconnect: struct_disconnect;
+  disconnect: struct_disconnect_x;
   property: struct_property;
   error: struct_error_struct;
 }
@@ -943,7 +943,7 @@ noeq type struct_connect_parts = {
 noeq type struct_disconnect_parts = {
   disconnect_remaining_length: type_remaining_length;
   disconnect_disconnect_constant: parse_result_constant;
-  disconnect_struct: struct_disconnect;
+  disconnect_struct: struct_disconnect_x;
   property: struct_property;
 }
 
@@ -1026,7 +1026,7 @@ type struct_connect_flag = {
 }
 
 noeq type struct_disconnect_packet_seed = {
-  disconnect_seed_reason: struct_disconnect_reason;
+  disconnect_seed_reason: struct_disconnect;
   disconnect_seed_property: struct_property;
 }
 
