@@ -109,9 +109,9 @@ let assemble_disconnect_struct s =
   }
 
 val get_disconnect_reason: (reason_code: type_disconnect_reason_code) 
-  -> (disconnect_reason_struct: struct_disconnect_reason)
+  -> (disconnect_reason_struct: struct_disconnect)
 let get_disconnect_reason reason_code =
-  let disconnect_reason_struct: struct_disconnect_reason =
+  let disconnect_reason_struct: struct_disconnect =
     (
       if (U8.eq reason_code define_disconnect_reason_code_normal_disconnection) then
         define_struct_disconnect_normal_disconnection
@@ -187,7 +187,7 @@ val disconnect_packet_parser: packet_data: (B.buffer U8.t)
 let disconnect_packet_parser packet_data packet_size next_start_index =
   push_frame ();
   let reason_code: type_disconnect_reason_code = packet_data.(next_start_index) in
-  let disconnect_reason_struct: struct_disconnect_reason = get_disconnect_reason reason_code in
+  let disconnect_reason_struct: struct_disconnect = get_disconnect_reason reason_code in
   let property_start_index: type_packet_data_index = U32.add next_start_index 1ul in
   let property_struct: struct_property = 
     (
@@ -249,7 +249,7 @@ let disconnect_packet_parse_result share_common_data =
           share_common_data.common_packet_data
           share_common_data.common_packet_size 
           share_common_data.common_next_start_index in
-      let disconnect_reason: struct_disconnect_reason = disconnect_packet_seed.disconnect_seed_reason in
+      let disconnect_reason: struct_disconnect = disconnect_packet_seed.disconnect_seed_reason in
       let disconnect_property: struct_property = disconnect_packet_seed.disconnect_seed_property in
       let have_error: bool =
         (
