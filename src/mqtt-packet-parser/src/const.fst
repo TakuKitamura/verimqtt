@@ -722,7 +722,7 @@ noeq type struct_payload = {
   payload_length: U32.t;
 }
 
-noeq type struct_variable_header_publish = {
+noeq type struct_publish = {
   topic_length: type_topic_length_restrict;
   topic_name: type_topic_name_restrict;
   packet_identifier: U16.t;
@@ -927,7 +927,7 @@ noeq type parse_result = {
   flags: struct_flags;
   remaining_length: type_remaining_length;
   connect: struct_connect;
-  publish: struct_variable_header_publish;
+  publish: struct_publish;
   disconnect: struct_disconnect;
   property: struct_property;
   error: struct_error_struct;
