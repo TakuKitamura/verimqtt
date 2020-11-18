@@ -18,14 +18,14 @@ open Debug_FFI
 #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val assemble_connect_struct: s: struct_connect_parts
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
     (requires fun h0 -> true)
     (ensures fun h0 r h1 -> true)
 let assemble_connect_struct s =
   push_frame ();
   let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   pop_frame ();
-  let connect_constant: struct_fixed_header_constant = s.connect_connect_constant in
+  let connect_constant: parse_result_constant = s.connect_connect_constant in
   {
     message_type = connect_constant.message_type_constant;
     message_name = connect_constant.message_name_constant;
@@ -869,7 +869,7 @@ let connect_packet_parser packet_data packet_size next_start_index =
 
 
 val connect_packet_parse_result: (share_common_data: struct_share_common_data)
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
     (requires fun h0 -> 
     logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
     U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 6))
@@ -877,8 +877,8 @@ val connect_packet_parse_result: (share_common_data: struct_share_common_data)
 let connect_packet_parse_result share_common_data =
   let connect_packet_seed: struct_connect_packet_seed = 
   connect_packet_parser share_common_data.common_packet_data share_common_data.common_packet_size  share_common_data.common_next_start_index in
-  let connect_constant: struct_fixed_header_constant =
-    get_struct_fixed_header_constant_except_publish share_common_data.common_message_type in
+  let connect_constant: parse_result_constant =
+    get_parse_result_constant_except_publish share_common_data.common_message_type in
   let connect_flag: U8.t = connect_packet_seed.connect_seed_connect_flag in
   let user_name_flag: U8.t = slice_byte connect_flag 0uy 1uy in
   let password_flag: U8.t = slice_byte connect_flag 1uy 2uy in
@@ -938,7 +938,7 @@ let connect_packet_parse_result share_common_data =
               code = define_error_connect_id_invalid_code;
               message = define_error_connect_id_invalid;
             }
-        ) in error_struct_fixed_header error_struct
+        ) in error_parse_result error_struct
     )
   else
     (

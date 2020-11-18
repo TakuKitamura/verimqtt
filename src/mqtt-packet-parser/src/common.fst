@@ -180,10 +180,10 @@ let get_message_type message_type_bits =
     message_type_bits
 
 #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
-val get_struct_fixed_header_constant_except_publish :
+val get_parse_result_constant_except_publish :
   (message_type: type_mqtt_control_packets_restrict)
-  -> struct_fixed_header_constant
-let get_struct_fixed_header_constant_except_publish message_type =
+  -> parse_result_constant
+let get_parse_result_constant_except_publish message_type =
   if (U8.eq message_type define_mqtt_control_packet_CONNECT) then
     {
       message_type_constant = define_mqtt_control_packet_CONNECT;
@@ -340,12 +340,12 @@ let get_struct_fixed_header_constant_except_publish message_type =
     }
 #reset-options
 
-val error_struct_fixed_header:
+val error_parse_result:
   (error_struct: struct_error_struct)
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
   (requires fun h0 -> true)
   (ensures fun h0 r h1 -> true)
-let error_struct_fixed_header error_struct = 
+let error_parse_result error_struct = 
 push_frame ();
 let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
 pop_frame ();
@@ -642,7 +642,7 @@ let share_common_data_check packet_data packet_size =
              message = define_error_flag_invalid;
             }
         ) in 
-        let error = error_struct_fixed_header error_struct in
+        let error = error_parse_result error_struct in
         let share_common_data_check: struct_share_common_data_check =
           {
             share_common_data_have_error = is_share_error;
@@ -666,7 +666,7 @@ let share_common_data_check packet_data packet_size =
             message = !$"";
           }
         ) in 
-        let no_error = error_struct_fixed_header error_struct in
+        let no_error = error_parse_result error_struct in
         let share_common_data: struct_share_common_data =
           {
             common_packet_data = packet_data;

@@ -15,12 +15,12 @@ module B = LowStar.Buffer
 // #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0"
 
 val assemble_disconnect_struct: s: struct_disconnect_parts
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
     (requires fun h0 -> true)
     (ensures fun h0 r h1 -> true)
 let assemble_disconnect_struct s =
   push_frame ();
-  let disconnect_constant: struct_fixed_header_constant = s.disconnect_disconnect_constant in
+  let disconnect_constant: parse_result_constant = s.disconnect_disconnect_constant in
   let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   pop_frame ();
   {
@@ -215,14 +215,14 @@ let disconnect_packet_parser packet_data packet_size next_start_index =
     } in disconnect_packet_seed_struct
 
 val disconnect_packet_parse_result: (share_common_data: struct_share_common_data)
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
     (requires fun h0 -> 
     logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
     U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data))
     (ensures fun h0 r h1 -> true)
 let disconnect_packet_parse_result share_common_data =
-  let disconnect_constant: struct_fixed_header_constant =
-    get_struct_fixed_header_constant_except_publish share_common_data.common_message_type in
+  let disconnect_constant: parse_result_constant =
+    get_parse_result_constant_except_publish share_common_data.common_message_type in
   if (share_common_data.common_remaining_length = 0ul) then // Reason Code, Property ともに省略
     (
       let disconnect_struct: struct_disconnect = {
@@ -269,7 +269,7 @@ let disconnect_packet_parse_result share_common_data =
                   code = define_error_property_error_code;
                   message = disconnect_property.property_type_struct.property_type_error.property_error_code_name;
                 }
-            in error_struct_fixed_header error_struct
+            in error_parse_result error_struct
           )
         else
           (
@@ -298,5 +298,5 @@ let disconnect_packet_parse_result share_common_data =
         {
           code = define_error_property_error_code;
           message = define_error_property_invalid;
-        } in error_struct_fixed_header error_struct
+        } in error_parse_result error_struct
     )
