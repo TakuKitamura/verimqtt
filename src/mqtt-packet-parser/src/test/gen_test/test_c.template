@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {{
     }}
 
     kremlinit_globals();
-    struct_fixed_header data = mqtt_packet_parse(request, packet_size);
+    parse_result data = mqtt_packet_parse(request, packet_size);
     Testing_test_start("{}");
 {}
     Testing_test_end();

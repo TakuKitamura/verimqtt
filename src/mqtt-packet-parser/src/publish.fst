@@ -25,7 +25,7 @@ val struct_fixed_publish:
   -> dup_flag:type_dup_flags_restrict
   -> qos_flag:type_qos_flags_restrict
   -> retain_flag:type_retain_flags_restrict
-  -> struct_fixed_header_constant
+  -> parse_result_constant
 let struct_fixed_publish flag dup_flag qos_flag retain_flag = {
   message_type_constant = define_mqtt_control_packet_PUBLISH;
   message_name_constant = define_mqtt_control_packet_PUBLISH_label;
@@ -38,7 +38,7 @@ let struct_fixed_publish flag dup_flag qos_flag retain_flag = {
 }
 
 val assemble_publish_struct: s: struct_publish_parts
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
     (requires fun h0 -> true)
     (ensures fun h0 r h1 -> true)
 let assemble_publish_struct s =
@@ -48,7 +48,7 @@ let assemble_publish_struct s =
   push_frame ();
   let empty_buffer: B.buffer U8.t = B.alloca 0uy 1ul in
   pop_frame ();
-  let data: struct_fixed_header_constant =
+  let data: parse_result_constant =
     struct_fixed_publish 
       s.publish_flag s.publish_dup_flag s.publish_qos_flag s.publish_retain_flag in
     {
@@ -420,7 +420,7 @@ let publish_packet_parser packet_data packet_size common_flag next_start_index =
 #reset-options
 
 val publish_packet_parse_result: (share_common_data: struct_share_common_data)
-  -> Stack (r: struct_fixed_header)
+  -> Stack (r: parse_result)
     (requires fun h0 -> 
     logic_packet_data h0 share_common_data.common_packet_data share_common_data.common_packet_size /\
     U32.v share_common_data.common_next_start_index < (B.length share_common_data.common_packet_data - 3))
@@ -489,7 +489,7 @@ let publish_packet_parse_result share_common_data =
               message = publish_packet_seed.publish_seed_property.property_type_struct.property_type_error.property_error_code_name;
             }
 
-        ) in error_struct_fixed_header error_struct
+        ) in error_parse_result error_struct
     )
   else
     (

@@ -21,18 +21,19 @@ with open(file_path, "r+b") as f:
             # hex_list_str += ']'
             break
         hex_str = format(ord(one_byte), '02X')
-        hex_list_str += '        request.({}ul) <- 0x{}uy;\n'.format(file_size, hex_str)
+        hex_list_str += '        request.({}ul) <- 0x{}uy;\n'.format(
+            file_size, hex_str)
         file_size += 1
 # request.(1ul) <- 0x02uy;
 file_size_str = str(file_size) + 'ul'
 
 out = \
-"""
+    """
 val {}: u:unit -> St unit
 let {} u =
     let request: B.buffer U8.t = B.malloc HyperStack.root 0uy {} in
 {}
-    let s : struct_fixed_header = parse request {} in
+    let s : parse_result = parse request {} in
         T.eq_str !$"TEST_TITLE message_name check" !$"???" s.message_name;
         T.eq_u8 !$"TEST_TITLE message_type check" ???uy s.message_type;
         T.eq_u8 !$"TEST_TITLE flag check" ???uy s.flags.flag;

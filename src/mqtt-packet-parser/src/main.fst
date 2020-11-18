@@ -22,7 +22,7 @@ open Debug
 #set-options "--z3rlimit 1000 --max_fuel 0 --max_ifuel 0 --detail_errors"
 
 val mqtt_packet_parse (packet_data: B.buffer U8.t) (packet_size: type_packet_size):
-  Stack struct_fixed_header
+  Stack parse_result
     (requires (fun h -> logic_packet_data h packet_data packet_size))
     (ensures (fun h0 _ h1 -> B.live h0 packet_data /\ B.live h1 packet_data))
 let mqtt_packet_parse packet_data packet_size =
@@ -60,7 +60,7 @@ let mqtt_packet_parse packet_data packet_size =
                 message = define_error_message_type_invalid;
             } in
           unimplemented "Unknown Packet type.\n";
-          error_struct_fixed_header error_struct
+          error_parse_result error_struct
         )
     )
 #reset-options

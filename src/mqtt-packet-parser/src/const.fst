@@ -160,7 +160,7 @@ type struct_flags = {
   retain_flag: type_retain_flags_restrict;
 }
 
-type struct_fixed_header_constant = {
+type parse_result_constant = {
   message_type_constant: type_mqtt_control_packets_restrict;
   message_name_constant: type_message_name_restrict;
   flags_constant: struct_flags;
@@ -921,7 +921,7 @@ noeq type struct_connect = {
   // connect_property: struct_connect_property;
 }  
 
-noeq type struct_fixed_header = {
+noeq type parse_result = {
   message_type: type_mqtt_control_packets_restrict;
   message_name: type_message_name_restrict;
   flags: struct_flags;
@@ -935,14 +935,14 @@ noeq type struct_fixed_header = {
 
 noeq type struct_connect_parts = {
   connect_remaining_length: type_remaining_length;
-  connect_connect_constant: struct_fixed_header_constant;
+  connect_connect_constant: parse_result_constant;
   connect_struct: struct_connect;
   connect_property: struct_property;
 }
 
 noeq type struct_disconnect_parts = {
   disconnect_remaining_length: type_remaining_length;
-  disconnect_disconnect_constant: struct_fixed_header_constant;
+  disconnect_disconnect_constant: parse_result_constant;
   disconnect_struct: struct_disconnect;
   property: struct_property;
 }
@@ -964,7 +964,7 @@ noeq type struct_share_common_data = {
 
 noeq type struct_share_common_data_check = {
   share_common_data_have_error: bool;
-  share_common_data_error: struct_fixed_header;
+  share_common_data_error: parse_result;
   share_common_data: struct_share_common_data;
 }
 
